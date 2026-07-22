@@ -1,0 +1,106 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  --primary: #2563eb;
+  --primary-hover: #1d4ed8;
+  --destructive: #ef4444;
+  --success: #16a34a;
+  --warning: #f59e0b;
+}
+
+body {
+  @apply bg-background text-text-primary antialiased;
+}
+
+/* Angka rata (jam, statistik) */
+.tabular-nums {
+  font-variant-numeric: tabular-nums;
+}
+
+/* Scrollbar halus (WebKit) */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: #cbd5e1;
+  border-radius: 9999px;
+  border: 2px solid transparent;
+  background-clip: content-box;
+}
+::-webkit-scrollbar-thumb:hover {
+  background-color: #94a3b8;
+  background-clip: content-box;
+}
+
+/* Leaflet container harus punya tinggi eksplisit */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  z-index: 0;
+  font-family: inherit;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 1rem;
+  box-shadow: 0 16px 40px -12px rgb(15 23 42 / 0.22);
+}
+
+/* Marker avatar kustom untuk peta */
+.geoattend-marker {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  border-radius: 9999px;
+  background: var(--primary);
+  color: white;
+  font-weight: 600;
+  font-size: 13px;
+  border: 3px solid white;
+  box-shadow: 0 2px 6px rgb(0 0 0 / 0.3);
+}
+
+.geoattend-marker--outside {
+  background: var(--destructive);
+}
+
+/* Marker pelacakan live: hijau dengan denyut */
+.geoattend-marker--live {
+  background: var(--success);
+  animation: geoattend-pulse 2s ease-out infinite;
+}
+
+@keyframes geoattend-pulse {
+  0% {
+    box-shadow:
+      0 2px 6px rgb(0 0 0 / 0.3),
+      0 0 0 0 rgba(34, 197, 94, 0.55);
+  }
+  70% {
+    box-shadow:
+      0 2px 6px rgb(0 0 0 / 0.3),
+      0 0 0 14px rgba(34, 197, 94, 0);
+  }
+  100% {
+    box-shadow:
+      0 2px 6px rgb(0 0 0 / 0.3),
+      0 0 0 0 rgba(34, 197, 94, 0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

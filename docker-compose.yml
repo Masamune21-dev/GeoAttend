@@ -1,0 +1,44 @@
+version: '3.8'
+
+services:
+  db:
+    image: postgis/postgis:16-3.4
+    container_name: geoattend-db
+    environment:
+      POSTGRES_DB: geoattend
+      POSTGRES_USER: geoattend
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-geoattend_dev_password}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    ports:
+      - '5432:5432'
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U geoattend']
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # Layanan app hanya untuk deployment production.
+  # Untuk development: `docker compose up -d db` lalu `npm run dev`
+  app:
+    build: .
+    container_name: geoattend-app
+    profiles: ['production']
+    ports:
+      - '3000:3000'
+    environment:
+      DATABASE_URL: postgresql://geoattend:${DB_PASSWORD:-geoattend_dev_password}@db:5432/geoattend
+      BETTER_AUTH_SECRET: ${BETTER_AUTH_SECRET}
+      BETTER_AUTH_URL: ${APP_URL:-http://localhost:3000}
+      UPLOAD_DIR: /app/uploads
+    volumes:
+      - uploads:/app/uploads
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  pgdata:
+  uploads:
