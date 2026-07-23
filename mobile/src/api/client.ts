@@ -71,6 +71,9 @@ export async function api<T>(path: string, init?: RequestInit): Promise<T> {
 
   const headers: Record<string, string> = {
     'Content-Type': 'application/json',
+    // React Native tidak mengirim header Origin otomatis (beda dengan browser) —
+    // Better Auth menolak request tanpa Origin ("Missing or null Origin").
+    Origin: serverUrl,
     ...(init?.headers as Record<string, string> | undefined),
   };
   if (token) headers.Authorization = `Bearer ${token}`;
