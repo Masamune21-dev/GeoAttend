@@ -8,6 +8,7 @@ import {
   Pressable,
   View,
 } from 'react-native';
+import { MapPin } from 'lucide-react-native';
 import { useSession } from '../auth/session';
 import { getServerUrl, loadApiState, ApiRequestError } from '../api/client';
 import { Button, Card, Field, PasswordField } from '../components/ui';
@@ -60,7 +61,9 @@ export function LoginScreen() {
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.brand}>
-          <Text style={styles.brandIcon}>📍</Text>
+          <View style={styles.brandIconWrap}>
+            <MapPin size={34} color={colors.primary} strokeWidth={2.2} />
+          </View>
           <Text style={styles.brandName}>GeoAttend</Text>
           <Text style={styles.brandTagline}>Absensi dengan verifikasi lokasi & foto</Text>
         </View>
@@ -127,7 +130,15 @@ const styles = StyleSheet.create({
     gap: spacing.xl,
   },
   brand: { alignItems: 'center', gap: 4 },
-  brandIcon: { fontSize: 40 },
+  brandIconWrap: {
+    width: 68,
+    height: 68,
+    borderRadius: 34,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 6,
+  },
   brandName: { fontSize: 28, fontWeight: '700', color: '#FFFFFF' },
   brandTagline: { fontSize: 14, color: 'rgba(255,255,255,0.85)' },
   title: { fontSize: 22, fontWeight: '700', color: colors.textPrimary },

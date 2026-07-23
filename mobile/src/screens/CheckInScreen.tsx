@@ -13,6 +13,16 @@ import {
 import * as Location from 'expo-location';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import {
+  Camera,
+  CircleCheck,
+  LogIn,
+  LogOut,
+  Satellite,
+  SwitchCamera,
+  TriangleAlert,
+  X,
+} from 'lucide-react-native';
 import { api, ApiRequestError } from '../api/client';
 import type {
   AttendanceRecordResponse,
@@ -214,13 +224,34 @@ export function CheckInScreen() {
       await loadData().catch(() => undefined);
 
       if (nextType === 'clock_in') {
-        const ok = await startTracking();
-        Alert.alert(
-          'Absen masuk tercatat ✓',
-          ok
-            ? 'Posisi Anda akan terpantau selama jam kerja.'
-            : 'Absen tercatat, tapi izin lokasi background ditolak — pelacakan live tidak aktif.'
-        );
+        // Izin "sepanjang waktu" sudah ada → langsung mulai tracking.
+        // Belum ada → jelaskan dulu bahwa Android akan MEMBUKA PENGATURAN
+        // (bukan keluar aplikasi), lalu biarkan user memilih.
+        const bg = await Location.getBackgroundPermissionsAsync();
+        if (bg.granted) {
+          await startTracking();
+          Alert.alert('Absen masuk tercatat ✓', 'Posisi Anda terpantau selama jam kerja.');
+        } else {
+          Alert.alert(
+            'Absen masuk tercatat ✓',
+            'Agar posisi tetap terpantau saat aplikasi ditutup, izin lokasi perlu diubah ke "Izinkan sepanjang waktu".\n\nHP akan membuka halaman Pengaturan — setelah memilih, kembali ke aplikasi ini.',
+            [
+              { text: 'Nanti Saja', style: 'cancel' },
+              {
+                text: 'Aktifkan Pelacakan',
+                onPress: async () => {
+                  const ok = await startTracking();
+                  if (!ok) {
+                    Alert.alert(
+                      'Pelacakan tidak aktif',
+                      'Izin "sepanjang waktu" belum diberikan. Posisi hanya terkirim saat aplikasi terbuka.'
+                    );
+                  }
+                },
+              },
+            ]
+          );
+        }
       } else {
         await stopTracking();
         Alert.alert('Absen pulang tercatat ✓', 'Pelacakan posisi dihentikan. Selamat beristirahat!');
@@ -264,9 +295,16 @@ export function CheckInScreen() {
     >
       {/* Header status */}
       <Card>
-        <Text style={styles.title}>
-          {nextType === 'clock_in' ? '📥 Absen Masuk' : '📤 Absen Pulang'}
-        </Text>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
+          {nextType === 'clock_in' ? (
+            <LogIn size={24} color={colors.primary} strokeWidth={2.4} />
+          ) : (
+            <LogOut size={24} color={colors.warning} strokeWidth={2.4} />
+          )}
+          <Text style={styles.title}>
+            {nextType === 'clock_in' ? 'Absen Masuk' : 'Absen Pulang'}
+          </Text>
+        </View>
         {lastRecord && (
           <Text style={styles.subtle}>
             Terakhir: {lastRecord.type === 'clock_in' ? 'masuk' : 'pulang'}
@@ -319,8 +357,9 @@ export function CheckInScreen() {
             <Text style={{ color: '#B91C1C' }}>{geoError}</Text>
           </View>
         ) : !coords ? (
-          <View style={[styles.statusBox, { backgroundColor: '#F1F5F9' }]}>
-            <Text style={{ color: colors.textSecondary }}>📡 Mencari sinyal GPS...</Text>
+          <View style={[styles.statusBox, styles.statusRow, { backgroundColor: '#F1F5F9' }]}>
+            <Satellite size={18} color={colors.textSecondary} />
+            <Text style={{ color: colors.textSecondary }}>Mencari sinyal GPS...</Text>
           </View>
         ) : (
           <>
@@ -330,18 +369,26 @@ export function CheckInScreen() {
                 { backgroundColor: isInside || !geofence ? colors.successSubtle : colors.destructiveSubtle },
               ]}
             >
-              <Text
-                style={{
-                  color: isInside || !geofence ? '#15803D' : '#B91C1C',
-                  fontWeight: '600',
-                }}
-              >
-                {!geofence
-                  ? 'Area absensi belum dikonfigurasi'
-                  : isInside
-                    ? '✓ Anda berada di dalam area absensi'
-                    : '✗ Anda di luar area absensi'}
-              </Text>
+              <View style={styles.statusRow}>
+                {isInside || !geofence ? (
+                  <CircleCheck size={18} color="#15803D" />
+                ) : (
+                  <TriangleAlert size={18} color="#B91C1C" />
+                )}
+                <Text
+                  style={{
+                    flex: 1,
+                    color: isInside || !geofence ? '#15803D' : '#B91C1C',
+                    fontWeight: '600',
+                  }}
+                >
+                  {!geofence
+                    ? 'Area absensi belum dikonfigurasi'
+                    : isInside
+                      ? 'Anda berada di dalam area absensi'
+                      : 'Anda di luar area absensi'}
+                </Text>
+              </View>
               {geofence && distanceMeters != null && (
                 <Text style={styles.subtle}>
                   {geofence.name} · radius {Math.round(geofence.radiusMeters)} m · jarak Anda{' '}
@@ -350,9 +397,10 @@ export function CheckInScreen() {
               )}
             </View>
             {gpsWeak && (
-              <View style={[styles.statusBox, { backgroundColor: colors.warningSubtle }]}>
-                <Text style={{ color: '#B45309' }}>
-                  ⚠️ Sinyal GPS lemah (±{Math.round(coords.accuracy ?? 0)}m). Pindah ke area
+              <View style={[styles.statusBox, styles.statusRow, { backgroundColor: colors.warningSubtle }]}>
+                <TriangleAlert size={18} color="#B45309" />
+                <Text style={{ flex: 1, color: '#B45309' }}>
+                  Sinyal GPS lemah (±{Math.round(coords.accuracy ?? 0)}m). Pindah ke area
                   terbuka untuk hasil akurat.
                 </Text>
               </View>
@@ -370,7 +418,7 @@ export function CheckInScreen() {
             <Button title="Ambil Ulang" variant="outline" onPress={() => setPhoto(null)} />
           </>
         ) : (
-          <Button title="📷 Ambil Foto" variant="outline" onPress={openCamera} />
+          <Button title="Ambil Foto" icon={Camera} variant="outline" onPress={openCamera} />
         )}
 
         {photo && (
@@ -409,6 +457,7 @@ export function CheckInScreen() {
           <CameraView ref={cameraRef} style={{ flex: 1 }} facing={facing} />
           <View style={styles.cameraControls}>
             <Pressable onPress={() => setCameraOpen(false)} style={styles.cameraSide}>
+              <X size={26} color="#FFF" />
               <Text style={styles.cameraSideText}>Batal</Text>
             </Pressable>
             <Pressable
@@ -420,7 +469,8 @@ export function CheckInScreen() {
               onPress={() => setFacing((f) => (f === 'front' ? 'back' : 'front'))}
               style={styles.cameraSide}
             >
-              <Text style={styles.cameraSideText}>🔄 Balik</Text>
+              <SwitchCamera size={26} color="#FFF" />
+              <Text style={styles.cameraSideText}>Balik</Text>
             </Pressable>
           </View>
         </View>
@@ -435,6 +485,7 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   subtle: { fontSize: 13, color: colors.textSecondary },
   statusBox: { borderRadius: 10, padding: 12, gap: 4 },
+  statusRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   shiftButton: {
     flex: 1,
     alignItems: 'center',

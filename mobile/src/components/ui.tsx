@@ -1,4 +1,4 @@
-import { useState, type ReactNode } from 'react';
+import { useState, type ComponentType, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Pressable,
@@ -10,7 +10,11 @@ import {
   type StyleProp,
   type ViewStyle,
 } from 'react-native';
+import { Eye, EyeOff } from 'lucide-react-native';
 import { colors, radius, spacing } from '../theme';
+
+/** Tipe komponen ikon lucide-react-native. */
+export type IconType = ComponentType<{ size?: number; color?: string; strokeWidth?: number }>;
 
 // ---------- Button ----------
 
@@ -20,6 +24,7 @@ interface ButtonProps {
   variant?: 'primary' | 'outline' | 'destructive' | 'success' | 'warning';
   disabled?: boolean;
   loading?: boolean;
+  icon?: IconType;
   style?: StyleProp<ViewStyle>;
 }
 
@@ -29,6 +34,7 @@ export function Button({
   variant = 'primary',
   disabled,
   loading,
+  icon: Icon,
   style,
 }: ButtonProps) {
   const bg =
@@ -56,7 +62,11 @@ export function Button({
         style,
       ]}
     >
-      {loading && <ActivityIndicator size="small" color={fg} />}
+      {loading ? (
+        <ActivityIndicator size="small" color={fg} />
+      ) : (
+        Icon && <Icon size={18} color={fg} strokeWidth={2.2} />
+      )}
       <Text style={[styles.buttonText, { color: fg }]}>{title}</Text>
     </Pressable>
   );
@@ -103,7 +113,11 @@ export function PasswordField({ label, hint, style, ...props }: FieldProps) {
           accessibilityLabel={visible ? 'Sembunyikan kata sandi' : 'Tampilkan kata sandi'}
           style={styles.eyeButton}
         >
-          <Text style={{ fontSize: 18 }}>{visible ? '🙈' : '👁️'}</Text>
+          {visible ? (
+            <EyeOff size={20} color={colors.textSecondary} />
+          ) : (
+            <Eye size={20} color={colors.textSecondary} />
+          )}
         </Pressable>
       </View>
       {hint ? <Text style={styles.hint}>{hint}</Text> : null}

@@ -1,5 +1,6 @@
 import { Alert, ScrollView, StyleSheet, Text, View } from 'react-native';
 import Constants from 'expo-constants';
+import { LogOut } from 'lucide-react-native';
 import { useSession } from '../auth/session';
 import { getServerUrl } from '../api/client';
 import { Badge, Button, Card } from '../components/ui';
@@ -63,7 +64,7 @@ export function ProfileScreen() {
         </Text>
       </Card>
 
-      <Button title="Keluar" variant="destructive" onPress={handleSignOut} />
+      <Button title="Keluar" icon={LogOut} variant="destructive" onPress={handleSignOut} />
     </ScrollView>
   );
 }

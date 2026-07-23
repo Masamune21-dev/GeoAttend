@@ -6,6 +6,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { LogIn, LogOut, StickyNote } from 'lucide-react-native';
 import { api } from '../api/client';
 import type { AttendanceRecordResponse, PaginatedResponse } from '../api/types';
 import { formatDate, formatDistance, formatTime } from '../lib/geo';
@@ -41,8 +42,17 @@ export function HistoryScreen() {
     const isIn = item.type === 'clock_in';
     return (
       <Card style={styles.item}>
-        <View style={styles.iconWrap}>
-          <Text style={{ fontSize: 20 }}>{isIn ? '📥' : '📤'}</Text>
+        <View
+          style={[
+            styles.iconWrap,
+            !isIn && { backgroundColor: colors.warningSubtle },
+          ]}
+        >
+          {isIn ? (
+            <LogIn size={20} color={colors.primary} strokeWidth={2.2} />
+          ) : (
+            <LogOut size={20} color={colors.warning} strokeWidth={2.2} />
+          )}
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <Text style={styles.itemTitle}>
@@ -53,7 +63,12 @@ export function HistoryScreen() {
             {formatDate(item.timestamp)} · {formatTime(item.timestamp)} ·{' '}
             {formatDistance(item.distanceFromCenter)} dari pusat
           </Text>
-          {item.notes ? <Text style={styles.subtle}>📝 {item.notes}</Text> : null}
+          {item.notes ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <StickyNote size={12} color={colors.textSecondary} />
+              <Text style={[styles.subtle, { flex: 1 }]}>{item.notes}</Text>
+            </View>
+          ) : null}
         </View>
         <Badge
           text={item.isWithinGeofence ? 'Dalam area' : 'Luar area'}

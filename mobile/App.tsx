@@ -1,8 +1,9 @@
-import { ActivityIndicator, Text, View } from 'react-native';
+import { ActivityIndicator, View } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
+import { Camera, CalendarOff, History, UserRound } from 'lucide-react-native';
 import { SessionProvider, useSession } from './src/auth/session';
 import { LoginScreen } from './src/screens/LoginScreen';
 import { CheckInScreen } from './src/screens/CheckInScreen';
@@ -10,14 +11,15 @@ import { LeavesScreen } from './src/screens/LeavesScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { colors } from './src/theme';
+import type { IconType } from './src/components/ui';
 
 const Tab = createBottomTabNavigator();
 
-const TAB_ICONS: Record<string, string> = {
-  Absen: '📷',
-  Izin: '🌴',
-  Riwayat: '📅',
-  Profil: '👤',
+const TAB_ICONS: Record<string, IconType> = {
+  Absen: Camera,
+  Izin: CalendarOff,
+  Riwayat: History,
+  Profil: UserRound,
 };
 
 function Root() {
@@ -39,11 +41,10 @@ function Root() {
         headerTitleStyle: { fontWeight: '700', color: colors.textPrimary },
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textSecondary,
-        tabBarIcon: ({ focused }) => (
-          <Text style={{ fontSize: 20, opacity: focused ? 1 : 0.55 }}>
-            {TAB_ICONS[route.name] ?? '•'}
-          </Text>
-        ),
+        tabBarIcon: ({ color, focused }) => {
+          const Icon = TAB_ICONS[route.name] ?? Camera;
+          return <Icon size={23} color={color} strokeWidth={focused ? 2.4 : 2} />;
+        },
       })}
     >
       <Tab.Screen name="Absen" component={CheckInScreen} options={{ title: 'Absensi' }} />

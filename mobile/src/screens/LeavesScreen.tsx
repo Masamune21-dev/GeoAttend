@@ -10,6 +10,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { CalendarPlus, TreePalm } from 'lucide-react-native';
 import { api, ApiRequestError } from '../api/client';
 import type { LeaveRequestResponse, LeaveType } from '../api/types';
 import { toLocalDateString } from '../lib/geo';
@@ -181,20 +182,23 @@ export function LeavesScreen() {
           <View style={{ gap: spacing.md, marginBottom: spacing.lg }}>
             {todayLibur ? (
               <View style={styles.liburBanner}>
+                <TreePalm size={18} color="#B45309" />
                 <Text style={{ color: '#B45309', fontWeight: '600' }}>
-                  🌴 Hari ini tercatat Libur
+                  Hari ini tercatat Libur
                 </Text>
               </View>
             ) : (
               <View style={{ flexDirection: 'row', gap: spacing.md }}>
                 <Button
-                  title="🌴 Libur Hari Ini"
+                  title="Libur Hari Ini"
+                  icon={TreePalm}
                   variant="outline"
                   style={{ flex: 1 }}
                   onPress={markLibur}
                 />
                 <Button
-                  title="📅 Ajukan Izin"
+                  title="Ajukan Izin"
+                  icon={CalendarPlus}
                   variant="outline"
                   style={{ flex: 1 }}
                   onPress={() => setFormOpen(true)}
@@ -301,7 +305,10 @@ const styles = StyleSheet.create({
     backgroundColor: colors.warningSubtle,
     borderRadius: 10,
     padding: 14,
+    flexDirection: 'row',
+    justifyContent: 'center',
     alignItems: 'center',
+    gap: 8,
   },
   typeButton: {
     flex: 1,
