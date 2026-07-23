@@ -1,37 +1,45 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import {
   KeyboardAvoidingView,
+  Modal,
   Platform,
+  Pressable,
   ScrollView,
   StyleSheet,
   Text,
-  Pressable,
   View,
 } from 'react-native';
-import { MapPin } from 'lucide-react-native';
+import { MapPin, ServerCog, X } from 'lucide-react-native';
 import { useSession } from '../auth/session';
 import { getServerUrl, loadApiState, ApiRequestError } from '../api/client';
 import { Button, Card, Field, PasswordField } from '../components/ui';
-import { colors, spacing } from '../theme';
+import { colors, radius, spacing } from '../theme';
 
 export function LoginScreen() {
   const { signIn } = useSession();
-  const scrollRef = useRef<ScrollView>(null);
-  const [serverUrl, setServerUrlInput] = useState('');
-  const [showServer, setShowServer] = useState(false);
-
-  /** Field server ada di bagian bawah — pastikan tidak tertutup keyboard. */
-  const scrollToServerField = () => {
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 250);
-  };
+  const [serverUrl, setServerUrlState] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
+  // Modal pengaturan server (draft terpisah agar bisa dibatalkan)
+  const [serverModalOpen, setServerModalOpen] = useState(false);
+  const [serverDraft, setServerDraft] = useState('');
+
   useEffect(() => {
-    loadApiState().then(() => setServerUrlInput(getServerUrl()));
+    loadApiState().then(() => setServerUrlState(getServerUrl()));
   }, []);
+
+  const openServerModal = () => {
+    setServerDraft(serverUrl);
+    setServerModalOpen(true);
+  };
+
+  const saveServerModal = () => {
+    setServerUrlState(serverDraft.trim() || getServerUrl());
+    setServerModalOpen(false);
+  };
 
   const handleLogin = async () => {
     setError(null);
@@ -57,14 +65,15 @@ export function LoginScreen() {
     }
   };
 
+  const serverLabel = serverUrl.replace(/^https?:\/\//, '');
+
   return (
     <KeyboardAvoidingView
       style={{ flex: 1, backgroundColor: colors.primary }}
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        ref={scrollRef}
-        contentContainerStyle={[styles.container, showServer && { paddingBottom: 140 }]}
+        contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.brand}>
@@ -105,34 +114,52 @@ export function LoginScreen() {
 
           <Button title={loading ? 'Memproses...' : 'Masuk'} onPress={handleLogin} loading={loading} />
 
-          <Pressable
-            onPress={() => {
-              setShowServer((v) => {
-                if (!v) scrollToServerField();
-                return !v;
-              });
-            }}
-          >
-            <Text style={styles.serverToggle}>
-              {showServer ? '▴ Sembunyikan pengaturan server' : '▾ Pengaturan server'}
-            </Text>
+          <Pressable onPress={openServerModal} style={styles.serverRow}>
+            <ServerCog size={15} color={colors.textSecondary} />
+            <Text style={styles.serverToggle}>{serverLabel}</Text>
           </Pressable>
-          {showServer && (
+        </Card>
+
+        <Text style={styles.footer}>KusumaVision</Text>
+      </ScrollView>
+
+      {/* Modal pengaturan server — kartu di ATAS layar agar tak tertutup keyboard */}
+      <Modal
+        visible={serverModalOpen}
+        animationType="fade"
+        transparent
+        onRequestClose={() => setServerModalOpen(false)}
+      >
+        <Pressable style={styles.modalOverlay} onPress={() => setServerModalOpen(false)}>
+          <Pressable style={styles.modalCard} onPress={(e) => e.stopPropagation()}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Pengaturan Server</Text>
+              <Pressable onPress={() => setServerModalOpen(false)} hitSlop={8}>
+                <X size={22} color={colors.textSecondary} />
+              </Pressable>
+            </View>
             <Field
               label="Alamat Server"
-              value={serverUrl}
-              onChangeText={setServerUrlInput}
-              onFocus={scrollToServerField}
+              value={serverDraft}
+              onChangeText={setServerDraft}
+              autoFocus
               autoCapitalize="none"
               keyboardType="url"
               placeholder="https://absensi.kusumavision.net"
               hint="Ubah hanya bila diminta administrator"
             />
-          )}
-        </Card>
-
-        <Text style={styles.footer}>KusumaVision</Text>
-      </ScrollView>
+            <View style={{ flexDirection: 'row', gap: spacing.md }}>
+              <Button
+                title="Batal"
+                variant="outline"
+                style={{ flex: 1 }}
+                onPress={() => setServerModalOpen(false)}
+              />
+              <Button title="Simpan" style={{ flex: 1 }} onPress={saveServerModal} />
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </KeyboardAvoidingView>
   );
 }
@@ -164,10 +191,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10,
   },
-  serverToggle: {
-    textAlign: 'center',
-    color: colors.textSecondary,
-    fontSize: 13,
+  serverRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 2,
   },
+  serverToggle: { color: colors.textSecondary, fontSize: 13 },
   footer: { textAlign: 'center', color: 'rgba(255,255,255,0.7)', fontSize: 12 },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.55)',
+    paddingHorizontal: spacing.xl,
+    paddingTop: 80,
+  },
+  modalCard: {
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    padding: spacing.xl,
+    gap: spacing.lg,
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  modalTitle: { fontSize: 18, fontWeight: '700', color: colors.textPrimary },
 });
