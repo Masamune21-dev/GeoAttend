@@ -1,9 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { asc, ilike, or, eq, and, sql, type SQL } from 'drizzle-orm';
-import { APIError } from 'better-auth/api';
 import { db } from '@/lib/db';
 import { user } from '@/lib/db/schema';
-import { auth, runWithSignupBypass } from '@/lib/auth';
+import { auth } from '@/lib/auth';
 import {
   getApiSession,
   isAdmin,
@@ -98,41 +97,64 @@ export async function POST(req: NextRequest) {
     }
 
     const input = parsed.data;
+    const email = input.email.toLowerCase();
 
-    // Buat user + password hash via Better Auth (tanpa mengganggu session admin).
-    // runWithSignupBypass: pembuatan oleh administrator tidak butuh kode pendaftaran.
-    try {
-      await runWithSignupBypass(() =>
-        auth.api.signUpEmail({
-          body: {
-            name: input.name,
-            email: input.email,
-            password: input.password,
-          },
-        })
+    // Buat user + credential account (hash password) langsung lewat internal
+    // adapter Better Auth. Sengaja TIDAK lewat auth.api.signUpEmail agar:
+    //  - tidak butuh kode pendaftaran (ini pembuatan internal oleh admin),
+    //  - bebas efek samping autoSignIn (pembuatan session/cookie sisi server
+    //    yang bisa gagal & menyisakan user tanpa kredensial),
+    //  - dijamin membuat baris account 'credential' berisi password — tanpa
+    //    baris ini, akun tak akan pernah bisa dipakai login.
+    const ctx = await auth.$context;
+
+    const existing = await ctx.internalAdapter.findUserByEmail(email);
+    if (existing?.user) {
+      return NextResponse.json(
+        { code: 'USER_ALREADY_EXISTS', message: 'Email sudah terdaftar', timestamp: new Date().toISOString() },
+        { status: 409 }
       );
+    }
+
+    const hashedPassword = await ctx.password.hash(input.password);
+
+    let createdUser;
+    try {
+      createdUser = await ctx.internalAdapter.createUser({
+        name: input.name,
+        email,
+        emailVerified: false,
+      });
     } catch (error) {
-      if (error instanceof APIError) {
-        const code = (error.body as { code?: string } | undefined)?.code;
-        if (code === 'USER_ALREADY_EXISTS') {
-          return NextResponse.json(
-            { code, message: 'Email sudah terdaftar', timestamp: new Date().toISOString() },
-            { status: 409 }
-          );
-        }
+      // Balapan unik email (dua permintaan bersamaan)
+      if ((error as { code?: string }).code === '23505') {
         return NextResponse.json(
-          { code: code ?? 'AUTH_ERROR', message: error.message, timestamp: new Date().toISOString() },
-          { status: 400 }
+          { code: 'USER_ALREADY_EXISTS', message: 'Email sudah terdaftar', timestamp: new Date().toISOString() },
+          { status: 409 }
         );
       }
       throw error;
     }
 
-    // Set role sesuai pilihan administrator
+    try {
+      await ctx.internalAdapter.linkAccount({
+        userId: createdUser.id,
+        providerId: 'credential',
+        accountId: createdUser.id,
+        password: hashedPassword,
+      });
+    } catch (error) {
+      // Jangan tinggalkan user tanpa kredensial (akun hantu yang tak bisa login)
+      await db.delete(user).where(eq(user.id, createdUser.id));
+      throw error;
+    }
+
+    // Set role sesuai pilihan administrator (cocokkan lewat id, bukan email —
+    // email tersimpan lowercase sehingga pencocokan email mentah bisa meleset)
     const updated = await db
       .update(user)
       .set({ role: input.role, updatedAt: new Date() })
-      .where(eq(user.email, input.email))
+      .where(eq(user.id, createdUser.id))
       .returning({
         id: user.id,
         name: user.name,
