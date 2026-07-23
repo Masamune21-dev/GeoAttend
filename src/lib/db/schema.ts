@@ -167,6 +167,85 @@ export const leaveRequests = pgTable(
   })
 );
 
+/**
+ * Jadwal shift per-karyawan (role admin & noc). Satu baris = shift seorang
+ * karyawan pada satu tanggal, diisi administrator (grid bulanan + rotasi).
+ * Tanggal disimpan "yyyy-MM-dd" (lokal), konsisten dengan leave_requests.
+ */
+export const scheduleEntries = pgTable(
+  'schedule_entries',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: text('user_id')
+      .references(() => user.id, { onDelete: 'cascade' })
+      .notNull(),
+    date: varchar('date', { length: 10 }).notNull(), // "yyyy-MM-dd"
+    shift: varchar('shift', { length: 10 }).notNull(), // '1' | '2' | 'libur'
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    userDateUnique: uniqueIndex('schedule_entries_user_date_idx').on(table.userId, table.date),
+    dateIdx: index('schedule_entries_date_idx').on(table.date),
+  })
+);
+
+/**
+ * Pengajuan tukar shift antar karyawan (satu role, beda shift, tanggal ke depan).
+ * Alur: pengaju → rekan (target) setuju → administrator setujui → jadwal ditukar.
+ */
+export const shiftSwapRequests = pgTable(
+  'shift_swap_requests',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    requesterId: text('requester_id')
+      .references(() => user.id, { onDelete: 'cascade' })
+      .notNull(),
+    targetId: text('target_id')
+      .references(() => user.id, { onDelete: 'cascade' })
+      .notNull(),
+    date: varchar('date', { length: 10 }).notNull(), // "yyyy-MM-dd"
+    requesterShift: varchar('requester_shift', { length: 10 }).notNull(), // '1' | '2'
+    targetShift: varchar('target_shift', { length: 10 }).notNull(),
+    // 'pending_peer' | 'pending_admin' | 'approved' | 'rejected' | 'cancelled'
+    status: varchar('status', { length: 20 }).default('pending_peer').notNull(),
+    reason: text('reason'),
+    peerRespondedAt: timestamp('peer_responded_at'),
+    reviewedBy: text('reviewed_by').references(() => user.id),
+    reviewedAt: timestamp('reviewed_at'),
+    reviewNote: text('review_note'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    targetStatusIdx: index('shift_swap_target_status_idx').on(table.targetId, table.status),
+    requesterIdx: index('shift_swap_requester_idx').on(table.requesterId),
+    dateIdx: index('shift_swap_date_idx').on(table.date),
+  })
+);
+
+/**
+ * Piket kebersihan: satu karyawan bertugas ngepel per hari (bergiliran).
+ * `done` ditandai oleh yang bertugas saat sudah melakukan piket.
+ */
+export const piketAssignments = pgTable(
+  'piket_assignments',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    date: varchar('date', { length: 10 }).notNull(), // "yyyy-MM-dd"
+    userId: text('user_id')
+      .references(() => user.id, { onDelete: 'cascade' })
+      .notNull(),
+    done: boolean('done').default(false).notNull(),
+    doneAt: timestamp('done_at'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    dateUnique: uniqueIndex('piket_assignments_date_idx').on(table.date),
+  })
+);
+
 export const attendanceRecords = pgTable(
   'attendance_records',
   {

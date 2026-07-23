@@ -3,7 +3,9 @@
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import {
+  CalendarClock,
   CalendarDays,
+  CalendarRange,
   Camera,
   ClipboardCheck,
   FileSpreadsheet,
@@ -28,6 +30,7 @@ export function DesktopSidebar({ isAdmin, appName = APP_NAME, logoUrl }: Desktop
 
   const mainItems = [
     { href: '/checkin', label: 'Absensi', icon: Camera },
+    { href: '/schedule', label: 'Jadwal Saya', icon: CalendarRange },
     { href: '/history', label: 'Riwayat', icon: CalendarDays },
     { href: '/profile', label: 'Profil', icon: User },
   ];
@@ -37,6 +40,7 @@ export function DesktopSidebar({ isAdmin, appName = APP_NAME, logoUrl }: Desktop
     { href: '/admin/live-map', label: 'Peta Live', icon: Map },
     { href: '/admin/reports', label: 'Rekap Bulanan', icon: FileSpreadsheet },
     { href: '/admin/leaves', label: 'Persetujuan Izin', icon: ClipboardCheck },
+    { href: '/admin/schedule', label: 'Jadwal Shift', icon: CalendarClock },
     { href: '/admin/users', label: 'Pengguna', icon: Users },
     { href: '/admin/settings', label: 'Pengaturan', icon: Settings },
   ];

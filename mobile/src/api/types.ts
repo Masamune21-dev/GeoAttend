@@ -68,3 +68,65 @@ export interface LeaveRequestResponse {
   reviewNote: string | null;
   createdAt: string;
 }
+
+// --- Jadwal Shift, Tukar Shift, Piket ---
+
+export type ScheduleShift = '1' | '2' | 'libur';
+
+export interface ScheduleEntry {
+  userId: string;
+  date: string; // "yyyy-MM-dd"
+  shift: ScheduleShift;
+}
+
+export interface ScheduleUser {
+  id: string;
+  name: string;
+  role: string;
+}
+
+export interface ScheduleResponse {
+  users: ScheduleUser[];
+  entries: ScheduleEntry[];
+}
+
+export type SwapStatus =
+  | 'pending_peer'
+  | 'pending_admin'
+  | 'approved'
+  | 'rejected'
+  | 'cancelled';
+
+export interface SwapRequestResponse {
+  id: string;
+  requesterId: string;
+  requesterName: string;
+  targetId: string;
+  targetName: string;
+  date: string; // "yyyy-MM-dd"
+  requesterShift: string; // '1' | '2'
+  targetShift: string;
+  status: SwapStatus;
+  reason: string | null;
+  reviewedByName: string | null;
+  reviewNote: string | null;
+  createdAt: string;
+}
+
+export interface SwapCandidate {
+  id: string;
+  name: string;
+  shift: string; // '1' | '2'
+}
+
+export interface PiketAssignment {
+  date: string; // "yyyy-MM-dd"
+  userId: string;
+  userName: string;
+  done: boolean;
+}
+
+export interface PiketResponse {
+  users: ScheduleUser[];
+  assignments: PiketAssignment[];
+}

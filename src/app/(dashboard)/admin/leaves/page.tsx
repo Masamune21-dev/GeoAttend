@@ -14,6 +14,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SwapApprovals } from '@/components/features/admin/SwapApprovals';
 
 const STATUS_VARIANT = {
   pending: 'warning',
@@ -80,6 +81,8 @@ export default function AdminLeavesPage() {
 
   return (
     <div className="flex flex-col gap-4">
+      <SwapApprovals />
+
       <div className="flex flex-wrap items-center gap-1 rounded-md border border-border bg-white p-1">
         {FILTERS.map((f) => (
           <button

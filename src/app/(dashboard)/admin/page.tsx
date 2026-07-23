@@ -7,6 +7,7 @@ import { ArrowRight, Inbox } from 'lucide-react';
 import { useAttendanceList } from '@/hooks/useAttendance';
 import type { UserProfile } from '@/types/api';
 import { StatsOverview } from '@/components/features/admin/StatsOverview';
+import { TodayScheduleOverview } from '@/components/features/admin/TodayScheduleOverview';
 import { ExportButton } from '@/components/features/admin/ExportButton';
 import { AttendanceCard } from '@/components/features/attendance/AttendanceCard';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -51,6 +52,8 @@ export default function AdminOverviewPage() {
         withinCount={withinCount}
         outsideCount={records.length - withinCount}
       />
+
+      <TodayScheduleOverview />
 
       <section className="flex flex-col gap-3">
         <div className="flex items-center justify-between">

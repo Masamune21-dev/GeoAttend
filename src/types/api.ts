@@ -229,3 +229,114 @@ export interface ApiError {
   details?: Record<string, unknown>;
   timestamp: string;
 }
+
+// --- Jadwal Shift & Tukar Shift ---
+
+export const SCHEDULE_SHIFTS = ['1', '2', 'libur'] as const;
+export type ScheduleShift = (typeof SCHEDULE_SHIFTS)[number];
+
+export const UpsertScheduleSchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/, 'Format bulan harus yyyy-MM'),
+  entries: z
+    .array(
+      z.object({
+        userId: z.string().min(1),
+        date: z.string().regex(DATE_REGEX, 'Format tanggal harus yyyy-MM-dd'),
+        shift: z.enum(SCHEDULE_SHIFTS),
+      })
+    )
+    .max(500),
+});
+export type UpsertScheduleInput = z.infer<typeof UpsertScheduleSchema>;
+
+export interface ScheduleEntry {
+  userId: string;
+  date: string; // "yyyy-MM-dd"
+  shift: ScheduleShift;
+}
+
+export interface ScheduleUser {
+  id: string;
+  name: string;
+  role: string;
+}
+
+export interface ScheduleResponse {
+  users: ScheduleUser[];
+  entries: ScheduleEntry[];
+}
+
+export type SwapStatus =
+  | 'pending_peer'
+  | 'pending_admin'
+  | 'approved'
+  | 'rejected'
+  | 'cancelled';
+
+export const CreateSwapSchema = z.object({
+  date: z.string().regex(DATE_REGEX, 'Format tanggal harus yyyy-MM-dd'),
+  targetUserId: z.string().min(1),
+  reason: z.string().max(500).optional(),
+});
+export type CreateSwapInput = z.infer<typeof CreateSwapSchema>;
+
+export const ReviewSwapSchema = z.object({
+  action: z.enum(['peer_accept', 'peer_reject', 'approve', 'reject']),
+  reviewNote: z.string().max(500).optional(),
+});
+export type ReviewSwapInput = z.infer<typeof ReviewSwapSchema>;
+
+export interface SwapRequestResponse {
+  id: string;
+  requesterId: string;
+  requesterName: string;
+  targetId: string;
+  targetName: string;
+  date: string; // "yyyy-MM-dd"
+  requesterShift: string; // '1' | '2'
+  targetShift: string;
+  status: SwapStatus;
+  reason: string | null;
+  reviewedByName: string | null;
+  reviewNote: string | null;
+  createdAt: string; // ISO 8601
+}
+
+export interface SwapCandidate {
+  id: string;
+  name: string;
+  shift: string; // '1' | '2'
+}
+
+// --- Piket Kebersihan ---
+
+export const UpsertPiketSchema = z.object({
+  month: z.string().regex(/^\d{4}-\d{2}$/, 'Format bulan harus yyyy-MM'),
+  assignments: z
+    .array(
+      z.object({
+        date: z.string().regex(DATE_REGEX, 'Format tanggal harus yyyy-MM-dd'),
+        userId: z.string().min(1),
+      })
+    )
+    .max(40),
+});
+export type UpsertPiketInput = z.infer<typeof UpsertPiketSchema>;
+
+export const MarkPiketDoneSchema = z.object({
+  date: z.string().regex(DATE_REGEX, 'Format tanggal harus yyyy-MM-dd'),
+  done: z.boolean(),
+});
+export type MarkPiketDoneInput = z.infer<typeof MarkPiketDoneSchema>;
+
+export interface PiketAssignment {
+  date: string; // "yyyy-MM-dd"
+  userId: string;
+  userName: string;
+  done: boolean;
+}
+
+export interface PiketResponse {
+  users: ScheduleUser[];
+  assignments: PiketAssignment[];
+}

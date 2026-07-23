@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CalendarDays, Camera, LayoutDashboard, User } from 'lucide-react';
+import { CalendarDays, CalendarRange, Camera, LayoutDashboard, User } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MobileNavProps {
@@ -22,6 +22,7 @@ export function MobileNav({ isAdmin }: MobileNavProps) {
       ]
     : [
         { href: '/checkin', label: 'Absen', icon: Camera },
+        { href: '/schedule', label: 'Jadwal', icon: CalendarRange },
         { href: '/history', label: 'Riwayat', icon: CalendarDays },
         { href: '/profile', label: 'Profil', icon: User },
       ];
