@@ -12,12 +12,19 @@ interface MobileNavProps {
 export function MobileNav({ isAdmin }: MobileNavProps) {
   const pathname = usePathname();
 
-  const items = [
-    { href: '/checkin', label: 'Absen', icon: Camera },
-    { href: '/history', label: 'Riwayat', icon: CalendarDays },
-    ...(isAdmin ? [{ href: '/admin', label: 'Admin', icon: LayoutDashboard }] : []),
-    { href: '/profile', label: 'Profil', icon: User },
-  ];
+  // Administrator: tab Admin di depan (paling sering dipakai)
+  const items = isAdmin
+    ? [
+        { href: '/admin', label: 'Admin', icon: LayoutDashboard },
+        { href: '/checkin', label: 'Absen', icon: Camera },
+        { href: '/history', label: 'Riwayat', icon: CalendarDays },
+        { href: '/profile', label: 'Profil', icon: User },
+      ]
+    : [
+        { href: '/checkin', label: 'Absen', icon: Camera },
+        { href: '/history', label: 'Riwayat', icon: CalendarDays },
+        { href: '/profile', label: 'Profil', icon: User },
+      ];
 
   return (
     <nav

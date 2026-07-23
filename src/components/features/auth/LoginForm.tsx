@@ -26,7 +26,7 @@ export function LoginForm() {
     setError(null);
     setIsLoading(true);
 
-    const { error: authError } = await signIn.email({ email, password });
+    const { data, error: authError } = await signIn.email({ email, password });
 
     setIsLoading(false);
     if (authError) {
@@ -35,7 +35,9 @@ export function LoginForm() {
     }
 
     toast.success('Berhasil masuk');
-    router.push('/checkin');
+    // Administrator langsung ke dashboard admin; lainnya ke halaman absensi
+    const role = (data?.user as { role?: string } | undefined)?.role;
+    router.push(role === 'administrator' ? '/admin' : '/checkin');
     router.refresh();
   };
 

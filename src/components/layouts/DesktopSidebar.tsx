@@ -87,14 +87,21 @@ export function DesktopSidebar({ isAdmin, appName = APP_NAME, logoUrl }: Desktop
         aria-label="Navigasi utama"
         className="flex flex-1 flex-col gap-1 overflow-y-auto p-3"
       >
-        {mainItems.map(renderItem)}
-        {isAdmin && (
+        {isAdmin ? (
+          // Administrator: panel admin di atas (paling sering dipakai),
+          // menu absensi pribadi di bawah
           <>
-            <p className="mt-5 px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-text-secondary/80">
+            <p className="px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-text-secondary/80">
               Admin
             </p>
             {adminItems.map(renderItem)}
+            <p className="mt-5 px-3 pb-1.5 text-[11px] font-semibold uppercase tracking-wider text-text-secondary/80">
+              Pribadi
+            </p>
+            {mainItems.map(renderItem)}
           </>
+        ) : (
+          mainItems.map(renderItem)
         )}
       </nav>
 
