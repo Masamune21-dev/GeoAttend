@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { and, count, desc, eq, gte, lte } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { attendanceRecords, geofences, liveLocations, user } from '@/lib/db/schema';
+import { attendanceRecords, geofences, liveLocations, shiftSettings, user } from '@/lib/db/schema';
 import {
   getApiSession,
   isAdmin,
@@ -9,6 +9,7 @@ import {
 } from '@/lib/auth/utils';
 import { CreateAttendanceSchema, type AttendanceRecordResponse } from '@/types/api';
 import { checkGeofence } from '@/lib/geo/validation';
+import { pickShift } from '@/lib/shifts/calc';
 import { saveAttendancePhoto, StorageError } from '@/lib/storage/local-fs';
 
 export const dynamic = 'force-dynamic';
@@ -28,6 +29,7 @@ function toResponse(row: AttendanceRow): AttendanceRecordResponse {
     userName: row.userName ?? 'Pengguna terhapus',
     userAvatar: row.userImage,
     type: record.type as 'clock_in' | 'clock_out',
+    shiftNumber: record.shiftNumber,
     timestamp: record.timestamp.toISOString(),
     latitude: Number(record.latitude),
     longitude: Number(record.longitude),
@@ -145,7 +147,7 @@ export async function POST(req: NextRequest) {
     const startOfDay = new Date();
     startOfDay.setHours(0, 0, 0, 0);
     const todayRecords = await db
-      .select({ type: attendanceRecords.type })
+      .select({ type: attendanceRecords.type, shiftNumber: attendanceRecords.shiftNumber })
       .from(attendanceRecords)
       .where(
         and(
@@ -176,6 +178,41 @@ export async function POST(req: NextRequest) {
         },
         { status: 409 }
       );
+    }
+
+    // Tentukan shift yang dicatat:
+    // - shiftNumber dari klien harus valid untuk role user
+    // - clock_out tanpa shiftNumber mewarisi shift dari clock_in hari ini
+    // - fallback: shift dengan jam masuk terdekat dari waktu sekarang
+    const roleShifts = await db
+      .select({
+        role: shiftSettings.role,
+        shiftNumber: shiftSettings.shiftNumber,
+        startTime: shiftSettings.startTime,
+        endTime: shiftSettings.endTime,
+      })
+      .from(shiftSettings)
+      .where(eq(shiftSettings.role, session.user.role ?? ''));
+
+    let shiftNumber: number | null = null;
+    if (roleShifts.length > 0) {
+      if (input.shiftNumber != null) {
+        if (!roleShifts.some((s) => s.shiftNumber === input.shiftNumber)) {
+          return NextResponse.json(
+            {
+              code: 'INVALID_SHIFT',
+              message: 'Shift yang dipilih tidak tersedia untuk role Anda',
+              timestamp: new Date().toISOString(),
+            },
+            { status: 422 }
+          );
+        }
+        shiftNumber = input.shiftNumber;
+      } else if (input.type === 'clock_out' && todayRecords[0]?.shiftNumber != null) {
+        shiftNumber = todayRecords[0].shiftNumber;
+      } else {
+        shiftNumber = pickShift(new Date(), roleShifts)?.shiftNumber ?? null;
+      }
     }
 
     // Validasi geofence
@@ -223,6 +260,7 @@ export async function POST(req: NextRequest) {
       .values({
         userId: session.user.id,
         type: input.type,
+        shiftNumber,
         latitude: String(input.latitude),
         longitude: String(input.longitude),
         accuracyMeters: input.accuracyMeters != null ? String(input.accuracyMeters) : null,

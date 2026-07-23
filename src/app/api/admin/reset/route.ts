@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ne } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { attendanceRecords, liveLocations, user } from '@/lib/db/schema';
+import { attendanceRecords, leaveRequests, liveLocations, user } from '@/lib/db/schema';
 import {
   getApiSession,
   isAdmin,
@@ -40,12 +40,13 @@ export async function POST(req: NextRequest) {
     if (parsed.data.scope === 'attendance') {
       await db.transaction(async (tx) => {
         await tx.delete(liveLocations);
+        await tx.delete(leaveRequests);
         await tx.delete(attendanceRecords);
       });
       await clearAttendancePhotos();
       return NextResponse.json({
         success: true,
-        message: 'Semua data absensi dan foto berhasil dihapus',
+        message: 'Semua data absensi, izin, dan foto berhasil dihapus',
       });
     }
 

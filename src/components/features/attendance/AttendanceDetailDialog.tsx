@@ -32,6 +32,9 @@ export function AttendanceDetailDialog({ record, onClose }: AttendanceDetailDial
             <p className="flex items-center gap-2 text-text-primary">
               <Clock className="h-4 w-4 text-text-secondary" aria-hidden="true" />
               {formatDateTime(record.timestamp)}
+              {record.shiftNumber != null && (
+                <Badge variant="secondary">Shift {record.shiftNumber}</Badge>
+              )}
             </p>
             <p className="flex items-center gap-2 text-text-primary">
               <Crosshair className="h-4 w-4 text-text-secondary" aria-hidden="true" />

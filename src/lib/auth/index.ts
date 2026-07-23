@@ -1,12 +1,24 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
+import { APIError, createAuthMiddleware } from 'better-auth/api';
 import { db } from '@/lib/db';
 import * as schema from '@/lib/db/schema';
+import { getRegistrationCode } from '@/lib/settings';
 
 const SESSION_EXPIRY_DAYS = Number(process.env.SESSION_EXPIRY_DAYS ?? 7);
 
+/**
+ * Origin tambahan yang diizinkan mengakses endpoint auth (dipisah koma),
+ * mis. domain Cloudflare Tunnel + http://localhost:3000 untuk akses lokal.
+ */
+const trustedOrigins = (process.env.BETTER_AUTH_TRUSTED_ORIGINS ?? '')
+  .split(',')
+  .map((origin) => origin.trim())
+  .filter(Boolean);
+
 export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:3000',
+  ...(trustedOrigins.length > 0 && { trustedOrigins }),
   secret: process.env.BETTER_AUTH_SECRET,
   database: drizzleAdapter(db, {
     provider: 'pg',
@@ -16,6 +28,32 @@ export const auth = betterAuth({
     enabled: true,
     minPasswordLength: 8,
     autoSignIn: true,
+  },
+  hooks: {
+    /**
+     * Pendaftaran wajib menyertakan kode pendaftaran yang dibuat administrator
+     * (Pengaturan → General). Validasi di server agar tidak bisa di-bypass.
+     */
+    before: createAuthMiddleware(async (ctx) => {
+      if (ctx.path !== '/sign-up/email') return;
+
+      const expected = await getRegistrationCode();
+      if (!expected) {
+        throw new APIError('FORBIDDEN', {
+          message:
+            'Pendaftaran ditutup. Hubungi administrator untuk mendapatkan kode pendaftaran.',
+        });
+      }
+
+      const body = (ctx.body ?? {}) as Record<string, unknown>;
+      const provided =
+        typeof body.registrationCode === 'string' ? body.registrationCode.trim() : '';
+      if (provided !== expected) {
+        throw new APIError('FORBIDDEN', {
+          message: 'Kode pendaftaran salah. Minta kode yang benar dari administrator.',
+        });
+      }
+    }),
   },
   user: {
     additionalFields: {

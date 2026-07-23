@@ -29,6 +29,20 @@
       "when": 1784761542567,
       "tag": "0003_app-settings",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1784763669692,
+      "tag": "0004_attendance-shift",
+      "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1784765446183,
+      "tag": "0005_leave-requests",
+      "breakpoints": true
     }
   ]
 }

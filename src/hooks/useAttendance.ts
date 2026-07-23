@@ -4,9 +4,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import type {
   AttendanceRecordResponse,
   CreateAttendanceInput,
+  CreateLeaveInput,
   GeofenceResponse,
+  LeaveRequestResponse,
   LiveLocationResponse,
   PaginatedResponse,
+  ReviewLeaveInput,
   ShiftSettingResponse,
   UserProfile,
 } from '@/types/api';
@@ -113,6 +116,73 @@ export function useLiveLocations(pollIntervalMs = 10_000) {
     queryFn: () => fetchJson<{ data: LiveLocationResponse[] }>('/api/locations'),
     refetchInterval: pollIntervalMs,
     staleTime: 5_000,
+  });
+}
+
+export interface LeaveFilters {
+  userId?: string;
+  from?: string; // yyyy-MM-dd
+  to?: string;
+  status?: 'pending' | 'approved' | 'rejected';
+}
+
+/** Query daftar pengajuan izin/libur. */
+export function useLeaves(filters: LeaveFilters = {}) {
+  return useQuery({
+    queryKey: ['leaves', filters],
+    queryFn: () => {
+      const params = new URLSearchParams();
+      if (filters.userId) params.set('userId', filters.userId);
+      if (filters.from) params.set('from', filters.from);
+      if (filters.to) params.set('to', filters.to);
+      if (filters.status) params.set('status', filters.status);
+      return fetchJson<{ data: LeaveRequestResponse[] }>(`/api/leaves?${params}`);
+    },
+    staleTime: 30_000,
+  });
+}
+
+/** Mutation membuat pengajuan izin / penanda libur. */
+export function useCreateLeave() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: CreateLeaveInput) =>
+      fetchJson<LeaveRequestResponse>('/api/leaves', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leaves'] });
+    },
+  });
+}
+
+/** Mutation menyetujui/menolak pengajuan (administrator). */
+export function useReviewLeave() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...input }: ReviewLeaveInput & { id: string }) =>
+      fetchJson<{ data: { id: string; status: string } }>(`/api/leaves/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leaves'] });
+    },
+  });
+}
+
+/** Mutation membatalkan/menghapus pengajuan. */
+export function useDeleteLeave() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) =>
+      fetchJson<{ data: { id: string } }>(`/api/leaves/${id}`, { method: 'DELETE' }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['leaves'] });
+    },
   });
 }
 

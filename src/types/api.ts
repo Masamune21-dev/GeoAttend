@@ -3,6 +3,7 @@ import { z } from 'zod';
 // --- Request Schemas ---
 export const CreateAttendanceSchema = z.object({
   type: z.enum(['clock_in', 'clock_out']),
+  shiftNumber: z.number().int().min(1).max(3).optional(),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   accuracyMeters: z.number().positive().optional(),
@@ -36,6 +37,8 @@ export type UploadAvatarInput = z.infer<typeof UploadAvatarSchema>;
 export const UpdateAppSettingsSchema = z.object({
   appName: z.string().min(1).max(64).optional(),
   logoUrl: z.string().max(500).nullable().optional(),
+  /** Kode pendaftaran akun; string kosong/null = tutup pendaftaran. */
+  registrationCode: z.string().max(64).nullable().optional(),
 });
 export type UpdateAppSettingsInput = z.infer<typeof UpdateAppSettingsSchema>;
 
@@ -57,6 +60,7 @@ export const RestoreBackupSchema = z.object({
     shiftSettings: z.array(z.record(z.unknown())),
     attendanceRecords: z.array(z.record(z.unknown())),
     appSettings: z.array(z.record(z.unknown())).optional(),
+    leaveRequests: z.array(z.record(z.unknown())).optional(),
   }),
 });
 
@@ -103,13 +107,53 @@ export const UpsertShiftsSchema = z.object({
 });
 export type UpsertShiftsInput = z.infer<typeof UpsertShiftsSchema>;
 
+const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
+
+export const LEAVE_TYPES = ['sakit', 'izin', 'cuti', 'libur'] as const;
+export type LeaveType = (typeof LEAVE_TYPES)[number];
+export type LeaveStatus = 'pending' | 'approved' | 'rejected';
+
+export const CreateLeaveSchema = z
+  .object({
+    type: z.enum(LEAVE_TYPES),
+    startDate: z.string().regex(DATE_REGEX, 'Format tanggal harus yyyy-MM-dd'),
+    endDate: z.string().regex(DATE_REGEX, 'Format tanggal harus yyyy-MM-dd'),
+    reason: z.string().max(500).optional(),
+  })
+  .refine((v) => v.startDate <= v.endDate, {
+    message: 'Tanggal selesai tidak boleh sebelum tanggal mulai',
+  });
+export type CreateLeaveInput = z.infer<typeof CreateLeaveSchema>;
+
+export const ReviewLeaveSchema = z.object({
+  status: z.enum(['approved', 'rejected']),
+  reviewNote: z.string().max(500).optional(),
+});
+export type ReviewLeaveInput = z.infer<typeof ReviewLeaveSchema>;
+
 // --- Response Types ---
+export interface LeaveRequestResponse {
+  id: string;
+  userId: string;
+  userName: string;
+  userRole: string;
+  type: LeaveType;
+  startDate: string; // "yyyy-MM-dd"
+  endDate: string;
+  reason: string | null;
+  status: LeaveStatus;
+  reviewedByName: string | null;
+  reviewNote: string | null;
+  createdAt: string; // ISO 8601
+}
+
 export interface AttendanceRecordResponse {
   id: string;
   userId: string;
   userName: string;
   userAvatar?: string | null;
   type: 'clock_in' | 'clock_out';
+  shiftNumber: number | null;
   timestamp: string; // ISO 8601
   latitude: number;
   longitude: number;

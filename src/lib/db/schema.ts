@@ -136,6 +136,36 @@ export const liveLocations = pgTable('live_locations', {
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
 
+/**
+ * Pengajuan izin (sakit/izin/cuti — perlu persetujuan administrator)
+ * dan penanda libur (self-service dari halaman absensi, langsung approved).
+ * Tanggal disimpan sebagai string "yyyy-MM-dd" (tanggal lokal, konsisten
+ * dengan pengelompokan rekap harian).
+ */
+export const leaveRequests = pgTable(
+  'leave_requests',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: text('user_id')
+      .references(() => user.id, { onDelete: 'cascade' })
+      .notNull(),
+    type: varchar('type', { length: 10 }).notNull(), // 'sakit' | 'izin' | 'cuti' | 'libur'
+    startDate: varchar('start_date', { length: 10 }).notNull(), // "yyyy-MM-dd"
+    endDate: varchar('end_date', { length: 10 }).notNull(),
+    reason: text('reason'),
+    status: varchar('status', { length: 10 }).default('pending').notNull(), // 'pending' | 'approved' | 'rejected'
+    reviewedBy: text('reviewed_by').references(() => user.id),
+    reviewedAt: timestamp('reviewed_at'),
+    reviewNote: text('review_note'),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    userDateIdx: index('leave_requests_user_date_idx').on(table.userId, table.startDate),
+    statusIdx: index('leave_requests_status_idx').on(table.status),
+  })
+);
+
 export const attendanceRecords = pgTable(
   'attendance_records',
   {
@@ -144,6 +174,7 @@ export const attendanceRecords = pgTable(
       .references(() => user.id, { onDelete: 'cascade' })
       .notNull(),
     type: varchar('type', { length: 20 }).notNull(), // 'clock_in' | 'clock_out'
+    shiftNumber: integer('shift_number'), // shift yang dipilih saat absen (null utk data lama / role tanpa shift)
     timestamp: timestamp('timestamp').defaultNow().notNull(),
     latitude: numeric('latitude', { precision: 10, scale: 7 }).notNull(),
     longitude: numeric('longitude', { precision: 10, scale: 7 }).notNull(),

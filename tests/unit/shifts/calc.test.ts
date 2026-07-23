@@ -98,6 +98,67 @@ describe('computeRecap — aturan SOP', () => {
     expect(result.lateMinutes).toBe(0);
     expect(result.overtimeMinutes).toBe(0);
   });
+
+  it('shift tercatat di record dipakai, bukan tebakan jam terdekat', () => {
+    // Masuk 10:00 utk shift 2 (15:00) — pickShift akan menebak shift 1,
+    // tapi shift tercatat = 2 → lembur 5 jam (datang lebih awal)
+    const result = computeRecap(
+      { clockIn: at(10, 0), clockOut: at(22, 0), shiftNumber: 2 },
+      ADMIN_SHIFTS
+    );
+    expect(result.shift?.shiftNumber).toBe(2);
+    expect(result.overtimeMinutes).toBe(300);
+    expect(result.lateMinutes).toBe(0);
+  });
+
+  it('shift tercatat tidak dikenal: fallback ke jam masuk terdekat', () => {
+    const result = computeRecap(
+      { clockIn: at(7, 10), clockOut: at(15, 0), shiftNumber: 9 },
+      ADMIN_SHIFTS
+    );
+    expect(result.shift?.shiftNumber).toBe(1);
+    expect(result.lateMinutes).toBe(10);
+  });
+
+  it('pulang lebih awal dihitung pulang cepat, lembur datang awal TIDAK menutupinya', () => {
+    // Shift 1 (07:00-15:00): masuk 06:00 → lembur 60m; pulang 14:00 → pulang cepat 60m
+    const result = computeRecap(
+      { clockIn: at(6, 0), clockOut: at(14, 0), shiftNumber: 1 },
+      ADMIN_SHIFTS
+    );
+    expect(result.overtimeMinutes).toBe(60);
+    expect(result.earlyLeaveMinutes).toBe(60);
+    expect(result.lateMinutes).toBe(0);
+  });
+
+  it('pulang tepat waktu: pulang cepat nol', () => {
+    const result = computeRecap(
+      { clockIn: at(7, 0), clockOut: at(15, 0), shiftNumber: 1 },
+      ADMIN_SHIFTS
+    );
+    expect(result.earlyLeaveMinutes).toBe(0);
+    expect(result.overtimeMinutes).toBe(0);
+    expect(result.lateMinutes).toBe(0);
+  });
+
+  it('telat pagi + pulang cepat keduanya tercatat', () => {
+    // Masuk 08:00 (telat 60m), pulang 14:30 (pulang cepat 30m)
+    const result = computeRecap(
+      { clockIn: at(8, 0), clockOut: at(14, 30), shiftNumber: 1 },
+      ADMIN_SHIFTS
+    );
+    expect(result.lateMinutes).toBe(60);
+    expect(result.earlyLeaveMinutes).toBe(30);
+    expect(result.overtimeMinutes).toBe(0);
+  });
+
+  it('belum clock-out: pulang cepat belum dihitung', () => {
+    const result = computeRecap(
+      { clockIn: at(7, 0), clockOut: null, shiftNumber: 1 },
+      ADMIN_SHIFTS
+    );
+    expect(result.earlyLeaveMinutes).toBe(0);
+  });
 });
 
 describe('formatMinutes', () => {

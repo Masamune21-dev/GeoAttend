@@ -12,8 +12,9 @@ import {
 import { id as localeId } from 'date-fns/locale';
 import { ChevronLeft, ChevronRight, Download, FileSpreadsheet, FileText } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAttendanceList, useShifts, useUsers } from '@/hooks/useAttendance';
+import { useAttendanceList, useLeaves, useShifts, useUsers } from '@/hooks/useAttendance';
 import { computeRecap, formatMinutes, type ShiftTime } from '@/lib/shifts/calc';
+import { expandDateRange, getLeaveTypeLabel } from '@/lib/leaves';
 import { getRoleLabel } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -31,6 +32,9 @@ interface DailyRow {
   shiftNumber: number | null;
   lateMinutes: number;
   overtimeMinutes: number;
+  earlyLeaveMinutes: number;
+  /** null = hadir; selain itu 'sakit' | 'izin' | 'cuti' | 'libur' */
+  leaveType: string | null;
 }
 
 interface UserSummary {
@@ -38,14 +42,22 @@ interface UserSummary {
   userName: string;
   role: string;
   presentDays: number;
+  sakitDays: number;
+  izinDays: number;
+  cutiDays: number;
+  liburDays: number;
   totalLateMinutes: number;
   totalOvertimeMinutes: number;
+  totalEarlyLeaveMinutes: number;
 }
 
 export default function ReportsPage() {
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [selectedUserId, setSelectedUserId] = useState<string>('all');
   const today = new Date();
+
+  const monthStart = format(startOfMonth(month), 'yyyy-MM-dd');
+  const monthEnd = format(endOfMonth(month), 'yyyy-MM-dd');
 
   const { data: attendanceData, isLoading: attendanceLoading } = useAttendanceList({
     from: startOfMonth(month).toISOString(),
@@ -54,8 +66,13 @@ export default function ReportsPage() {
   });
   const { data: usersData, isLoading: usersLoading } = useUsers();
   const { data: shiftsData, isLoading: shiftsLoading } = useShifts();
+  const { data: leavesData, isLoading: leavesLoading } = useLeaves({
+    from: monthStart,
+    to: monthEnd,
+    status: 'approved',
+  });
 
-  const isLoading = attendanceLoading || usersLoading || shiftsLoading;
+  const isLoading = attendanceLoading || usersLoading || shiftsLoading || leavesLoading;
 
   const { dailyRows, summaries } = useMemo(() => {
     const records = attendanceData?.data ?? [];
@@ -75,23 +92,33 @@ export default function ReportsPage() {
       shiftsByRole.set(shift.role, list);
     }
 
-    // Kelompokkan record per user per tanggal lokal:
-    // jam masuk = clock_in PERTAMA, jam pulang = clock_out TERAKHIR hari itu
-    const byUserDay = new Map<
+    // Kelompokkan record per user per tanggal lokal per shift tercatat:
+    // jam masuk = clock_in PERTAMA, jam pulang = clock_out TERAKHIR grup itu.
+    // Data lama tanpa shift tercatat tetap tergabung per hari (shift null).
+    const byUserDayShift = new Map<
       string,
-      { userId: string; userName: string; date: string; clockIn: Date | null; clockOut: Date | null }
+      {
+        userId: string;
+        userName: string;
+        date: string;
+        shiftNumber: number | null;
+        clockIn: Date | null;
+        clockOut: Date | null;
+      }
     >();
 
     for (const record of records) {
       const ts = new Date(record.timestamp);
       const date = format(ts, 'yyyy-MM-dd');
-      const key = `${record.userId}|${date}`;
+      const shiftNumber = record.shiftNumber ?? null;
+      const key = `${record.userId}|${date}|${shiftNumber ?? 'x'}`;
       const entry =
-        byUserDay.get(key) ??
+        byUserDayShift.get(key) ??
         {
           userId: record.userId,
           userName: record.userName,
           date,
+          shiftNumber,
           clockIn: null as Date | null,
           clockOut: null as Date | null,
         };
@@ -101,33 +128,67 @@ export default function ReportsPage() {
       } else {
         if (!entry.clockOut || ts > entry.clockOut) entry.clockOut = ts;
       }
-      byUserDay.set(key, entry);
+      byUserDayShift.set(key, entry);
     }
 
-    const rows: DailyRow[] = Array.from(byUserDay.entries())
-      .map(([key, entry]) => {
-        const role = roleByUser.get(entry.userId) ?? 'employee';
-        const recap = computeRecap(
-          { clockIn: entry.clockIn, clockOut: entry.clockOut },
-          shiftsByRole.get(role) ?? []
-        );
-        return {
-          key,
-          date: entry.date,
-          userId: entry.userId,
-          userName: entry.userName,
-          role,
-          clockIn: entry.clockIn,
-          clockOut: entry.clockOut,
-          shiftNumber: recap.shift?.shiftNumber ?? null,
-          lateMinutes: recap.lateMinutes,
-          overtimeMinutes: recap.overtimeMinutes,
-        };
-      })
-      .sort((a, b) => a.date.localeCompare(b.date) || a.userName.localeCompare(b.userName));
+    const rows: DailyRow[] = Array.from(byUserDayShift.entries()).map(([key, entry]) => {
+      const role = roleByUser.get(entry.userId) ?? 'employee';
+      const recap = computeRecap(
+        { clockIn: entry.clockIn, clockOut: entry.clockOut, shiftNumber: entry.shiftNumber },
+        shiftsByRole.get(role) ?? []
+      );
+      return {
+        key,
+        date: entry.date,
+        userId: entry.userId,
+        userName: entry.userName,
+        role,
+        clockIn: entry.clockIn,
+        clockOut: entry.clockOut,
+        shiftNumber: entry.shiftNumber ?? recap.shift?.shiftNumber ?? null,
+        lateMinutes: recap.lateMinutes,
+        overtimeMinutes: recap.overtimeMinutes,
+        earlyLeaveMinutes: recap.earlyLeaveMinutes,
+        leaveType: null,
+      };
+    });
 
-    // Ringkasan per user
+    // Sisipkan baris izin/libur (yang disetujui) untuk tanggal tanpa absensi.
+    // Bila karyawan tetap absen di tanggal tersebut, baris kehadiran yang dipakai.
+    const attendedDates = new Set(records.map((r) => `${r.userId}|${format(new Date(r.timestamp), 'yyyy-MM-dd')}`));
+    for (const leave of leavesData?.data ?? []) {
+      const from = leave.startDate < monthStart ? monthStart : leave.startDate;
+      const to = leave.endDate > monthEnd ? monthEnd : leave.endDate;
+      if (from > to) continue;
+      for (const date of expandDateRange(from, to)) {
+        if (attendedDates.has(`${leave.userId}|${date}`)) continue;
+        rows.push({
+          key: `${leave.userId}|${date}|${leave.type}`,
+          date,
+          userId: leave.userId,
+          userName: leave.userName,
+          role: roleByUser.get(leave.userId) ?? leave.userRole,
+          clockIn: null,
+          clockOut: null,
+          shiftNumber: null,
+          lateMinutes: 0,
+          overtimeMinutes: 0,
+          earlyLeaveMinutes: 0,
+          leaveType: leave.type,
+        });
+      }
+    }
+
+    rows.sort(
+      (a, b) =>
+        a.date.localeCompare(b.date) ||
+        a.userName.localeCompare(b.userName) ||
+        (a.shiftNumber ?? 0) - (b.shiftNumber ?? 0)
+    );
+
+    // Ringkasan per user (hari hadir = tanggal unik, bukan jumlah shift)
     const summaryMap = new Map<string, UserSummary>();
+    const daysByUser = new Map<string, Set<string>>();
     for (const row of rows) {
       const summary =
         summaryMap.get(row.userId) ??
@@ -136,12 +197,26 @@ export default function ReportsPage() {
           userName: row.userName,
           role: row.role,
           presentDays: 0,
+          sakitDays: 0,
+          izinDays: 0,
+          cutiDays: 0,
+          liburDays: 0,
           totalLateMinutes: 0,
           totalOvertimeMinutes: 0,
+          totalEarlyLeaveMinutes: 0,
         };
-      summary.presentDays += 1;
-      summary.totalLateMinutes += row.lateMinutes;
-      summary.totalOvertimeMinutes += row.overtimeMinutes;
+      if (row.leaveType === null) {
+        const days = daysByUser.get(row.userId) ?? new Set<string>();
+        days.add(row.date);
+        daysByUser.set(row.userId, days);
+        summary.presentDays = days.size;
+        summary.totalLateMinutes += row.lateMinutes;
+        summary.totalOvertimeMinutes += row.overtimeMinutes;
+        summary.totalEarlyLeaveMinutes += row.earlyLeaveMinutes;
+      } else if (row.leaveType === 'sakit') summary.sakitDays += 1;
+      else if (row.leaveType === 'izin') summary.izinDays += 1;
+      else if (row.leaveType === 'cuti') summary.cutiDays += 1;
+      else if (row.leaveType === 'libur') summary.liburDays += 1;
       summaryMap.set(row.userId, summary);
     }
 
@@ -151,7 +226,7 @@ export default function ReportsPage() {
         a.userName.localeCompare(b.userName)
       ),
     };
-  }, [attendanceData, usersData, shiftsData]);
+  }, [attendanceData, usersData, shiftsData, leavesData, monthStart, monthEnd]);
 
   // Filter per karyawan
   const filteredRows = useMemo(
@@ -177,17 +252,19 @@ export default function ReportsPage() {
       return;
     }
     const escapeCsv = (v: string) => `"${v.replace(/"/g, '""')}"`;
-    const header = ['Tanggal', 'Nama', 'Role', 'Shift', 'Jam Masuk', 'Jam Pulang', 'Telat (menit)', 'Lembur (menit)'];
+    const header = ['Tanggal', 'Nama', 'Role', 'Keterangan', 'Shift', 'Jam Masuk', 'Jam Pulang', 'Telat (menit)', 'Lembur (menit)', 'Pulang Cepat (menit)'];
     const lines = filteredRows.map((row) =>
       [
         row.date,
         escapeCsv(row.userName),
         getRoleLabel(row.role),
+        row.leaveType ? getLeaveTypeLabel(row.leaveType) : 'Hadir',
         row.shiftNumber != null ? `Shift ${row.shiftNumber}` : '-',
         row.clockIn ? format(row.clockIn, 'HH:mm') : '-',
         row.clockOut ? format(row.clockOut, 'HH:mm') : '-',
         String(row.lateMinutes),
         String(row.overtimeMinutes),
+        String(row.earlyLeaveMinutes),
       ].join(';')
     );
     const csv = '﻿' + [header.join(';'), ...lines].join('\r\n');
@@ -238,13 +315,18 @@ export default function ReportsPage() {
     doc.text('Ringkasan per Karyawan', 14, 30);
     autoTable(doc, {
       startY: 33,
-      head: [['Nama', 'Role', 'Hari Hadir', 'Total Telat', 'Total Lembur']],
+      head: [['Nama', 'Role', 'Hadir', 'Sakit', 'Izin', 'Cuti', 'Libur', 'Total Telat', 'Total Lembur', 'Total Pulang Cepat']],
       body: filteredSummaries.map((s) => [
         s.userName,
         getRoleLabel(s.role),
         String(s.presentDays),
+        String(s.sakitDays),
+        String(s.izinDays),
+        String(s.cutiDays),
+        String(s.liburDays),
         formatMinutes(s.totalLateMinutes),
         formatMinutes(s.totalOvertimeMinutes),
+        formatMinutes(s.totalEarlyLeaveMinutes),
       ]),
       theme: 'grid',
       headStyles,
@@ -257,16 +339,18 @@ export default function ReportsPage() {
     doc.text('Detail Harian', 14, detailStartY - 3);
     autoTable(doc, {
       startY: detailStartY,
-      head: [['Tanggal', 'Nama', 'Role', 'Shift', 'Jam Masuk', 'Jam Pulang', 'Telat', 'Lembur']],
+      head: [['Tanggal', 'Nama', 'Role', 'Keterangan', 'Shift', 'Jam Masuk', 'Jam Pulang', 'Telat', 'Lembur', 'Pulang Cepat']],
       body: filteredRows.map((row) => [
         format(new Date(`${row.date}T00:00:00`), 'dd MMM yyyy', { locale: localeId }),
         row.userName,
         getRoleLabel(row.role),
+        row.leaveType ? getLeaveTypeLabel(row.leaveType) : 'Hadir',
         row.shiftNumber != null ? `Shift ${row.shiftNumber}` : '-',
         row.clockIn ? format(row.clockIn, 'HH:mm') : '-',
         row.clockOut ? format(row.clockOut, 'HH:mm') : '-',
         formatMinutes(row.lateMinutes),
         formatMinutes(row.overtimeMinutes),
+        formatMinutes(row.earlyLeaveMinutes),
       ]),
       theme: 'grid',
       headStyles,
@@ -362,14 +446,19 @@ export default function ReportsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="overflow-x-auto">
-              <table className="w-full min-w-[560px] text-sm">
+              <table className="w-full min-w-[880px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-text-secondary">
                     <th className="py-2 pr-3 font-medium">Nama</th>
                     <th className="py-2 pr-3 font-medium">Role</th>
-                    <th className="py-2 pr-3 text-center font-medium">Hari Hadir</th>
+                    <th className="py-2 pr-3 text-center font-medium">Hadir</th>
+                    <th className="py-2 pr-3 text-center font-medium">Sakit</th>
+                    <th className="py-2 pr-3 text-center font-medium">Izin</th>
+                    <th className="py-2 pr-3 text-center font-medium">Cuti</th>
+                    <th className="py-2 pr-3 text-center font-medium">Libur</th>
                     <th className="py-2 pr-3 text-center font-medium">Total Telat</th>
-                    <th className="py-2 text-center font-medium">Total Lembur</th>
+                    <th className="py-2 pr-3 text-center font-medium">Total Lembur</th>
+                    <th className="py-2 text-center font-medium">Total Pulang Cepat</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -385,6 +474,18 @@ export default function ReportsPage() {
                         </Badge>
                       </td>
                       <td className="py-2.5 pr-3 text-center text-text-primary">{s.presentDays}</td>
+                      <td className="py-2.5 pr-3 text-center text-text-primary">
+                        {s.sakitDays > 0 ? s.sakitDays : <span className="text-text-secondary">-</span>}
+                      </td>
+                      <td className="py-2.5 pr-3 text-center text-text-primary">
+                        {s.izinDays > 0 ? s.izinDays : <span className="text-text-secondary">-</span>}
+                      </td>
+                      <td className="py-2.5 pr-3 text-center text-text-primary">
+                        {s.cutiDays > 0 ? s.cutiDays : <span className="text-text-secondary">-</span>}
+                      </td>
+                      <td className="py-2.5 pr-3 text-center text-text-primary">
+                        {s.liburDays > 0 ? s.liburDays : <span className="text-text-secondary">-</span>}
+                      </td>
                       <td className="py-2.5 pr-3 text-center">
                         {s.totalLateMinutes > 0 ? (
                           <span className="font-medium text-destructive">
@@ -394,10 +495,19 @@ export default function ReportsPage() {
                           <span className="text-text-secondary">-</span>
                         )}
                       </td>
-                      <td className="py-2.5 text-center">
+                      <td className="py-2.5 pr-3 text-center">
                         {s.totalOvertimeMinutes > 0 ? (
                           <span className="font-medium text-success">
                             {formatMinutes(s.totalOvertimeMinutes)}
+                          </span>
+                        ) : (
+                          <span className="text-text-secondary">-</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 text-center">
+                        {s.totalEarlyLeaveMinutes > 0 ? (
+                          <span className="font-medium text-warning">
+                            {formatMinutes(s.totalEarlyLeaveMinutes)}
                           </span>
                         ) : (
                           <span className="text-text-secondary">-</span>
@@ -415,21 +525,24 @@ export default function ReportsPage() {
             <CardHeader>
               <CardTitle>Detail Harian</CardTitle>
               <CardDescription>
-                Jam masuk = clock-in pertama, jam pulang = clock-out terakhir tiap hari
+                Satu baris per shift per hari. Pulang cepat = pulang sebelum jam pulang shift
+                (lembur datang awal tidak menutupi kekurangan jam)
               </CardDescription>
             </CardHeader>
             <CardContent className="overflow-x-auto">
-              <table className="w-full min-w-[720px] text-sm">
+              <table className="w-full min-w-[880px] text-sm">
                 <thead>
                   <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-text-secondary">
                     <th className="py-2 pr-3 font-medium">Tanggal</th>
                     <th className="py-2 pr-3 font-medium">Nama</th>
                     <th className="py-2 pr-3 font-medium">Role</th>
+                    <th className="py-2 pr-3 text-center font-medium">Keterangan</th>
                     <th className="py-2 pr-3 text-center font-medium">Shift</th>
                     <th className="py-2 pr-3 text-center font-medium">Jam Masuk</th>
                     <th className="py-2 pr-3 text-center font-medium">Jam Pulang</th>
                     <th className="py-2 pr-3 text-center font-medium">Telat</th>
-                    <th className="py-2 text-center font-medium">Lembur</th>
+                    <th className="py-2 pr-3 text-center font-medium">Lembur</th>
+                    <th className="py-2 text-center font-medium">Pulang Cepat</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -443,6 +556,15 @@ export default function ReportsPage() {
                       </td>
                       <td className="py-2.5 pr-3 font-medium text-text-primary">{row.userName}</td>
                       <td className="py-2.5 pr-3 text-text-secondary">{getRoleLabel(row.role)}</td>
+                      <td className="py-2.5 pr-3 text-center">
+                        {row.leaveType ? (
+                          <Badge variant={row.leaveType === 'libur' ? 'secondary' : 'warning'}>
+                            {getLeaveTypeLabel(row.leaveType)}
+                          </Badge>
+                        ) : (
+                          <Badge variant="success">Hadir</Badge>
+                        )}
+                      </td>
                       <td className="py-2.5 pr-3 text-center text-text-secondary">
                         {row.shiftNumber != null ? row.shiftNumber : '-'}
                       </td>
@@ -461,10 +583,19 @@ export default function ReportsPage() {
                           <span className="text-text-secondary">-</span>
                         )}
                       </td>
-                      <td className="py-2.5 text-center">
+                      <td className="py-2.5 pr-3 text-center">
                         {row.overtimeMinutes > 0 ? (
                           <span className="font-medium text-success">
                             {formatMinutes(row.overtimeMinutes)}
+                          </span>
+                        ) : (
+                          <span className="text-text-secondary">-</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 text-center">
+                        {row.earlyLeaveMinutes > 0 ? (
+                          <span className="font-medium text-warning">
+                            {formatMinutes(row.earlyLeaveMinutes)}
                           </span>
                         ) : (
                           <span className="text-text-secondary">-</span>

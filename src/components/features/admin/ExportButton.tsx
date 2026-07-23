@@ -22,6 +22,7 @@ export function ExportButton({ records, filename }: ExportButtonProps) {
     const header = [
       'Nama',
       'Tipe',
+      'Shift',
       'Tanggal',
       'Jam',
       'Latitude',
@@ -38,6 +39,7 @@ export function ExportButton({ records, filename }: ExportButtonProps) {
       return [
         escapeCsv(r.userName),
         r.type === 'clock_in' ? 'Masuk' : 'Pulang',
+        r.shiftNumber != null ? `Shift ${r.shiftNumber}` : '-',
         format(date, 'dd/MM/yyyy'),
         format(date, 'HH:mm'),
         String(r.latitude),

@@ -1,5 +1,5 @@
 export const APP_NAME = process.env.NEXT_PUBLIC_APP_NAME ?? 'GeoAttend';
-export const APP_VERSION = '1.1.0';
+export const APP_VERSION = '1.2.0';
 
 export const DEFAULT_MAP_CENTER: [number, number] = [
   Number(process.env.NEXT_PUBLIC_DEFAULT_LAT ?? -6.2087634),

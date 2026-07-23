@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   CalendarDays,
   Camera,
+  ClipboardCheck,
   FileSpreadsheet,
   LayoutDashboard,
   Map,
@@ -35,6 +36,7 @@ export function DesktopSidebar({ isAdmin, appName = APP_NAME, logoUrl }: Desktop
     { href: '/admin', label: 'Overview', icon: LayoutDashboard },
     { href: '/admin/live-map', label: 'Peta Live', icon: Map },
     { href: '/admin/reports', label: 'Rekap Bulanan', icon: FileSpreadsheet },
+    { href: '/admin/leaves', label: 'Persetujuan Izin', icon: ClipboardCheck },
     { href: '/admin/users', label: 'Pengguna', icon: Users },
     { href: '/admin/settings', label: 'Pengaturan', icon: Settings },
   ];

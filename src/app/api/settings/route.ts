@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { appSettings } from '@/lib/db/schema';
-import { getAppSettings } from '@/lib/settings';
+import { getAppSettings, getRegistrationCode } from '@/lib/settings';
 import {
   getApiSession,
   isAdmin,
@@ -12,9 +13,19 @@ import { UpdateAppSettingsSchema } from '@/types/api';
 
 export const dynamic = 'force-dynamic';
 
-/** GET /api/settings — nama & logo aplikasi (publik: dipakai halaman login). */
-export async function GET() {
+/**
+ * GET /api/settings — nama & logo aplikasi (publik: dipakai halaman login).
+ * Kode pendaftaran HANYA disertakan untuk administrator.
+ */
+export async function GET(req: NextRequest) {
   const settings = await getAppSettings();
+  const session = await getApiSession(req);
+  if (isAdmin(session)) {
+    return NextResponse.json({
+      ...settings,
+      registrationCode: await getRegistrationCode(),
+    });
+  }
   return NextResponse.json(settings);
 }
 
@@ -55,8 +66,20 @@ export async function PUT(req: NextRequest) {
     if (parsed.data.logoUrl !== undefined && parsed.data.logoUrl !== null) {
       await upsert('app_logo', parsed.data.logoUrl);
     }
+    if (parsed.data.registrationCode !== undefined) {
+      const code = parsed.data.registrationCode?.trim() ?? '';
+      if (code) {
+        await upsert('registration_code', code);
+      } else {
+        // Kosong = tutup pendaftaran
+        await db.delete(appSettings).where(eq(appSettings.key, 'registration_code'));
+      }
+    }
 
-    return NextResponse.json(await getAppSettings());
+    return NextResponse.json({
+      ...(await getAppSettings()),
+      registrationCode: await getRegistrationCode(),
+    });
   } catch (error) {
     console.error('PUT /api/settings error:', error);
     return NextResponse.json(

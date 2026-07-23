@@ -5,6 +5,7 @@ import {
   appSettings,
   attendanceRecords,
   geofences,
+  leaveRequests,
   shiftSettings,
   user,
 } from '@/lib/db/schema';
@@ -29,7 +30,7 @@ export async function GET(req: NextRequest) {
     if (!session) return unauthorizedResponse();
     if (!isAdmin(session)) return forbiddenResponse();
 
-    const [users, accounts, geofenceRows, shiftRows, recordRows, settingRows] =
+    const [users, accounts, geofenceRows, shiftRows, recordRows, settingRows, leaveRows] =
       await Promise.all([
         db.select().from(user),
         db.select().from(account),
@@ -37,6 +38,7 @@ export async function GET(req: NextRequest) {
         db.select().from(shiftSettings),
         db.select().from(attendanceRecords),
         db.select().from(appSettings),
+        db.select().from(leaveRequests),
       ]);
 
     const backup = {
@@ -50,6 +52,7 @@ export async function GET(req: NextRequest) {
         shiftSettings: shiftRows,
         attendanceRecords: recordRows,
         appSettings: settingRows,
+        leaveRequests: leaveRows,
       },
     };
 

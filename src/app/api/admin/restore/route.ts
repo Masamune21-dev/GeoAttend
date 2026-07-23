@@ -5,6 +5,7 @@ import {
   appSettings,
   attendanceRecords,
   geofences,
+  leaveRequests,
   liveLocations,
   session as sessionTable,
   shiftSettings,
@@ -133,6 +134,7 @@ export async function POST(req: NextRequest) {
       id: str(row, 'id'),
       userId: str(row, 'userId'),
       type: str(row, 'type'),
+      shiftNumber: row.shiftNumber == null ? null : num(row, 'shiftNumber'),
       timestamp: date(row, 'timestamp'),
       latitude: str(row, 'latitude'),
       longitude: str(row, 'longitude'),
@@ -152,9 +154,25 @@ export async function POST(req: NextRequest) {
       updatedAt: date(row, 'updatedAt'),
     }));
 
+    const leaveRows = (data.leaveRequests ?? []).map((row) => ({
+      id: str(row, 'id'),
+      userId: str(row, 'userId'),
+      type: str(row, 'type'),
+      startDate: str(row, 'startDate'),
+      endDate: str(row, 'endDate'),
+      reason: strOrNull(row, 'reason'),
+      status: str(row, 'status') || 'pending',
+      reviewedBy: strOrNull(row, 'reviewedBy'),
+      reviewedAt: dateOrNull(row, 'reviewedAt'),
+      reviewNote: strOrNull(row, 'reviewNote'),
+      createdAt: date(row, 'createdAt'),
+      updatedAt: date(row, 'updatedAt'),
+    }));
+
     await db.transaction(async (tx) => {
       // Hapus semua data (urutan menghormati foreign key)
       await tx.delete(liveLocations);
+      await tx.delete(leaveRequests);
       await tx.delete(attendanceRecords);
       await tx.delete(sessionTable);
       await tx.delete(verification);
@@ -176,6 +194,8 @@ export async function POST(req: NextRequest) {
         await insertChunks((rows) => tx.insert(attendanceRecords).values(rows), recordRows);
       if (settingRows.length > 0)
         await insertChunks((rows) => tx.insert(appSettings).values(rows), settingRows);
+      if (leaveRows.length > 0)
+        await insertChunks((rows) => tx.insert(leaveRequests).values(rows), leaveRows);
     });
 
     return NextResponse.json({

@@ -4,7 +4,7 @@ import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { ImagePlus, MapPin, Save } from 'lucide-react';
+import { Copy, ImagePlus, KeyRound, MapPin, RefreshCw, Save } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -15,6 +15,14 @@ import { Skeleton } from '@/components/ui/skeleton';
 interface AppSettingsResponse {
   appName: string;
   logoUrl: string | null;
+  registrationCode?: string | null; // hanya dikirim utk administrator
+}
+
+/** Kode acak 8 karakter tanpa huruf/angka yang mudah tertukar (0,O,1,I,L). */
+function generateCode(): string {
+  const chars = 'ABCDEFGHJKMNPQRSTUVWXYZ23456789';
+  const bytes = crypto.getRandomValues(new Uint8Array(8));
+  return Array.from(bytes, (b) => chars[b % chars.length]).join('');
 }
 
 interface SystemInfoResponse {
@@ -50,6 +58,7 @@ export function GeneralSettings() {
 
   const [appName, setAppName] = useState<string | null>(null);
   const [logoPreview, setLogoPreview] = useState<string | null>(null); // data URI baru
+  const [regCode, setRegCode] = useState<string | null>(null); // null = belum diubah
 
   const { data: settings, isLoading: settingsLoading } = useQuery({
     queryKey: ['app-settings'],
@@ -119,6 +128,40 @@ export function GeneralSettings() {
     },
     onError: (err: Error) => toast.error(err.message),
   });
+
+  const displayRegCode = regCode ?? settings?.registrationCode ?? '';
+
+  const saveRegCodeMutation = useMutation({
+    mutationFn: async () => {
+      const res = await fetch('/api/settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ registrationCode: displayRegCode.trim() || null }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.message ?? 'Gagal menyimpan kode');
+      return body;
+    },
+    onSuccess: () => {
+      toast.success(
+        displayRegCode.trim()
+          ? 'Kode pendaftaran tersimpan'
+          : 'Pendaftaran ditutup (kode dikosongkan)'
+      );
+      setRegCode(null);
+      queryClient.invalidateQueries({ queryKey: ['app-settings'] });
+    },
+    onError: (err: Error) => toast.error(err.message),
+  });
+
+  const handleCopyCode = async () => {
+    try {
+      await navigator.clipboard.writeText(displayRegCode.trim());
+      toast.success('Kode disalin ke clipboard');
+    } catch {
+      toast.error('Gagal menyalin kode');
+    }
+  };
 
   if (settingsLoading) {
     return (
@@ -194,6 +237,67 @@ export function GeneralSettings() {
           >
             <Save className="h-4 w-4" aria-hidden="true" />
             Simpan
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* Kode pendaftaran */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <KeyRound className="h-5 w-5 text-primary" aria-hidden="true" />
+            Kode Pendaftaran
+          </CardTitle>
+          <CardDescription>
+            Karyawan baru wajib memasukkan kode ini saat mendaftar. Kosongkan lalu simpan untuk
+            menutup pendaftaran.
+          </CardDescription>
+        </CardHeader>
+        <CardContent className="flex flex-col gap-3">
+          {!settings?.registrationCode && !regCode && (
+            <p className="rounded-md bg-warning-subtle px-3 py-2 text-sm font-medium text-amber-700">
+              Belum ada kode — pendaftaran akun saat ini DITUTUP. Buat kode agar karyawan bisa
+              mendaftar.
+            </p>
+          )}
+          <div className="flex max-w-md flex-wrap items-center gap-2">
+            <Input
+              id="registration-code"
+              aria-label="Kode pendaftaran"
+              value={displayRegCode}
+              onChange={(e) => setRegCode(e.target.value.toUpperCase())}
+              maxLength={64}
+              placeholder="Belum ada kode"
+              className="w-44 font-mono tracking-widest"
+            />
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setRegCode(generateCode())}
+            >
+              <RefreshCw className="h-4 w-4" aria-hidden="true" />
+              Generate
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={handleCopyCode}
+              disabled={!displayRegCode.trim()}
+            >
+              <Copy className="h-4 w-4" aria-hidden="true" />
+              Salin
+            </Button>
+          </div>
+          <Button
+            className="self-start"
+            onClick={() => saveRegCodeMutation.mutate()}
+            isLoading={saveRegCodeMutation.isPending}
+            disabled={regCode === null}
+          >
+            <Save className="h-4 w-4" aria-hidden="true" />
+            Simpan Kode
           </Button>
         </CardContent>
       </Card>

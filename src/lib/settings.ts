@@ -1,3 +1,4 @@
+import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { appSettings } from '@/lib/db/schema';
 import { APP_NAME } from '@/lib/constants';
@@ -22,4 +23,18 @@ export async function getAppSettings(): Promise<AppSettings> {
   } catch {
     return { appName: APP_NAME, logoUrl: null };
   }
+}
+
+/**
+ * Kode pendaftaran akun (dibuat administrator di Pengaturan → General).
+ * null / kosong = pendaftaran ditutup. JANGAN diekspos ke non-admin.
+ */
+export async function getRegistrationCode(): Promise<string | null> {
+  const rows = await db
+    .select({ value: appSettings.value })
+    .from(appSettings)
+    .where(eq(appSettings.key, 'registration_code'))
+    .limit(1);
+  const code = rows[0]?.value?.trim();
+  return code ? code : null;
 }

@@ -17,6 +17,7 @@ export function RegisterForm() {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [registrationCode, setRegistrationCode] = useState('');
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -44,9 +45,19 @@ export function RegisterForm() {
       setError('Kata sandi belum memenuhi persyaratan');
       return;
     }
+    if (!registrationCode.trim()) {
+      setError('Masukkan kode pendaftaran dari administrator');
+      return;
+    }
 
     setIsLoading(true);
-    const { error: authError } = await signUp.email({ name, email, password });
+    // registrationCode dikirim ekstra & divalidasi di server (hook Better Auth)
+    const { error: authError } = await signUp.email({
+      name,
+      email,
+      password,
+      registrationCode: registrationCode.trim(),
+    } as Parameters<typeof signUp.email>[0]);
     setIsLoading(false);
 
     if (authError) {
@@ -128,6 +139,22 @@ export function RegisterForm() {
                 ))}
               </ul>
             )}
+          </div>
+
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="registration-code">Kode Pendaftaran</Label>
+            <Input
+              id="registration-code"
+              autoComplete="off"
+              placeholder="Kode dari administrator"
+              value={registrationCode}
+              onChange={(e) => setRegistrationCode(e.target.value.toUpperCase())}
+              className="font-mono tracking-widest"
+              required
+            />
+            <p className="text-xs text-text-secondary">
+              Minta kode pendaftaran kepada administrator perusahaan Anda
+            </p>
           </div>
 
           {error && (

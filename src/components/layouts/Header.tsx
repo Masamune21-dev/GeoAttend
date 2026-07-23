@@ -13,6 +13,7 @@ const PAGE_TITLES: Record<string, string> = {
   '/admin': 'Dashboard Admin',
   '/admin/live-map': 'Peta Live',
   '/admin/reports': 'Rekap Bulanan',
+  '/admin/leaves': 'Persetujuan Izin',
   '/admin/users': 'Kelola Pengguna',
   '/admin/settings': 'Pengaturan',
 };
