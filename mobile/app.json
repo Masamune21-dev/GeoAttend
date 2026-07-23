@@ -1,0 +1,58 @@
+{
+  "expo": {
+    "name": "GeoAttend",
+    "slug": "geoattend",
+    "version": "1.2.0",
+    "orientation": "portrait",
+    "icon": "./assets/icon.png",
+    "userInterfaceStyle": "light",
+    "ios": {
+      "supportsTablet": false,
+      "bundleIdentifier": "net.kusumavision.geoattend",
+      "infoPlist": {
+        "NSCameraUsageDescription": "Kamera dipakai untuk foto bukti absensi.",
+        "NSLocationWhenInUseUsageDescription": "Lokasi dipakai untuk validasi area absensi.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Lokasi background dipakai untuk pemantauan posisi selama jam kerja (setelah absen masuk hingga absen pulang)."
+      }
+    },
+    "android": {
+      "package": "net.kusumavision.geoattend",
+      "adaptiveIcon": {
+        "backgroundColor": "#2563EB",
+        "foregroundImage": "./assets/android-icon-foreground.png",
+        "backgroundImage": "./assets/android-icon-background.png",
+        "monochromeImage": "./assets/android-icon-monochrome.png"
+      },
+      "predictiveBackGestureEnabled": false,
+      "permissions": [
+        "android.permission.CAMERA",
+        "android.permission.ACCESS_COARSE_LOCATION",
+        "android.permission.ACCESS_FINE_LOCATION",
+        "android.permission.ACCESS_BACKGROUND_LOCATION",
+        "android.permission.FOREGROUND_SERVICE",
+        "android.permission.FOREGROUND_SERVICE_LOCATION"
+      ]
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
+    },
+    "plugins": [
+      "expo-secure-store",
+      [
+        "expo-camera",
+        {
+          "cameraPermission": "Kamera dipakai untuk foto bukti absensi."
+        }
+      ],
+      [
+        "expo-location",
+        {
+          "locationWhenInUsePermission": "Lokasi dipakai untuk validasi area absensi.",
+          "locationAlwaysAndWhenInUsePermission": "Lokasi background dipakai untuk pemantauan posisi selama jam kerja.",
+          "isAndroidBackgroundLocationEnabled": true,
+          "isAndroidForegroundServiceEnabled": true
+        }
+      ]
+    ]
+  }
+}

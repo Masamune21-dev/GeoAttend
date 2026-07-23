@@ -1,6 +1,7 @@
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
+import { bearer } from 'better-auth/plugins';
 import { db } from '@/lib/db';
 import * as schema from '@/lib/db/schema';
 import { getRegistrationCode } from '@/lib/settings';
@@ -20,6 +21,9 @@ export const auth = betterAuth({
   baseURL: process.env.BETTER_AUTH_URL ?? 'http://localhost:3000',
   ...(trustedOrigins.length > 0 && { trustedOrigins }),
   secret: process.env.BETTER_AUTH_SECRET,
+  // Bearer token untuk aplikasi mobile (header `set-auth-token` saat login,
+  // lalu kirim `Authorization: Bearer <token>` di request berikutnya)
+  plugins: [bearer()],
   database: drizzleAdapter(db, {
     provider: 'pg',
     schema,
