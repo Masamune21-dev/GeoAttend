@@ -58,6 +58,12 @@
         }
       ],
       [
+        "expo-image-picker",
+        {
+          "photosPermission": "Galeri dipakai untuk memilih foto profil dan sampul."
+        }
+      ],
+      [
         "expo-build-properties",
         {
           "android": {

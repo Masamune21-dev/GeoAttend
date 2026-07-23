@@ -77,6 +77,34 @@ export async function saveAvatarPhoto(photoBase64: string): Promise<string> {
 }
 
 /**
+ * Simpan foto sampul profil (JPEG, sudah di-resize client-side, maks 3MB).
+ * @returns URL relatif, contoh: "/api/uploads/covers/<uuid>.jpg"
+ */
+export async function saveCoverPhoto(photoBase64: string): Promise<string> {
+  const match = photoBase64.match(/^data:image\/jpeg;base64,(.+)$/);
+  if (!match) {
+    throw new StorageError('Format foto harus JPEG (data URI base64)', 'INVALID_FORMAT');
+  }
+
+  const buffer = Buffer.from(match[1], 'base64');
+  const maxCoverBytes = 3 * 1024 * 1024;
+  if (buffer.length > maxCoverBytes) {
+    throw new StorageError('Ukuran foto sampul maksimal 3MB', 'TOO_LARGE');
+  }
+  if (buffer.length < 3 || buffer[0] !== 0xff || buffer[1] !== 0xd8 || buffer[2] !== 0xff) {
+    throw new StorageError('File bukan JPEG yang valid', 'INVALID_FORMAT');
+  }
+
+  const dir = path.join(UPLOAD_ROOT, 'covers');
+  await mkdir(dir, { recursive: true });
+
+  const filename = `${randomUUID()}.jpg`;
+  await writeFile(path.join(dir, filename), buffer);
+
+  return `/api/uploads/covers/${filename}`;
+}
+
+/**
  * Simpan logo aplikasi (PNG/JPEG, maks 1MB).
  * @returns URL relatif: "/api/uploads/branding/logo-<uuid>.<ext>"
  */

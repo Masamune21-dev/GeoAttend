@@ -43,6 +43,13 @@
       "when": 1784765446183,
       "tag": "0005_leave-requests",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "7",
+      "when": 1784779512686,
+      "tag": "0006_user-cover-image",
+      "breakpoints": true
     }
   ]
 }

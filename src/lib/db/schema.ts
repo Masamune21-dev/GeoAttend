@@ -24,6 +24,7 @@ export const user = pgTable('users', {
   email: varchar('email', { length: 255 }).notNull().unique(),
   emailVerified: boolean('email_verified').default(false).notNull(),
   image: text('image'),
+  coverImage: text('cover_image'), // foto sampul profil (opsional)
   role: varchar('role', { length: 20 }).default('employee').notNull(), // 'admin' | 'employee'
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),

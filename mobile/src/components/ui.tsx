@@ -134,9 +134,11 @@ export function Card({ children, style }: { children: ReactNode; style?: StylePr
 export function Badge({
   text,
   tone = 'secondary',
+  style,
 }: {
   text: string;
   tone?: 'success' | 'destructive' | 'warning' | 'primary' | 'secondary';
+  style?: StyleProp<ViewStyle>;
 }) {
   const map = {
     success: { bg: colors.successSubtle, fg: '#15803D' },
@@ -147,7 +149,7 @@ export function Badge({
   } as const;
   const { bg, fg } = map[tone];
   return (
-    <View style={[styles.badge, { backgroundColor: bg }]}>
+    <View style={[styles.badge, { backgroundColor: bg }, style]}>
       <Text style={{ color: fg, fontSize: 12, fontWeight: '600' }}>{text}</Text>
     </View>
   );

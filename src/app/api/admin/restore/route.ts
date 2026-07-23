@@ -88,6 +88,7 @@ export async function POST(req: NextRequest) {
       email: str(row, 'email'),
       emailVerified: bool(row, 'emailVerified'),
       image: strOrNull(row, 'image'),
+      coverImage: strOrNull(row, 'coverImage'),
       role: str(row, 'role') || 'employee',
       createdAt: date(row, 'createdAt'),
       updatedAt: date(row, 'updatedAt'),

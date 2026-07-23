@@ -9,6 +9,7 @@ export interface SessionUser {
   email: string;
   role: string; // 'administrator' | 'admin' | 'noc' | 'teknisi' | 'employee'
   image?: string | null;
+  coverImage?: string | null;
 }
 
 export interface AttendanceRecordResponse {

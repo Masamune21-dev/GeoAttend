@@ -34,6 +34,11 @@ export const UploadAvatarSchema = z.object({
 });
 export type UploadAvatarInput = z.infer<typeof UploadAvatarSchema>;
 
+export const UploadCoverSchema = z.object({
+  photoBase64: z.string().startsWith('data:image/jpeg;base64,'),
+});
+export type UploadCoverInput = z.infer<typeof UploadCoverSchema>;
+
 export const UpdateAppSettingsSchema = z.object({
   appName: z.string().min(1).max(64).optional(),
   logoUrl: z.string().max(500).nullable().optional(),

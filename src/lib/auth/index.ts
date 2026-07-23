@@ -71,6 +71,11 @@ export const auth = betterAuth({
         defaultValue: 'employee',
         input: false, // role tidak boleh di-set dari form register
       },
+      coverImage: {
+        type: 'string',
+        required: false,
+        input: false, // di-set via endpoint /api/profile/cover
+      },
     },
   },
   session: {
