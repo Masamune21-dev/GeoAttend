@@ -3,7 +3,7 @@ import { asc, ilike, or, eq, and, sql, type SQL } from 'drizzle-orm';
 import { APIError } from 'better-auth/api';
 import { db } from '@/lib/db';
 import { user } from '@/lib/db/schema';
-import { auth } from '@/lib/auth';
+import { auth, runWithSignupBypass } from '@/lib/auth';
 import {
   getApiSession,
   isAdmin,
@@ -99,15 +99,18 @@ export async function POST(req: NextRequest) {
 
     const input = parsed.data;
 
-    // Buat user + password hash via Better Auth (tanpa mengganggu session admin)
+    // Buat user + password hash via Better Auth (tanpa mengganggu session admin).
+    // runWithSignupBypass: pembuatan oleh administrator tidak butuh kode pendaftaran.
     try {
-      await auth.api.signUpEmail({
-        body: {
-          name: input.name,
-          email: input.email,
-          password: input.password,
-        },
-      });
+      await runWithSignupBypass(() =>
+        auth.api.signUpEmail({
+          body: {
+            name: input.name,
+            email: input.email,
+            password: input.password,
+          },
+        })
+      );
     } catch (error) {
       if (error instanceof APIError) {
         const code = (error.body as { code?: string } | undefined)?.code;

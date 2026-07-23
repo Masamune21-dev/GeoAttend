@@ -1,3 +1,4 @@
+import { AsyncLocalStorage } from 'async_hooks';
 import { betterAuth } from 'better-auth';
 import { drizzleAdapter } from 'better-auth/adapters/drizzle';
 import { APIError, createAuthMiddleware } from 'better-auth/api';
@@ -5,6 +6,18 @@ import { bearer } from 'better-auth/plugins';
 import { db } from '@/lib/db';
 import * as schema from '@/lib/db/schema';
 import { getRegistrationCode } from '@/lib/settings';
+
+/**
+ * Bypass kode pendaftaran untuk pembuatan akun INTERNAL (administrator
+ * membuat user via /api/users). Berbasis AsyncLocalStorage sehingga hanya
+ * berlaku di dalam pemanggilan runWithSignupBypass — request sign-up publik
+ * tidak pernah bisa memicunya.
+ */
+const signupBypass = new AsyncLocalStorage<boolean>();
+
+export function runWithSignupBypass<T>(fn: () => Promise<T>): Promise<T> {
+  return signupBypass.run(true, fn);
+}
 
 const SESSION_EXPIRY_DAYS = Number(process.env.SESSION_EXPIRY_DAYS ?? 7);
 
@@ -40,6 +53,9 @@ export const auth = betterAuth({
      */
     before: createAuthMiddleware(async (ctx) => {
       if (ctx.path !== '/sign-up/email') return;
+
+      // Pembuatan akun internal oleh administrator (via /api/users) — lewati
+      if (signupBypass.getStore()) return;
 
       // Bootstrap: akun PERTAMA (database kosong) boleh dibuat tanpa kode —
       // dipakai seed / instalasi baru. Setelah ada user, kode wajib.
