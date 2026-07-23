@@ -198,75 +198,92 @@ export function UserTable() {
           Tidak ada pengguna ditemukan
         </p>
       ) : (
-        <ul className="flex flex-col gap-2">
-          {users.map((user) => {
-            const isSelf = user.id === session?.user.id;
-            return (
-              <li
-                key={user.id}
-                className="flex items-center gap-3 rounded-lg border border-border/80 bg-surface p-3 shadow-card transition-shadow hover:shadow-elevated"
-              >
-                <span
-                  aria-hidden="true"
-                  className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white"
-                >
-                  {getInitials(user.name)}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium text-text-primary">
-                    {user.name}
-                    {isSelf && (
-                      <Badge variant="secondary" className="ml-2">
-                        Anda
-                      </Badge>
-                    )}
-                  </p>
-                  <p className="truncate text-xs text-text-secondary">{user.email}</p>
-                </div>
-
-                <select
-                  value={user.role}
-                  disabled={isSelf || updateRole.isPending}
-                  onChange={(e) =>
-                    updateRole.mutate({
-                      id: user.id,
-                      role: e.target.value as UserProfile['role'],
-                    })
-                  }
-                  aria-label={`Role untuk ${user.name}`}
-                  className="h-9 rounded-sm border border-border bg-white px-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
-                >
-                  {ROLE_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>
-                      {option.label}
-                    </option>
-                  ))}
-                </select>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => openEdit(user)}
-                  aria-label={`Edit ${user.name}`}
-                  className="text-text-secondary hover:text-primary"
-                >
-                  <Pencil className="h-4 w-4" aria-hidden="true" />
-                </Button>
-
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  disabled={isSelf}
-                  onClick={() => setDeleteTarget(user)}
-                  aria-label={`Hapus ${user.name}`}
-                  className="text-text-secondary hover:text-destructive"
-                >
-                  <Trash2 className="h-4 w-4" aria-hidden="true" />
-                </Button>
-              </li>
-            );
-          })}
-        </ul>
+        <div className="overflow-x-auto rounded-lg border border-border bg-surface shadow-card">
+          <table className="w-full min-w-[640px] text-sm">
+            <thead>
+              <tr className="border-b border-border text-left text-xs uppercase tracking-wide text-text-secondary">
+                <th className="px-4 py-3 font-medium">Nama</th>
+                <th className="px-4 py-3 font-medium">Email</th>
+                <th className="px-4 py-3 font-medium">Role</th>
+                <th className="px-4 py-3 text-right font-medium">Aksi</th>
+              </tr>
+            </thead>
+            <tbody>
+              {users.map((user) => {
+                const isSelf = user.id === session?.user.id;
+                return (
+                  <tr
+                    key={user.id}
+                    className="border-b border-border/60 transition-colors last:border-0 hover:bg-background"
+                  >
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center gap-3">
+                        <span
+                          aria-hidden="true"
+                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white"
+                        >
+                          {getInitials(user.name)}
+                        </span>
+                        <span className="font-medium text-text-primary">
+                          {user.name}
+                          {isSelf && (
+                            <Badge variant="secondary" className="ml-2">
+                              Anda
+                            </Badge>
+                          )}
+                        </span>
+                      </div>
+                    </td>
+                    <td className="px-4 py-2.5 text-text-secondary">{user.email}</td>
+                    <td className="px-4 py-2.5">
+                      <select
+                        value={user.role}
+                        disabled={isSelf || updateRole.isPending}
+                        onChange={(e) =>
+                          updateRole.mutate({
+                            id: user.id,
+                            role: e.target.value as UserProfile['role'],
+                          })
+                        }
+                        aria-label={`Role untuk ${user.name}`}
+                        className="h-9 rounded-sm border border-border bg-white px-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
+                      >
+                        {ROLE_OPTIONS.map((option) => (
+                          <option key={option.value} value={option.value}>
+                            {option.label}
+                          </option>
+                        ))}
+                      </select>
+                    </td>
+                    <td className="px-4 py-2.5">
+                      <div className="flex items-center justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          onClick={() => openEdit(user)}
+                          aria-label={`Edit ${user.name}`}
+                          className="text-text-secondary hover:text-primary"
+                        >
+                          <Pencil className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          disabled={isSelf}
+                          onClick={() => setDeleteTarget(user)}
+                          aria-label={`Hapus ${user.name}`}
+                          className="text-text-secondary hover:text-destructive"
+                        >
+                          <Trash2 className="h-4 w-4" aria-hidden="true" />
+                        </Button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       )}
 
       {/* Dialog tambah pengguna */}
