@@ -41,6 +41,11 @@ export const auth = betterAuth({
     before: createAuthMiddleware(async (ctx) => {
       if (ctx.path !== '/sign-up/email') return;
 
+      // Bootstrap: akun PERTAMA (database kosong) boleh dibuat tanpa kode —
+      // dipakai seed / instalasi baru. Setelah ada user, kode wajib.
+      const anyUser = await db.select({ id: schema.user.id }).from(schema.user).limit(1);
+      if (anyUser.length === 0) return;
+
       const expected = await getRegistrationCode();
       if (!expected) {
         throw new APIError('FORBIDDEN', {
