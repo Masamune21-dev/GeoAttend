@@ -7,7 +7,9 @@ import { Clock, Save } from 'lucide-react';
 import { useShifts } from '@/hooks/useAttendance';
 import { DEFAULT_SHIFTS, WORK_ROLES } from '@/lib/constants';
 import { getRoleLabel } from '@/lib/utils';
+import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -119,28 +121,26 @@ export function ShiftSettingsForm() {
                     <Label htmlFor={`${role}-${shift.shiftNumber}-start`} className="text-xs">
                       Jam Masuk
                     </Label>
-                    <input
+                    <Input
                       id={`${role}-${shift.shiftNumber}-start`}
                       type="time"
                       value={shift.startTime}
                       onChange={(e) =>
                         updateShift(role, shift.shiftNumber, 'startTime', e.target.value)
                       }
-                      className="h-10 rounded-sm border border-border bg-white px-3 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     />
                   </div>
                   <div className="flex flex-col gap-1">
                     <Label htmlFor={`${role}-${shift.shiftNumber}-end`} className="text-xs">
                       Jam Pulang
                     </Label>
-                    <input
+                    <Input
                       id={`${role}-${shift.shiftNumber}-end`}
                       type="time"
                       value={shift.endTime}
                       onChange={(e) =>
                         updateShift(role, shift.shiftNumber, 'endTime', e.target.value)
                       }
-                      className="h-10 rounded-sm border border-border bg-white px-3 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                     />
                   </div>
                 </div>
@@ -150,12 +150,13 @@ export function ShiftSettingsForm() {
         ))}
 
         {hasInvalidRange && (
-          <p role="alert" className="text-sm text-destructive">
+          <Alert variant="destructive">
             Jam masuk harus lebih awal dari jam pulang pada setiap shift
-          </p>
+          </Alert>
         )}
 
         <Button
+          className="self-start"
           onClick={() => saveMutation.mutate(shifts)}
           disabled={hasInvalidRange}
           isLoading={saveMutation.isPending}

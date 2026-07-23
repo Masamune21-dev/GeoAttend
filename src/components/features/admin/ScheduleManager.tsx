@@ -18,6 +18,7 @@ import {
 } from '@/lib/schedule/display';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 
 const GROUP_LABEL: Record<string, string> = { admin: 'Admin & CS', noc: 'NOC' };
@@ -293,7 +294,7 @@ export function ScheduleManager() {
                     </span>
                   )}
                 </div>
-                <select
+                <Select
                   value={piket[d] ?? ''}
                   onChange={(e) => {
                     const v = e.target.value;
@@ -301,7 +302,7 @@ export function ScheduleManager() {
                     setPiketDirty(true);
                   }}
                   aria-label={`Petugas piket tanggal ${d}`}
-                  className="mt-1 h-8 w-full rounded-sm border border-border bg-white px-1 text-xs"
+                  className="mt-1 h-8 rounded-sm pl-2 pr-7 text-xs md:text-xs"
                 >
                   <option value="">—</option>
                   {users.map((u) => (
@@ -309,7 +310,7 @@ export function ScheduleManager() {
                       {u.name}
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
             ))}
           </div>
@@ -338,19 +339,20 @@ export function ScheduleManager() {
                     <tr key={u.id} className="border-t border-border/60">
                       <td className="py-1.5 pr-2 font-medium text-text-primary">{u.name}</td>
                       <td className="py-1.5 pr-2">
-                        <select
+                        <Select
                           value={cfg.startShift}
+                          aria-label={`Shift awal ${u.name}`}
                           onChange={(e) =>
                             setGenConfig((c) => ({
                               ...c,
                               [u.id]: { ...cfg, startShift: Number(e.target.value) as 1 | 2 },
                             }))
                           }
-                          className="h-8 rounded-sm border border-border bg-white px-2 text-sm"
+                          className="h-8 w-auto rounded-sm pl-2 pr-7"
                         >
                           <option value={1}>S1</option>
                           <option value={2}>S2</option>
-                        </select>
+                        </Select>
                       </td>
                       <td className="py-1.5">
                         <div className="flex flex-wrap gap-1">

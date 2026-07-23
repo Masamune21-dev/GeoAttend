@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { toast } from 'sonner';
 import { Check, X } from 'lucide-react';
 import { signUp } from '@/lib/auth/client';
+import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -62,8 +63,9 @@ export function RegisterForm() {
     setIsLoading(false);
 
     if (authError) {
-      if (authError.code === 'USER_ALREADY_EXISTS') {
-        setError('Email sudah terdaftar');
+      // Better Auth memakai kode USER_ALREADY_EXISTS_USE_ANOTHER_EMAIL (status 422)
+      if (authError.code?.startsWith('USER_ALREADY_EXISTS') || authError.status === 422) {
+        setError('Email sudah terdaftar. Gunakan email lain atau masuk.');
       } else {
         setError(authError.message ?? 'Gagal mendaftar. Coba lagi.');
       }
@@ -76,10 +78,10 @@ export function RegisterForm() {
   };
 
   return (
-    <Card>
+    <Card className="shadow-elevated">
       <CardHeader>
-        <CardTitle>Daftar</CardTitle>
-        <CardDescription>Buat akun baru untuk mulai absensi</CardDescription>
+        <CardTitle className="text-2xl">Buat akun</CardTitle>
+        <CardDescription>Daftar sekali, lalu absen cukup dari ponsel Anda</CardDescription>
       </CardHeader>
       <CardContent>
         <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
@@ -157,21 +159,17 @@ export function RegisterForm() {
             </p>
           </div>
 
-          {error && (
-            <p role="alert" className="rounded-sm bg-red-50 px-3 py-2 text-sm text-destructive">
-              {error}
-            </p>
-          )}
+          {error && <Alert variant="destructive">{error}</Alert>}
 
-          <Button type="submit" isLoading={isLoading} className="mt-2">
+          <Button type="submit" size="lg" isLoading={isLoading} className="mt-2 w-full">
             {isLoading ? 'Memproses...' : 'Daftar'}
           </Button>
         </form>
 
-        <p className="mt-4 text-center text-sm text-text-secondary">
+        <p className="mt-5 border-t border-border/70 pt-4 text-center text-sm text-text-secondary">
           Sudah punya akun?{' '}
           <Link href="/login" className="font-medium text-primary hover:underline">
-            Masuk
+            Masuk di sini
           </Link>
         </p>
       </CardContent>

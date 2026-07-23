@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
 import { signIn } from '@/lib/auth/client';
+import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -42,16 +43,18 @@ export function LoginForm() {
   };
 
   return (
-    <Card>
+    <Card className="shadow-elevated">
       <CardHeader>
-        <CardTitle>Masuk</CardTitle>
-        <CardDescription>
-          {expired
-            ? 'Sesi berakhir, silakan login kembali'
-            : 'Masukkan email dan kata sandi Anda'}
-        </CardDescription>
+        <CardTitle className="text-2xl">Selamat datang kembali</CardTitle>
+        <CardDescription>Masuk untuk mulai absensi hari ini</CardDescription>
       </CardHeader>
       <CardContent>
+        {expired && (
+          <Alert variant="warning" className="mb-4">
+            Sesi Anda berakhir. Silakan masuk kembali.
+          </Alert>
+        )}
+
         <form onSubmit={handleSubmit} className="flex flex-col gap-4" noValidate>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="email">Email</Label>
@@ -77,21 +80,17 @@ export function LoginForm() {
             />
           </div>
 
-          {error && (
-            <p role="alert" className="rounded-sm bg-red-50 px-3 py-2 text-sm text-destructive">
-              {error}
-            </p>
-          )}
+          {error && <Alert variant="destructive">{error}</Alert>}
 
-          <Button type="submit" isLoading={isLoading} className="mt-2">
+          <Button type="submit" size="lg" isLoading={isLoading} className="mt-2 w-full">
             {isLoading ? 'Memproses...' : 'Masuk'}
           </Button>
         </form>
 
-        <p className="mt-4 text-center text-sm text-text-secondary">
+        <p className="mt-5 border-t border-border/70 pt-4 text-center text-sm text-text-secondary">
           Belum punya akun?{' '}
           <Link href="/register" className="font-medium text-primary hover:underline">
-            Daftar
+            Daftar di sini
           </Link>
         </p>
       </CardContent>

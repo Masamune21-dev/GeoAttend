@@ -28,11 +28,16 @@ import {
   SWAP_STATUS_VARIANT,
 } from '@/lib/schedule/display';
 import type { ScheduleShift } from '@/types/api';
+import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
 
 function tomorrowStr(): string {
   const d = new Date();
@@ -346,10 +351,8 @@ export function MySchedule() {
       <Dialog open={swapOpen} onClose={() => setSwapOpen(false)} title="Ajukan Tukar Shift">
         <div className="flex flex-col gap-4">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="swap-date" className="text-sm font-medium text-text-primary">
-              Tanggal (ke depan)
-            </label>
-            <input
+            <Label htmlFor="swap-date">Tanggal (ke depan)</Label>
+            <Input
               id="swap-date"
               type="date"
               value={swapDate}
@@ -358,21 +361,20 @@ export function MySchedule() {
                 setSwapDate(e.target.value);
                 setTargetUserId('');
               }}
-              className="h-10 rounded-sm border border-border bg-white px-3 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             />
           </div>
 
           {candidatesQuery.isLoading ? (
             <Skeleton className="h-10 w-full" />
           ) : candidatesQuery.data?.requesterShift == null ? (
-            <p className="rounded-sm bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            <Alert variant="warning">
               Kamu tidak terjadwal shift (atau libur) pada tanggal itu.
-            </p>
+            </Alert>
           ) : candidatesQuery.data.candidates.length === 0 ? (
-            <p className="rounded-sm bg-amber-50 px-3 py-2 text-sm text-amber-700">
+            <Alert variant="warning">
               Shift kamu <strong>Shift {candidatesQuery.data.requesterShift}</strong>. Tidak ada rekan
               satu role dengan shift berbeda pada tanggal itu.
-            </p>
+            </Alert>
           ) : (
             <>
               <p className="text-sm text-text-secondary">
@@ -380,14 +382,11 @@ export function MySchedule() {
                 (shift berbeda) untuk ditukar:
               </p>
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="swap-target" className="text-sm font-medium text-text-primary">
-                  Rekan
-                </label>
-                <select
+                <Label htmlFor="swap-target">Rekan</Label>
+                <Select
                   id="swap-target"
                   value={targetUserId}
                   onChange={(e) => setTargetUserId(e.target.value)}
-                  className="h-10 rounded-sm border border-border bg-white px-2 text-sm"
                 >
                   <option value="">— pilih rekan —</option>
                   {candidatesQuery.data.candidates.map((c) => (
@@ -395,19 +394,16 @@ export function MySchedule() {
                       {c.name} (Shift {c.shift})
                     </option>
                   ))}
-                </select>
+                </Select>
               </div>
               <div className="flex flex-col gap-1.5">
-                <label htmlFor="swap-reason" className="text-sm font-medium text-text-primary">
-                  Alasan (opsional)
-                </label>
-                <textarea
+                <Label htmlFor="swap-reason">Alasan (opsional)</Label>
+                <Textarea
                   id="swap-reason"
                   value={reason}
                   onChange={(e) => setReason(e.target.value)}
                   maxLength={500}
                   rows={2}
-                  className="w-full rounded-sm border border-border bg-white px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
                 />
               </div>
             </>

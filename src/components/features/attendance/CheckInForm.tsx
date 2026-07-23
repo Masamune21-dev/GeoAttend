@@ -18,7 +18,9 @@ import { LeaveSection } from './LeaveSection';
 import { LocationStatus } from './LocationStatus';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
 import { cn, formatTime } from '@/lib/utils';
 
 export function CheckInForm() {
@@ -263,17 +265,14 @@ export function CheckInForm() {
 
         {photo && (
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="notes" className="text-sm font-medium text-text-primary">
-              Catatan (opsional)
-            </label>
-            <textarea
+            <Label htmlFor="notes">Catatan (opsional)</Label>
+            <Textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               maxLength={500}
               rows={2}
               placeholder="Contoh: Datang tepat waktu"
-              className="w-full rounded-sm border border-border bg-white px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             />
           </div>
         )}

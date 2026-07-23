@@ -4,7 +4,8 @@ import { useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { toast } from 'sonner';
-import { Copy, ImagePlus, KeyRound, MapPin, RefreshCw, Save } from 'lucide-react';
+import { Copy, ImagePlus, KeyRound, MapPin, Palette, RefreshCw, Save, Server } from 'lucide-react';
+import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -165,40 +166,45 @@ export function GeneralSettings() {
 
   if (settingsLoading) {
     return (
-      <div className="flex flex-col gap-4">
-        <Skeleton className="h-64 w-full" />
+      <div className="grid gap-4 xl:grid-cols-2">
         <Skeleton className="h-72 w-full" />
+        <Skeleton className="h-72 w-full" />
+        <Skeleton className="h-64 w-full xl:col-span-2" />
       </div>
     );
   }
 
   const currentLogo = logoPreview ?? settings?.logoUrl ?? null;
+  const registrationOpen = Boolean((regCode ?? settings?.registrationCode ?? '').trim());
 
   return (
-    <div className="flex flex-col gap-4">
+    <div className="grid items-stretch gap-4 xl:grid-cols-2">
       {/* Identitas aplikasi */}
-      <Card>
+      <Card className="flex flex-col">
         <CardHeader>
-          <CardTitle>Identitas Aplikasi</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Palette className="h-5 w-5 text-primary" aria-hidden="true" />
+            Identitas Aplikasi
+          </CardTitle>
           <CardDescription>
             Nama dan logo tampil di sidebar, halaman login, dan tab browser
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-5">
-          <div className="flex items-center gap-4">
+        <CardContent className="flex flex-1 flex-col gap-5">
+          <div className="flex items-center gap-4 rounded-lg border border-border/70 bg-background p-3">
             {currentLogo ? (
               // eslint-disable-next-line @next/next/no-img-element
               <img
                 src={currentLogo}
                 alt="Logo aplikasi"
-                className="h-16 w-16 rounded-lg border border-border object-contain p-1"
+                className="h-16 w-16 shrink-0 rounded-lg border border-border bg-surface object-contain p-1"
               />
             ) : (
-              <span className="flex h-16 w-16 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent text-white">
+              <span className="flex h-16 w-16 shrink-0 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-accent text-white">
                 <MapPin className="h-8 w-8" aria-hidden="true" />
               </span>
             )}
-            <div className="flex flex-col gap-1.5">
+            <div className="flex min-w-0 flex-col items-start gap-1.5">
               <Button
                 type="button"
                 variant="outline"
@@ -219,7 +225,7 @@ export function GeneralSettings() {
             />
           </div>
 
-          <div className="flex max-w-sm flex-col gap-1.5">
+          <div className="flex flex-col gap-1.5">
             <Label htmlFor="app-name">Nama Aplikasi</Label>
             <Input
               id="app-name"
@@ -227,10 +233,11 @@ export function GeneralSettings() {
               onChange={(e) => setAppName(e.target.value)}
               maxLength={64}
             />
+            <p className="text-xs text-text-secondary">Maksimal 64 karakter</p>
           </div>
 
           <Button
-            className="self-start"
+            className="mt-auto self-start"
             onClick={() => saveMutation.mutate()}
             isLoading={saveMutation.isPending}
             disabled={displayName.trim().length === 0}
@@ -242,56 +249,66 @@ export function GeneralSettings() {
       </Card>
 
       {/* Kode pendaftaran */}
-      <Card>
+      <Card className="flex flex-col">
         <CardHeader>
-          <CardTitle className="flex items-center gap-2">
-            <KeyRound className="h-5 w-5 text-primary" aria-hidden="true" />
-            Kode Pendaftaran
-          </CardTitle>
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <CardTitle className="flex items-center gap-2">
+              <KeyRound className="h-5 w-5 text-primary" aria-hidden="true" />
+              Kode Pendaftaran
+            </CardTitle>
+            <Badge variant={registrationOpen ? 'success' : 'warning'}>
+              {registrationOpen ? 'Pendaftaran terbuka' : 'Pendaftaran ditutup'}
+            </Badge>
+          </div>
           <CardDescription>
             Karyawan baru wajib memasukkan kode ini saat mendaftar. Kosongkan lalu simpan untuk
             menutup pendaftaran.
           </CardDescription>
         </CardHeader>
-        <CardContent className="flex flex-col gap-3">
+        <CardContent className="flex flex-1 flex-col gap-4">
           {!settings?.registrationCode && !regCode && (
-            <p className="rounded-md bg-warning-subtle px-3 py-2 text-sm font-medium text-amber-700">
-              Belum ada kode — pendaftaran akun saat ini DITUTUP. Buat kode agar karyawan bisa
-              mendaftar.
-            </p>
+            <Alert variant="warning">
+              Belum ada kode — pendaftaran akun saat ini <strong>ditutup</strong>. Buat kode agar
+              karyawan bisa mendaftar.
+            </Alert>
           )}
-          <div className="flex max-w-md flex-wrap items-center gap-2">
-            <Input
-              id="registration-code"
-              aria-label="Kode pendaftaran"
-              value={displayRegCode}
-              onChange={(e) => setRegCode(e.target.value.toUpperCase())}
-              maxLength={64}
-              placeholder="Belum ada kode"
-              className="w-44 font-mono tracking-widest"
-            />
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={() => setRegCode(generateCode())}
-            >
-              <RefreshCw className="h-4 w-4" aria-hidden="true" />
-              Generate
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              onClick={handleCopyCode}
-              disabled={!displayRegCode.trim()}
-            >
-              <Copy className="h-4 w-4" aria-hidden="true" />
-              Salin
-            </Button>
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="registration-code">Kode aktif</Label>
+            <div className="flex flex-wrap items-center gap-2">
+              <Input
+                id="registration-code"
+                value={displayRegCode}
+                onChange={(e) => setRegCode(e.target.value.toUpperCase())}
+                maxLength={64}
+                placeholder="Belum ada kode"
+                className="w-40 font-mono text-base tracking-widest md:text-base"
+              />
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={() => setRegCode(generateCode())}
+              >
+                <RefreshCw className="h-4 w-4" aria-hidden="true" />
+                Generate
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                onClick={handleCopyCode}
+                disabled={!displayRegCode.trim()}
+              >
+                <Copy className="h-4 w-4" aria-hidden="true" />
+                Salin
+              </Button>
+            </div>
+            <p className="text-xs text-text-secondary">
+              Bagikan kode ini ke karyawan baru. Ganti kapan saja bila bocor.
+            </p>
           </div>
           <Button
-            className="self-start"
+            className="mt-auto self-start"
             onClick={() => saveRegCodeMutation.mutate()}
             isLoading={saveRegCodeMutation.isPending}
             disabled={regCode === null}
@@ -303,16 +320,19 @@ export function GeneralSettings() {
       </Card>
 
       {/* Informasi sistem */}
-      <Card>
+      <Card className="xl:col-span-2">
         <CardHeader>
-          <CardTitle>Informasi Sistem</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Server className="h-5 w-5 text-primary" aria-hidden="true" />
+            Informasi Sistem
+          </CardTitle>
           <CardDescription>Versi aplikasi dan kondisi server saat ini</CardDescription>
         </CardHeader>
         <CardContent>
           {sysLoading || !sysInfo ? (
             <Skeleton className="h-48 w-full" />
           ) : (
-            <dl className="grid gap-x-8 gap-y-2.5 text-sm sm:grid-cols-2">
+            <dl className="grid gap-x-8 gap-y-2.5 text-sm sm:grid-cols-2 xl:grid-cols-3">
               {[
                 ['Versi Aplikasi', `v${sysInfo.appVersion}`],
                 ['Framework', `Next.js ${sysInfo.nextVersion}`],
@@ -325,10 +345,10 @@ export function GeneralSettings() {
               ].map(([label, value]) => (
                 <div key={label} className="flex items-center justify-between gap-4 border-b border-border/50 pb-2">
                   <dt className="text-text-secondary">{label}</dt>
-                  <dd className="font-medium text-text-primary tabular-nums">{value}</dd>
+                  <dd className="font-medium tabular-nums text-text-primary">{value}</dd>
                 </div>
               ))}
-              <div className="flex items-center justify-between gap-4 border-b border-border/50 pb-2 sm:col-span-2">
+              <div className="flex items-center justify-between gap-4 border-b border-border/50 pb-2">
                 <dt className="text-text-secondary">Database</dt>
                 <dd className="flex items-center gap-2">
                   <Badge variant={sysInfo.db.connected ? 'success' : 'destructive'}>

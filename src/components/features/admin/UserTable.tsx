@@ -12,6 +12,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
+import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { getInitials } from '@/lib/utils';
 
@@ -236,7 +237,7 @@ export function UserTable() {
                     </td>
                     <td className="px-4 py-2.5 text-text-secondary">{user.email}</td>
                     <td className="px-4 py-2.5">
-                      <select
+                      <Select
                         value={user.role}
                         disabled={isSelf || updateRole.isPending}
                         onChange={(e) =>
@@ -246,14 +247,14 @@ export function UserTable() {
                           })
                         }
                         aria-label={`Role untuk ${user.name}`}
-                        className="h-9 rounded-sm border border-border bg-white px-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary disabled:opacity-50"
+                        className="h-9 w-auto min-w-[11rem]"
                       >
                         {ROLE_OPTIONS.map((option) => (
                           <option key={option.value} value={option.value}>
                             {option.label}
                           </option>
                         ))}
-                      </select>
+                      </Select>
                     </td>
                     <td className="px-4 py-2.5">
                       <div className="flex items-center justify-end gap-1">
@@ -325,20 +326,19 @@ export function UserTable() {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="nu-role">Role</Label>
-            <select
+            <Select
               id="nu-role"
               value={newUser.role}
               onChange={(e) =>
                 setNewUser((u) => ({ ...u, role: e.target.value as UserProfile['role'] }))
               }
-              className="h-10 rounded-sm border border-border bg-white px-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
               {ROLE_OPTIONS.map((option) => (
                 <option key={option.value} value={option.value}>
                   {option.label}
                 </option>
               ))}
-            </select>
+            </Select>
           </div>
 
           <div className="mt-2 flex justify-end gap-2">

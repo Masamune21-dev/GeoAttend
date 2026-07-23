@@ -13,7 +13,9 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Textarea } from '@/components/ui/textarea';
 import { SwapApprovals } from '@/components/features/admin/SwapApprovals';
 
 const STATUS_VARIANT = {
@@ -233,17 +235,14 @@ export default function AdminLeavesPage() {
               {formatDateRange(rejectTarget.startDate, rejectTarget.endDate)}).
             </p>
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="reject-note" className="text-sm font-medium text-text-primary">
-                Catatan (opsional)
-              </label>
-              <textarea
+              <Label htmlFor="reject-note">Catatan (opsional)</Label>
+              <Textarea
                 id="reject-note"
                 value={rejectNote}
                 onChange={(e) => setRejectNote(e.target.value)}
                 maxLength={500}
                 rows={2}
                 placeholder="Contoh: Jadwal shift tidak memungkinkan"
-                className="w-full rounded-sm border border-border bg-white px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               />
             </div>
             <div className="flex justify-end gap-2">

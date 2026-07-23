@@ -18,6 +18,7 @@ import { expandDateRange, getLeaveTypeLabel } from '@/lib/leaves';
 import { getRoleLabel } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 
@@ -391,11 +392,11 @@ export default function ReportsPage() {
             <ChevronRight className="h-5 w-5" />
           </button>
         </div>
-        <select
+        <Select
           value={selectedUserId}
           onChange={(e) => setSelectedUserId(e.target.value)}
           aria-label="Filter per karyawan"
-          className="h-10 rounded-md border border-border bg-white px-2 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          className="w-auto min-w-[12rem]"
         >
           <option value="all">Semua Karyawan</option>
           {(usersData?.data ?? [])
@@ -406,7 +407,7 @@ export default function ReportsPage() {
                 {u.name}
               </option>
             ))}
-        </select>
+        </Select>
 
         <div className="ml-auto flex items-center gap-2">
           <Button variant="outline" size="sm" onClick={handleExport}>

@@ -17,10 +17,19 @@ import {
 import type { SessionUser } from '../api/types';
 import { stopTracking } from '../tracking/locationTask';
 
+export interface SignUpInput {
+  name: string;
+  email: string;
+  password: string;
+  /** Kode dari administrator — divalidasi di server (hook Better Auth). */
+  registrationCode: string;
+}
+
 interface SessionContextValue {
   user: SessionUser | null;
   initializing: boolean;
   signIn: (serverUrl: string, email: string, password: string) => Promise<void>;
+  signUp: (serverUrl: string, input: SignUpInput) => Promise<void>;
   signOut: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -62,18 +71,20 @@ export function SessionProvider({ children }: { children: ReactNode }) {
     })();
   }, [refresh]);
 
-  const signIn = useCallback(
-    async (serverUrl: string, email: string, password: string) => {
+  /**
+   * Kirim kredensial ke endpoint auth lalu simpan token sesi.
+   * Dipakai bersama oleh sign-in & sign-up (keduanya mengembalikan sesi
+   * karena `autoSignIn` aktif di server).
+   */
+  const authenticate = useCallback(
+    async (serverUrl: string, path: string, payload: Record<string, string>) => {
       await setServerUrl(serverUrl);
       await setToken(null);
 
-      const res = await api<{ token?: string; user?: SessionUser }>(
-        '/api/auth/sign-in/email',
-        {
-          method: 'POST',
-          body: JSON.stringify({ email, password }),
-        }
-      );
+      const res = await api<{ token?: string; user?: SessionUser }>(path, {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
 
       // Token dari header set-auth-token sudah disimpan oleh api();
       // fallback: sebagian versi Better Auth juga menaruhnya di body.
@@ -82,13 +93,30 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       }
       if (!getToken()) {
         throw new ApiRequestError(
-          'Login berhasil tapi token tidak diterima — pastikan server versi terbaru.',
+          'Berhasil tapi token tidak diterima — pastikan server versi terbaru.',
           500
         );
       }
       await refresh();
     },
     [refresh]
+  );
+
+  const signIn = useCallback(
+    (serverUrl: string, email: string, password: string) =>
+      authenticate(serverUrl, '/api/auth/sign-in/email', { email, password }),
+    [authenticate]
+  );
+
+  const signUp = useCallback(
+    (serverUrl: string, input: SignUpInput) =>
+      authenticate(serverUrl, '/api/auth/sign-up/email', {
+        name: input.name.trim(),
+        email: input.email.trim(),
+        password: input.password,
+        registrationCode: input.registrationCode.trim(),
+      }),
+    [authenticate]
   );
 
   const signOut = useCallback(async () => {
@@ -99,7 +127,7 @@ export function SessionProvider({ children }: { children: ReactNode }) {
   }, []);
 
   return (
-    <SessionContext.Provider value={{ user, initializing, signIn, signOut, refresh }}>
+    <SessionContext.Provider value={{ user, initializing, signIn, signUp, signOut, refresh }}>
       {children}
     </SessionContext.Provider>
   );

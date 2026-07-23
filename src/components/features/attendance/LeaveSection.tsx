@@ -13,10 +13,14 @@ import {
 } from '@/hooks/useAttendance';
 import { getLeaveStatusLabel, getLeaveTypeLabel, toLocalDateString } from '@/lib/leaves';
 import type { LeaveRequestResponse, LeaveType } from '@/types/api';
+import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog } from '@/components/ui/dialog';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 
 const STATUS_VARIANT = {
   pending: 'warning',
@@ -141,9 +145,9 @@ export function LeaveSection() {
             </Button>
           </div>
         ) : todayApprovedLeave ? (
-          <div className="rounded-md bg-warning-subtle px-3 py-2.5 text-sm font-medium text-amber-700">
+          <Alert variant="warning" className="font-medium">
             Hari ini Anda tercatat {getLeaveTypeLabel(todayApprovedLeave.type)}
-          </div>
+          </Alert>
         ) : (
           <div className="grid grid-cols-2 gap-2">
             <Button
@@ -231,10 +235,8 @@ export function LeaveSection() {
 
           <div className="grid grid-cols-2 gap-3">
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="leave-start" className="text-sm font-medium text-text-primary">
-                Dari tanggal
-              </label>
-              <input
+              <Label htmlFor="leave-start">Dari tanggal</Label>
+              <Input
                 id="leave-start"
                 type="date"
                 value={startDate}
@@ -243,36 +245,29 @@ export function LeaveSection() {
                   setStartDate(e.target.value);
                   if (endDate < e.target.value) setEndDate(e.target.value);
                 }}
-                className="h-10 rounded-md border border-border bg-white px-3 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               />
             </div>
             <div className="flex flex-col gap-1.5">
-              <label htmlFor="leave-end" className="text-sm font-medium text-text-primary">
-                Sampai tanggal
-              </label>
-              <input
+              <Label htmlFor="leave-end">Sampai tanggal</Label>
+              <Input
                 id="leave-end"
                 type="date"
                 value={endDate}
                 min={startDate}
                 onChange={(e) => setEndDate(e.target.value)}
-                className="h-10 rounded-md border border-border bg-white px-3 text-sm text-text-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
               />
             </div>
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="leave-reason" className="text-sm font-medium text-text-primary">
-              Alasan
-            </label>
-            <textarea
+            <Label htmlFor="leave-reason">Alasan</Label>
+            <Textarea
               id="leave-reason"
               value={reason}
               onChange={(e) => setReason(e.target.value)}
               maxLength={500}
               rows={3}
               placeholder="Contoh: Periksa ke dokter"
-              className="w-full rounded-sm border border-border bg-white px-3 py-2 text-sm text-text-primary placeholder:text-text-secondary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             />
           </div>
 

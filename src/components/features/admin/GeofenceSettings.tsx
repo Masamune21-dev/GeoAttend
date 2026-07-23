@@ -12,6 +12,7 @@ import {
   MAX_GEOFENCE_RADIUS,
   MIN_GEOFENCE_RADIUS,
 } from '@/lib/constants';
+import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -144,12 +145,13 @@ export function GeofenceSettings() {
           </div>
 
           {!isValidCoords && (
-            <p role="alert" className="text-sm text-destructive">
+            <Alert variant="destructive">
               Koordinat tidak valid (lat: -90..90, lng: -180..180)
-            </p>
+            </Alert>
           )}
 
           <Button
+            className="self-start"
             onClick={() => saveMutation.mutate(form)}
             disabled={!isValidCoords || form.name.trim().length === 0}
             isLoading={saveMutation.isPending}

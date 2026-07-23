@@ -90,6 +90,9 @@ Hormati `prefers-reduced-motion`: matikan semua kecuali umpan balik esensial.
 | **Button** | Tinggi 40 (lg 48), radius `md`, font 500. Varian: primary (biru, shadow tipis), outline (border + putih), ghost, destructive, success. Loading = spinner menggantikan ikon. Press = scale 0.98 |
 | **Card** | Surface putih, radius `xl`, shadow `card`, padding 16/24. Header: judul 600 + deskripsi secondary |
 | **Input** | Tinggi 40, radius `md`, border `border`; fokus: border primary + ring primary 30%. Label 14/500 di atas. Error: border destructive + teks 12 merah |
+| **Select** | Sama persis dengan Input (tinggi/radius/ring). Panah bawaan browser diganti chevron agar seragam lintas platform |
+| **Textarea** | Chrome sama dengan Input, `resize-y`, default 3 baris |
+| **Alert** | Kotak pesan inline: ikon + teks, radius `md`, tint subtle + teks semantik. Varian: info/success/warning/destructive. Ikon wajib — makna tak boleh lewat warna saja |
 | **Badge** | Radius full, 12/500, tint subtle + teks semantik. Varian: default(biru)/success/destructive/warning/secondary |
 | **Dialog / Bottom sheet** | Mobile: sheet dari bawah, radius atas `xl`, handle bar; Desktop: tengah, radius `xl`, shadow floating. Overlay slate-900/60 + blur |
 | **Avatar** | Foto bulat penuh; fallback inisial di atas primary. Ukuran 36 (nav) / 40 (list) / 96 (profil) |
@@ -111,6 +114,7 @@ Hormati `prefers-reduced-motion`: matikan semua kecuali umpan balik esensial.
 
 ### 4.2 Mobile App (React Native)
 
+- **Layar Auth** (sebelum login): satu layar dengan segmented control **Masuk / Daftar** di atas kartu — register memakai kode pendaftaran yang sama dengan web. Alamat server diatur lewat modal di bawah kartu.
 - **Tab bar bawah** (native): Absen · Riwayat · Profil (+ tab Admin bila role administrator). Ikon Lucide RN.
 - Stack per tab; header native kecil (large title di iOS untuk Riwayat).
 - **Layar Absen** = layar utama app (tab pertama, terbuka default): kartu status lokasi → viewfinder kamera → tombol besar penuh di bawah (safe-area).
@@ -125,13 +129,13 @@ Hormati `prefers-reduced-motion`: matikan semua kecuali umpan balik esensial.
 
 | Layar | Aturan utama |
 | :--- | :--- |
-| **Login/Register** | Latar gradasi brand (blue-600→sky-400), kartu putih tengah, logo di atas kartu. Satu kolom, tanpa distraksi |
+| **Login/Register** | Desktop (≥1024px): dua panel — kiri panel brand gradasi (logo, headline, 3 keunggulan), kanan kartu form di atas `background`. Mobile/tablet: latar gradasi brand penuh, logo di atas kartu putih. Satu kolom, tanpa distraksi |
 | **Check-in** | Status lokasi selalu di atas (hijau/merah/amber). Kamera rasio 3:4 (mobile). Tombol kirim disabled sampai foto + lokasi valid, dengan teks alasan di bawahnya. Sukses = kartu hijau + jam |
 | **Riwayat** | Kalender kiri/atas (hijau/merah per hari), list kanan/bawah. Detail via dialog/sheet dengan foto besar |
 | **Peta Live** | Peta memenuhi layar, badge status di atas, legend warna di bawah. Popup: foto, nama, jam, status live |
 | **Rekap** | Toolbar: bulan + filter user + ekspor (CSV/PDF). Ringkasan dulu, detail kemudian. Telat merah, lembur hijau, kosong "-" |
 | **Pengguna** | List kartu per user: avatar, nama+email, select role, aksi edit/hapus. Administrator selalu teratas |
-| **Pengaturan** | Peta editor + form berdampingan (desktop) / bertumpuk (mobile). Perubahan slider radius langsung terlihat di peta |
+| **Pengaturan** | Tab General: kartu 2 kolom (≥1280px) — Identitas Aplikasi & Kode Pendaftaran berdampingan (tombol simpan rata bawah), Informasi Sistem selebar penuh. Tab Area: peta editor + form berdampingan (desktop) / bertumpuk (mobile); slider radius langsung terlihat di peta |
 | **Profil** | Kartu identitas (avatar besar + role badge) → kartu nama → kartu ganti sandi |
 
 ---

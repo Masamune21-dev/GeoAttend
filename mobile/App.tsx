@@ -5,7 +5,7 @@ import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import { Camera, CalendarClock, CalendarOff, History, UserRound } from 'lucide-react-native';
 import { SessionProvider, useSession } from './src/auth/session';
-import { LoginScreen } from './src/screens/LoginScreen';
+import { AuthScreen } from './src/screens/AuthScreen';
 import { CheckInScreen } from './src/screens/CheckInScreen';
 import { ScheduleScreen } from './src/screens/ScheduleScreen';
 import { LeavesScreen } from './src/screens/LeavesScreen';
@@ -35,7 +35,7 @@ function Root() {
     );
   }
 
-  if (!user) return <LoginScreen />;
+  if (!user) return <AuthScreen />;
 
   return (
     <Tab.Navigator
