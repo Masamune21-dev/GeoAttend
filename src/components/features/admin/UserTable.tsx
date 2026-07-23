@@ -7,6 +7,7 @@ import { toast } from 'sonner';
 import type { UserProfile } from '@/types/api';
 import { useSession } from '@/lib/auth/client';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -294,9 +295,8 @@ export function UserTable() {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="nu-password">Kata Sandi Awal</Label>
-            <Input
+            <PasswordInput
               id="nu-password"
-              type="password"
               value={newUser.password}
               onChange={(e) => setNewUser((u) => ({ ...u, password: e.target.value }))}
               placeholder="Minimal 8 karakter"
@@ -371,9 +371,8 @@ export function UserTable() {
           </div>
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="eu-password">Kata Sandi Baru</Label>
-            <Input
+            <PasswordInput
               id="eu-password"
-              type="password"
               value={editForm.password}
               onChange={(e) => setEditForm((f) => ({ ...f, password: e.target.value }))}
               placeholder="Kosongkan bila tidak diubah"

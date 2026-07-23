@@ -8,6 +8,7 @@ import { authClient, useSession } from '@/lib/auth/client';
 import { getInitials, getRoleLabel } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -246,9 +247,8 @@ export function ProfileForm() {
           <form onSubmit={handleChangePassword} className="flex flex-col gap-4">
             <div className="flex flex-col gap-1.5">
               <Label htmlFor="pf-current">Kata Sandi Saat Ini</Label>
-              <Input
+              <PasswordInput
                 id="pf-current"
-                type="password"
                 autoComplete="current-password"
                 value={currentPassword}
                 onChange={(e) => setCurrentPassword(e.target.value)}
@@ -258,9 +258,8 @@ export function ProfileForm() {
             <div className="grid gap-4 md:grid-cols-2">
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="pf-new">Kata Sandi Baru</Label>
-                <Input
+                <PasswordInput
                   id="pf-new"
-                  type="password"
                   autoComplete="new-password"
                   placeholder="Minimal 8 karakter"
                   value={newPassword}
@@ -270,9 +269,8 @@ export function ProfileForm() {
               </div>
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="pf-confirm">Konfirmasi Kata Sandi Baru</Label>
-                <Input
+                <PasswordInput
                   id="pf-confirm"
-                  type="password"
                   autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
