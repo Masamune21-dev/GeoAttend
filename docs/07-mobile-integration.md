@@ -46,11 +46,14 @@ otomatis mengerti bearer).
 | Layar Mobile | Endpoint |
 | :--- | :--- |
 | Login | `POST /api/auth/sign-in/email` |
-| Beranda/Absen | `GET /api/geofence`, `GET /api/attendance?today=true&userId=self`, `POST /api/attendance` |
+| Daftar | `POST /api/auth/sign-up/email` (wajib field `registrationCode`) |
+| Beranda/Absen | `GET /api/geofence`, `GET /api/attendance?today=true&userId=self`, `GET /api/shifts` (pilihan shift), `POST /api/attendance` |
+| Izin & Libur | `GET /api/leaves?userId=self`, `POST /api/leaves`, `DELETE /api/leaves/:id` |
 | Riwayat | `GET /api/attendance?userId=self&from=&to=&limit=100` |
 | Profil | `GET /api/auth/get-session`, `POST /api/auth/update-user`, `POST /api/auth/change-password`, `POST /api/profile/avatar` |
 | Service background tracking | `POST /api/locations` tiap 20–60 detik selama hadir |
 | (Admin) Peta live | `GET /api/locations` + `GET /api/attendance?today=true` polling |
+| (Admin) Persetujuan izin | `GET /api/leaves?status=pending`, `PATCH /api/leaves/:id` |
 
 ## Kontrak Penting untuk Mobile
 
@@ -60,6 +63,8 @@ otomatis mengerti bearer).
 4. **Geofence**: boleh divalidasi lokal untuk UX (rumus Haversine, buffer akurasi maks 50 m — lihat [04](04-business-rules.md)), tapi keputusan final tetap dari server (`GEOFENCE_VIOLATION` 422)
 5. **Tracking**: hormati respons `409 NOT_CLOCKED_IN` → hentikan task background. Selalu hentikan task setelah clock-out (hemat baterai & privasi)
 6. **Error**: semua error berformat `{code, message, details?, timestamp}` — tampilkan `message` (sudah bahasa Indonesia)
+7. **Shift**: bila role user punya >1 shift (`GET /api/shifts` difilter role user), tampilkan pemilih shift dan kirim `shiftNumber` di `POST /api/attendance`. Default: shift dengan jam masuk terdekat; clock-out mewarisi shift clock-in hari itu bila `shiftNumber` tidak dikirim
+8. **Izin/Libur**: `type: "libur"` hanya boleh untuk hari ini (langsung approved); jenis lain berstatus `pending` sampai diputuskan administrator — tampilkan status di UI
 
 ## Background Location — Catatan Platform
 

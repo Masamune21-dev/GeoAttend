@@ -11,8 +11,10 @@ Skema: [src/lib/db/schema.ts](../src/lib/db/schema.ts). Migrasi SQL:
 users 1───* sessions
 users 1───* accounts          (credential: hash password scrypt)
 users 1───* attendance_records *───1 geofences (nullable)
+users 1───* leave_requests     (reviewed_by → users, nullable)
 users 1───1 live_locations
 shift_settings                 (berdiri sendiri, key: role+shift_number)
+app_settings                   (key-value: app_name, app_logo, registration_code)
 verifications                  (token verifikasi Better Auth)
 ```
 
@@ -48,6 +50,7 @@ Tabel standar Better Auth. `sessions.token` unique + index (validasi tiap reques
 | id | uuid PK | |
 | user_id | text FK→users (cascade) | |
 | type | varchar(20) | `clock_in` \| `clock_out` |
+| shift_number | integer null | Shift yang dipilih saat absen (null: data lama / role tanpa SOP) |
 | timestamp | timestamp | Waktu absen (server) |
 | latitude / longitude | numeric(10,7) | Posisi saat absen |
 | accuracy_meters | numeric(6,2) null | Akurasi GPS |
@@ -70,6 +73,31 @@ Index: `(user_id, timestamp)` dan `(timestamp)`.
 
 Unique index `(role, shift_number)`. Default SOP di-seed:
 admin & noc: 07:00–15:00 dan 15:00–22:00; teknisi: 08:00–16:00.
+
+### leave_requests
+| Kolom | Tipe | Keterangan |
+| :--- | :--- | :--- |
+| id | uuid PK | |
+| user_id | text FK→users (cascade) | Pengaju |
+| type | varchar(10) | `sakit` \| `izin` \| `cuti` \| `libur` |
+| start_date / end_date | varchar(10) | `"yyyy-MM-dd"` (tanggal lokal, inklusif) |
+| reason | text null | maks 500 char |
+| status | varchar(10) | `pending` (default) \| `approved` \| `rejected` |
+| reviewed_by | text FK→users null | Administrator yang memutuskan |
+| reviewed_at | timestamp null | |
+| review_note | text null | Catatan penolakan/persetujuan |
+
+Index: `(user_id, start_date)` dan `(status)`.
+Jenis `libur` dibuat langsung `approved` (self-service, hanya hari ini);
+jenis lain menunggu keputusan administrator.
+
+### app_settings
+| Kolom | Tipe | Keterangan |
+| :--- | :--- | :--- |
+| key | varchar(64) PK | `app_name`, `app_logo`, `registration_code` |
+| value | text | |
+
+`registration_code`: kode wajib saat pendaftaran akun. Baris dihapus = pendaftaran ditutup.
 
 ### live_locations
 | Kolom | Tipe | Keterangan |

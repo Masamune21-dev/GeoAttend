@@ -14,6 +14,9 @@ Aplikasi berjalan **local-first** di infrastruktur sendiri (Proxmox/Docker/VPS) 
 
 ### Untuk Karyawan
 - Absen masuk/pulang dengan kamera + validasi lokasi otomatis
+- **Pilihan shift** saat absen untuk role dengan lebih dari satu shift (absen pulang otomatis mengikuti shift absen masuk)
+- **Izin & Libur**: ajukan Sakit/Izin/Cuti (menunggu persetujuan administrator) atau tandai Libur hari ini sendiri
+- Pendaftaran akun memakai **kode pendaftaran** dari administrator
 - Indikator jarak real-time ke area absensi + peringatan sinyal GPS lemah
 - Riwayat absensi dengan kalender bulanan berkode warna + detail foto
 - Profil: ubah nama, foto profil, dan kata sandi sendiri
@@ -22,9 +25,10 @@ Aplikasi berjalan **local-first** di infrastruktur sendiri (Proxmox/Docker/VPS) 
 ### Untuk Administrator
 - Dashboard overview: statistik hadir/dalam/luar area + absensi terbaru
 - **Peta Live**: marker bergerak mengikuti posisi karyawan (hijau berdenyut = live, biru = posisi terakhir), popup foto & jam
-- **Rekap Bulanan**: tabel per user per hari (jam masuk, jam pulang, shift, telat, lembur), filter per karyawan, ekspor CSV & PDF
+- **Rekap Bulanan**: satu baris per shift per hari (jam masuk/pulang, telat, lembur, **pulang cepat**, keterangan Hadir/Sakit/Izin/Cuti/Libur), ringkasan per karyawan, filter, ekspor CSV & PDF
+- **Persetujuan Izin**: setujui/tolak pengajuan sakit/izin/cuti karyawan (dengan catatan)
 - **Kelola Pengguna**: tambah akun langsung, edit nama/email/reset password, ubah role, hapus
-- **Pengaturan**: editor geofence interaktif (drag pin + radius) dan jam kerja SOP per role
+- **Pengaturan**: editor geofence interaktif (drag pin + radius), jam kerja SOP per role, identitas aplikasi (nama+logo), dan **kode pendaftaran** akun
 
 ## Arsitektur
 
@@ -91,8 +95,9 @@ KusumaVisionAbsensi/
     │   │       ├── page.tsx        # Overview
     │   │       ├── live-map/       # Peta live + tracking
     │   │       ├── reports/        # Rekap bulanan (CSV/PDF)
+    │   │       ├── leaves/         # Persetujuan izin/libur
     │   │       ├── users/          # Kelola pengguna
-    │   │       └── settings/       # Geofence + jam kerja SOP
+    │   │       └── settings/       # Geofence + jam kerja SOP + kode pendaftaran
     │   └── api/                # Lihat docs/02-api.md
     ├── components/
     │   ├── ui/                 # Button, Card, Dialog, Input, ...
@@ -102,7 +107,9 @@ KusumaVisionAbsensi/
     │   ├── db/                 # schema.ts, koneksi, migrations/
     │   ├── auth/               # Better Auth server + client + helpers
     │   ├── geo/                # Haversine + validasi geofence
-    │   ├── shifts/calc.ts      # Logika telat/lembur (pure, teruji)
+    │   ├── shifts/calc.ts      # Logika telat/lembur/pulang cepat (pure, teruji)
+    │   ├── leaves.ts           # Helper izin/libur (label, rentang tanggal)
+    │   ├── settings.ts         # Pengaturan app (nama, logo, kode pendaftaran)
     │   ├── storage/local-fs.ts # Simpan/baca foto dengan proteksi path
     │   └── constants.ts        # WORK_ROLES, DEFAULT_SHIFTS, dll.
     ├── hooks/                  # useGeolocation, useAttendance (query hooks)

@@ -104,7 +104,18 @@ server {
 
 2. Reverse proxy yang sudah ada (Nginx Proxy Manager/Traefik/Caddy) → arahkan ke IP:3000.
 
+3. **Cloudflare Tunnel** (tanpa buka port): `cloudflared tunnel` → arahkan hostname ke `http://localhost:3000`.
+
 Set `BETTER_AUTH_URL` ke URL HTTPS final — cookie `__Secure-` menuntut HTTPS di produksi.
+
+> **PENTING (reverse proxy / tunnel):** Better Auth menolak login dari origin yang
+> tidak dikenal (proteksi CSRF) — gejalanya login selalu "Email atau kata sandi salah".
+> Daftarkan **semua** origin yang dipakai di `BETTER_AUTH_TRUSTED_ORIGINS` (dipisah koma):
+>
+> ```env
+> BETTER_AUTH_URL=https://absensi.perusahaan.com
+> BETTER_AUTH_TRUSTED_ORIGINS=https://absensi.perusahaan.com,http://localhost:3000
+> ```
 
 ## F. Environment Variables
 
@@ -113,6 +124,7 @@ Set `BETTER_AUTH_URL` ke URL HTTPS final — cookie `__Secure-` menuntut HTTPS d
 | `DATABASE_URL` | ✅ | `postgresql://user:pass@host:5432/geoattend` |
 | `BETTER_AUTH_SECRET` | ✅ | `openssl rand -base64 32` — **unik per lingkungan** |
 | `BETTER_AUTH_URL` | ✅ | URL publik aplikasi (untuk cookie/CSRF) |
+| `BETTER_AUTH_TRUSTED_ORIGINS` | | Origin tambahan yang boleh login (dipisah koma) — wajib bila diakses lebih dari satu origin (tunnel + localhost) |
 | `SESSION_EXPIRY_DAYS` | | default 7 |
 | `UPLOAD_DIR` | | default `./uploads` |
 | `MAX_UPLOAD_SIZE_MB` | | default 5 |
@@ -131,8 +143,9 @@ Set `BETTER_AUTH_URL` ke URL HTTPS final — cookie `__Secure-` menuntut HTTPS d
 
 - [ ] `BETTER_AUTH_SECRET` baru (bukan bawaan dev) & `DB_PASSWORD` kuat
 - [ ] Ganti password akun seed `admin@geoattend.local`
-- [ ] HTTPS aktif, `BETTER_AUTH_URL` = URL final
+- [ ] HTTPS aktif, `BETTER_AUTH_URL` = URL final (+ `BETTER_AUTH_TRUSTED_ORIGINS` bila multi-origin)
 - [ ] Geofence & jam kerja SOP dikonfigurasi
+- [ ] Kode pendaftaran dibuat di Pengaturan → General (atau biarkan kosong untuk menutup pendaftaran mandiri)
 - [ ] Uji dari HP: kamera + GPS + absen + live tracking
 - [ ] Backup otomatis DB + uploads terjadwal
 - [ ] Uptime monitor ke `/api/health`
