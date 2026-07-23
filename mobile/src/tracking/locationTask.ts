@@ -1,3 +1,4 @@
+import { AppState } from 'react-native';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { api, ApiRequestError } from '../api/client';
@@ -39,15 +40,32 @@ TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   }
 });
 
-/** Mulai tracking (setelah clock-in). Butuh izin lokasi background. */
-export async function startTracking(): Promise<boolean> {
-  const fg = await Location.requestForegroundPermissionsAsync();
-  if (fg.status !== 'granted') return false;
-  const bg = await Location.requestBackgroundPermissionsAsync();
-  if (bg.status !== 'granted') return false;
+const sleep = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
 
-  if (await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK)) return true;
+/**
+ * Tunggu sampai aplikasi benar-benar di foreground. Penting: setelah user
+ * kembali dari halaman Pengaturan (izin background), activity butuh waktu
+ * untuk resume — memulai foreground service saat masih transisi menyebabkan
+ * FORCE CLOSE di Android 12+ (ForegroundServiceStartNotAllowedException).
+ */
+async function waitUntilActive(timeoutMs = 10_000): Promise<void> {
+  if (AppState.currentState === 'active') return;
+  await new Promise<void>((resolve) => {
+    const timer = setTimeout(() => {
+      sub.remove();
+      resolve();
+    }, timeoutMs);
+    const sub = AppState.addEventListener('change', (state) => {
+      if (state === 'active') {
+        clearTimeout(timer);
+        sub.remove();
+        resolve();
+      }
+    });
+  });
+}
 
+async function startUpdates(): Promise<void> {
   await Location.startLocationUpdatesAsync(LOCATION_TASK, {
     accuracy: Location.Accuracy.Balanced,
     timeInterval: 20_000, // selaras dengan web (20 detik)
@@ -59,12 +77,49 @@ export async function startTracking(): Promise<boolean> {
       notificationColor: '#2563EB',
     },
   });
-  return true;
 }
 
-/** Hentikan tracking (setelah clock-out / logout). */
+/**
+ * Mulai tracking (setelah clock-in). Butuh izin lokasi background.
+ * Tidak pernah melempar error — kegagalan mengembalikan false agar
+ * absensi tetap tercatat walau pelacakan gagal aktif.
+ */
+export async function startTracking(): Promise<boolean> {
+  try {
+    const fg = await Location.requestForegroundPermissionsAsync();
+    if (fg.status !== 'granted') return false;
+    const bg = await Location.requestBackgroundPermissionsAsync();
+    if (bg.status !== 'granted') return false;
+
+    // Setelah request izin, user mungkin baru kembali dari halaman Pengaturan —
+    // tunggu app aktif + beri jeda agar activity selesai resume.
+    await waitUntilActive();
+    await sleep(800);
+
+    if (await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK)) return true;
+    await startUpdates();
+    return true;
+  } catch {
+    // Percobaan kedua setelah jeda lebih panjang (transisi belum selesai)
+    try {
+      await sleep(2500);
+      await waitUntilActive();
+      if (await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK)) return true;
+      await startUpdates();
+      return true;
+    } catch {
+      return false;
+    }
+  }
+}
+
+/** Hentikan tracking (setelah clock-out / logout). Tidak pernah melempar. */
 export async function stopTracking(): Promise<void> {
-  if (await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK)) {
-    await Location.stopLocationUpdatesAsync(LOCATION_TASK);
+  try {
+    if (await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK)) {
+      await Location.stopLocationUpdatesAsync(LOCATION_TASK);
+    }
+  } catch {
+    // abaikan — service mungkin sudah mati
   }
 }

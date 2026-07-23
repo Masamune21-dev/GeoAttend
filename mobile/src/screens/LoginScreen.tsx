@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Platform,
@@ -16,8 +16,14 @@ import { colors, spacing } from '../theme';
 
 export function LoginScreen() {
   const { signIn } = useSession();
+  const scrollRef = useRef<ScrollView>(null);
   const [serverUrl, setServerUrlInput] = useState('');
   const [showServer, setShowServer] = useState(false);
+
+  /** Field server ada di bagian bawah — pastikan tidak tertutup keyboard. */
+  const scrollToServerField = () => {
+    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 250);
+  };
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
@@ -57,7 +63,8 @@ export function LoginScreen() {
       behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
       <ScrollView
-        contentContainerStyle={styles.container}
+        ref={scrollRef}
+        contentContainerStyle={[styles.container, showServer && { paddingBottom: 140 }]}
         keyboardShouldPersistTaps="handled"
       >
         <View style={styles.brand}>
@@ -98,7 +105,14 @@ export function LoginScreen() {
 
           <Button title={loading ? 'Memproses...' : 'Masuk'} onPress={handleLogin} loading={loading} />
 
-          <Pressable onPress={() => setShowServer((v) => !v)}>
+          <Pressable
+            onPress={() => {
+              setShowServer((v) => {
+                if (!v) scrollToServerField();
+                return !v;
+              });
+            }}
+          >
             <Text style={styles.serverToggle}>
               {showServer ? '▴ Sembunyikan pengaturan server' : '▾ Pengaturan server'}
             </Text>
@@ -108,6 +122,7 @@ export function LoginScreen() {
               label="Alamat Server"
               value={serverUrl}
               onChangeText={setServerUrlInput}
+              onFocus={scrollToServerField}
               autoCapitalize="none"
               keyboardType="url"
               placeholder="https://absensi.kusumavision.net"
