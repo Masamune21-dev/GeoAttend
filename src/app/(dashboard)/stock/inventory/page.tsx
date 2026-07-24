@@ -1,8 +1,10 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
 import { Plus, Search } from 'lucide-react';
+import { useSession } from '@/lib/auth/client';
 import { useDeleteStockItem, useStockCategories, useStockItems } from '@/hooks/useStock';
 import { InventoryTable } from '@/components/features/stock/InventoryTable';
 import { ItemFormDialog } from '@/components/features/stock/ItemFormDialog';
@@ -13,10 +15,19 @@ import { Skeleton } from '@/components/ui/skeleton';
 import type { StockItemResponse } from '@/types/api';
 
 export default function InventoryPage() {
+  const router = useRouter();
+  const { data: session, isPending } = useSession();
+  const isAdmin = session?.user.role === 'administrator';
+
   const [search, setSearch] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<StockItemResponse | null>(null);
+
+  // Kelola inventaris hanya untuk administrator; role lain dipantulkan ke Overview.
+  useEffect(() => {
+    if (!isPending && session && !isAdmin) router.replace('/stock');
+  }, [isPending, session, isAdmin, router]);
 
   const { data: catData } = useStockCategories();
   const { data, isLoading } = useStockItems({
@@ -45,6 +56,14 @@ export default function InventoryPage() {
       toast.error(err instanceof Error ? err.message : 'Gagal menghapus');
     }
   };
+
+  if (session && !isAdmin) {
+    return (
+      <p className="py-10 text-center text-sm text-text-secondary">
+        Halaman ini khusus administrator. Mengalihkan…
+      </p>
+    );
+  }
 
   return (
     <div className="flex flex-col gap-4">

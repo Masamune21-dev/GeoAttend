@@ -34,7 +34,7 @@ export default async function DashboardLayout({
     <BrandProvider brand={brand}>
       <div className="flex min-h-dvh">
         {isStock ? (
-          <StockSidebar appName={cfg.name} logoUrl={appSettings.logoUrl} />
+          <StockSidebar appName={cfg.name} logoUrl={appSettings.logoUrl} isAdmin={isAdmin} />
         ) : (
           <DesktopSidebar isAdmin={isAdmin} appName={appSettings.appName} logoUrl={appSettings.logoUrl} />
         )}

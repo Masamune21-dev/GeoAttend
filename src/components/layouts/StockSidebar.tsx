@@ -10,12 +10,15 @@ import { STOCK_NAV } from '@/components/features/stock/stock-nav';
 interface StockSidebarProps {
   appName: string;
   logoUrl?: string | null;
+  isAdmin: boolean;
 }
 
-const NAV = [...STOCK_NAV, { href: '/profile', label: 'Profil', icon: User }];
-
-export function StockSidebar({ appName, logoUrl }: StockSidebarProps) {
+export function StockSidebar({ appName, logoUrl, isAdmin }: StockSidebarProps) {
   const pathname = usePathname();
+  const nav = [
+    ...STOCK_NAV.filter((n) => isAdmin || !n.adminOnly),
+    { href: '/profile', label: 'Profil', icon: User },
+  ];
 
   return (
     <aside className="sticky top-0 hidden h-dvh w-64 shrink-0 flex-col border-r border-border/70 bg-surface md:flex">
@@ -32,7 +35,7 @@ export function StockSidebar({ appName, logoUrl }: StockSidebarProps) {
       </div>
 
       <nav aria-label="Navigasi stok" className="flex flex-1 flex-col gap-1 overflow-y-auto p-3">
-        {NAV.map((item) => {
+        {nav.map((item) => {
           const isActive = pathname === item.href;
           const Icon = item.icon;
           return (

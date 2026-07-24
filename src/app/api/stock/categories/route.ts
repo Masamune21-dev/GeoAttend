@@ -2,7 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { and, eq, sql } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { stockCategories, stockItems } from '@/lib/db/schema';
-import { getApiSession, unauthorizedResponse } from '@/lib/auth/utils';
+import { forbiddenResponse, getApiSession, isAdmin, unauthorizedResponse } from '@/lib/auth/utils';
 import { CreateStockCategorySchema, type StockCategoryResponse } from '@/types/api';
 import { errorJson, internalError, isUniqueViolation, validationError } from '@/lib/http';
 
@@ -40,6 +40,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getApiSession(req);
     if (!session) return unauthorizedResponse();
+    if (!isAdmin(session)) return forbiddenResponse();
 
     const parsed = CreateStockCategorySchema.safeParse(await req.json());
     if (!parsed.success) return validationError(parsed.error.flatten());
