@@ -171,7 +171,7 @@ dibatalkan) — hanya diperlukan bila server bukan default.
 | **Jadwal** ([ScheduleScreen](../mobile/src/screens/ScheduleScreen.tsx)) | Lihat jadwal shift bulanan, ajukan/terima/tolak/batal tukar shift, tandai piket | `GET /api/schedules`, `GET /api/swaps`, `GET /api/swaps/candidates`, `POST/PATCH/DELETE /api/swaps`, `GET/PATCH /api/piket` |
 | **Izin** ([LeavesScreen](../mobile/src/screens/LeavesScreen.tsx)) | Tandai libur hari ini, ajukan sakit/izin/cuti, batalkan pengajuan | `GET /api/leaves?userId=self`, `POST /api/leaves`, `DELETE /api/leaves/:id` |
 | **Riwayat** ([HistoryScreen](../mobile/src/screens/HistoryScreen.tsx)) | Daftar absensi (masuk/pulang, jarak, dalam/luar area, catatan) | `GET /api/attendance?userId=self&limit=100` |
-| **Profil** ([ProfileScreen](../mobile/src/screens/ProfileScreen.tsx)) | Foto avatar & sampul, info server/versi, keluar | `POST /api/profile/avatar`, `POST /api/profile/cover`, `POST /api/auth/update-user`, `POST /api/auth/sign-out` |
+| **Profil** ([ProfileScreen](../mobile/src/screens/ProfileScreen.tsx)) | Foto avatar & sampul, **ubah nama**, **ganti kata sandi**, info server/versi, keluar | `POST /api/profile/avatar`, `POST /api/profile/cover`, `POST /api/auth/update-user`, `POST /api/auth/change-password`, `POST /api/auth/sign-out` |
 
 ---
 
@@ -260,8 +260,8 @@ npx eas-cli build:view <BUILD_ID>
 
 - **Input tanggal** (izin & tukar shift) masih manual `YYYY-MM-DD`, belum date
   picker native.
-- **Ubah nama & kata sandi** dilakukan lewat versi web (profil mobile hanya untuk
-  foto & info).
+- **Ubah email** tetap hanya lewat administrator (nama & kata sandi kini bisa dari
+  profil mobile).
 - **Push notification** (pengingat absen) belum ada — perlu infrastruktur FCM di
   server.
 - **iOS** belum dibangun (lihat §11).

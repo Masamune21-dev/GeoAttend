@@ -40,7 +40,7 @@ Proteksi anti-lockout: administrator **tidak bisa** menurunkan role atau menghap
 ## Aturan Absensi
 
 1. **Urutan wajib**: clock-in dulu, baru clock-out. Dobel clock-in ditolak (`DUPLICATE_CHECKIN`); clock-out tanpa clock-in ditolak (`INVALID_SEQUENCE`). Setelah clock-out boleh clock-in lagi (multi-sesi dalam sehari didukung).
-2. **Geofence**: jarak dihitung Haversine dari pusat geofence aktif. Sah bila `jarak ≤ radius + buffer akurasi GPS` (buffer maks 50 m). Di luar itu → ditolak server (`GEOFENCE_VIOLATION`) dan tombol kirim dinonaktifkan di client.
+2. **Geofence**: jarak dihitung Haversine dari pusat geofence aktif. Sah bila `jarak ≤ radius + buffer akurasi GPS` (buffer maks 50 m). Aturan **hanya berlaku untuk absen MASUK** — di luar area, clock-in ditolak server (`GEOFENCE_VIOLATION`) dan tombol kirim dinonaktifkan di client. **Absen PULANG boleh di luar area** (mis. selesai kerja lapangan / langsung pulang); lokasi tetap dicatat (`isWithinGeofence` + jarak) untuk pelaporan.
 3. **Foto wajib**: diambil langsung dari kamera (galeri tidak bisa), JPEG kualitas 0.8, maks 5 MB, disimpan dengan nama UUID di luar folder publik.
 4. **Sinyal GPS lemah** (akurasi > 50 m): tampil peringatan tapi absensi tetap boleh (accuracy tercatat di record untuk audit).
 5. Waktu absen memakai **jam server**, bukan jam perangkat.

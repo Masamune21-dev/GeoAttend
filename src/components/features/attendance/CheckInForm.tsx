@@ -94,7 +94,9 @@ export function CheckInForm() {
     };
   }, [coords, geofence]);
 
-  const canSubmit = Boolean(coords && photo && (isInside || !geofence)) && !createAttendance.isPending;
+  // Absen pulang boleh di luar area; hanya absen masuk yang wajib di dalam area.
+  const locationOk = isInside || !geofence || nextType === 'clock_out';
+  const canSubmit = Boolean(coords && photo && locationOk) && !createAttendance.isPending;
 
   const handleSubmit = () => {
     if (!coords || !photo) return;
@@ -293,6 +295,12 @@ export function CheckInForm() {
         {!photo && (
           <p className="text-center text-xs text-text-secondary">
             Ambil foto terlebih dahulu untuk mengaktifkan tombol kirim
+          </p>
+        )}
+        {photo && nextType === 'clock_out' && geofence && !isInside && (
+          <p className="text-center text-xs text-text-secondary">
+            Anda di luar area — absen pulang tetap bisa dan akan tercatat sebagai
+            &ldquo;luar area&rdquo;.
           </p>
         )}
       </div>

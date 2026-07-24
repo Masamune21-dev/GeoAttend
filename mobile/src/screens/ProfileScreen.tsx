@@ -12,10 +12,10 @@ import {
 import Constants from 'expo-constants';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
-import { Camera, ImagePlus, LogOut } from 'lucide-react-native';
+import { Camera, ImagePlus, KeyRound, LogOut, UserRound } from 'lucide-react-native';
 import { useSession } from '../auth/session';
-import { api, getServerUrl, getToken } from '../api/client';
-import { Badge, Button, Card } from '../components/ui';
+import { api, ApiRequestError, getServerUrl, getToken } from '../api/client';
+import { Badge, Button, Card, Field, PasswordField } from '../components/ui';
 import { colors, radius, spacing } from '../theme';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -56,6 +56,16 @@ export function ProfileScreen() {
   const { user, signOut, refresh } = useSession();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+
+  // Ubah nama
+  const [name, setName] = useState(user?.name ?? '');
+  const [savingName, setSavingName] = useState(false);
+
+  // Ganti kata sandi
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [changingPassword, setChangingPassword] = useState(false);
 
   const authHeaders = { Authorization: `Bearer ${getToken() ?? ''}` };
   const toAbsolute = (path?: string | null) =>
@@ -99,6 +109,58 @@ export function ProfileScreen() {
       Alert.alert('Gagal mengunggah sampul', (err as Error).message);
     } finally {
       setUploadingCover(false);
+    }
+  };
+
+  const handleSaveName = async () => {
+    const trimmed = name.trim();
+    if (trimmed.length === 0) {
+      Alert.alert('Nama tidak boleh kosong');
+      return;
+    }
+    setSavingName(true);
+    try {
+      // Endpoint yang sama dipakai web (Better Auth updateUser)
+      await api('/api/auth/update-user', {
+        method: 'POST',
+        body: JSON.stringify({ name: trimmed }),
+      });
+      await refresh();
+      Alert.alert('Tersimpan ✓', 'Nama berhasil diubah');
+    } catch (err) {
+      Alert.alert('Gagal menyimpan nama', (err as Error).message);
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  const handleChangePassword = async () => {
+    if (newPassword.length < 8) {
+      Alert.alert('Kata sandi baru minimal 8 karakter');
+      return;
+    }
+    if (newPassword !== confirmPassword) {
+      Alert.alert('Konfirmasi kata sandi tidak cocok');
+      return;
+    }
+    setChangingPassword(true);
+    try {
+      await api('/api/auth/change-password', {
+        method: 'POST',
+        body: JSON.stringify({ currentPassword, newPassword, revokeOtherSessions: true }),
+      });
+      setCurrentPassword('');
+      setNewPassword('');
+      setConfirmPassword('');
+      Alert.alert('Tersimpan ✓', 'Kata sandi berhasil diubah');
+    } catch (err) {
+      const e = err as ApiRequestError;
+      Alert.alert(
+        'Gagal mengubah kata sandi',
+        e.code === 'INVALID_PASSWORD' ? 'Kata sandi saat ini salah' : e.message
+      );
+    } finally {
+      setChangingPassword(false);
     }
   };
 
@@ -180,6 +242,59 @@ export function ProfileScreen() {
         </View>
       </Card>
 
+      {/* Data diri — ubah nama */}
+      <Card style={{ gap: spacing.md }}>
+        <View style={styles.sectionRow}>
+          <UserRound size={18} color={colors.primary} strokeWidth={2.2} />
+          <Text style={styles.sectionTitle}>Data Diri</Text>
+        </View>
+        <Field label="Nama Lengkap" value={name} onChangeText={setName} placeholder="Nama Anda" />
+        <Text style={[styles.subtle, { fontSize: 12 }]}>
+          Email (username login) hanya bisa diubah oleh administrator.
+        </Text>
+        <Button
+          title="Simpan Nama"
+          onPress={handleSaveName}
+          loading={savingName}
+          disabled={name.trim().length === 0 || name.trim() === (user?.name ?? '')}
+        />
+      </Card>
+
+      {/* Ganti kata sandi */}
+      <Card style={{ gap: spacing.md }}>
+        <View style={styles.sectionRow}>
+          <KeyRound size={18} color={colors.primary} strokeWidth={2.2} />
+          <Text style={styles.sectionTitle}>Ganti Kata Sandi</Text>
+        </View>
+        <PasswordField
+          label="Kata Sandi Saat Ini"
+          value={currentPassword}
+          onChangeText={setCurrentPassword}
+          placeholder="••••••••"
+        />
+        <PasswordField
+          label="Kata Sandi Baru"
+          value={newPassword}
+          onChangeText={setNewPassword}
+          placeholder="Minimal 8 karakter"
+        />
+        <PasswordField
+          label="Konfirmasi Kata Sandi Baru"
+          value={confirmPassword}
+          onChangeText={setConfirmPassword}
+          placeholder="••••••••"
+        />
+        <Text style={[styles.subtle, { fontSize: 12 }]}>
+          Setelah berhasil, sesi login di perangkat lain akan dikeluarkan.
+        </Text>
+        <Button
+          title="Ubah Kata Sandi"
+          onPress={handleChangePassword}
+          loading={changingPassword}
+          disabled={!currentPassword || !newPassword || !confirmPassword}
+        />
+      </Card>
+
       <Card>
         <Text style={styles.sectionTitle}>Informasi Aplikasi</Text>
         {[
@@ -192,8 +307,7 @@ export function ProfileScreen() {
           </View>
         ))}
         <Text style={[styles.subtle, { fontSize: 12 }]}>
-          Ubah nama dan kata sandi melalui versi web. Untuk ganti server, keluar lalu
-          buka "Pengaturan server" di layar login.
+          Untuk ganti server, keluar lalu buka "Pengaturan server" di layar login.
         </Text>
       </Card>
 
@@ -266,6 +380,7 @@ const styles = StyleSheet.create({
   name: { fontSize: 21, fontWeight: '700', color: colors.textPrimary },
   subtle: { fontSize: 14, color: colors.textSecondary },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
+  sectionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',

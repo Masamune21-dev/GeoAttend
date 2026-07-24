@@ -240,7 +240,10 @@ export async function POST(req: NextRequest) {
       input.accuracyMeters ?? 0
     );
 
-    if (geofence && !check.isInside) {
+    // Hanya absen MASUK yang wajib di dalam area. Absen PULANG boleh di luar
+    // area (mis. selesai kerja lapangan / langsung pulang) — lokasi tetap dicatat
+    // (isWithinGeofence + jarak) untuk pelaporan.
+    if (input.type === 'clock_in' && geofence && !check.isInside) {
       return NextResponse.json(
         {
           code: 'GEOFENCE_VIOLATION',

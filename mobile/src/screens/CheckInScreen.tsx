@@ -210,8 +210,9 @@ export function CheckInScreen() {
   };
 
   // --- Kirim absensi ---
-  const canSubmit =
-    Boolean(coords && photo && (isInside || !geofence)) && !submitting;
+  // Absen pulang boleh di luar area; hanya absen masuk yang wajib di dalam area.
+  const locationOk = isInside || !geofence || nextType === 'clock_out';
+  const canSubmit = Boolean(coords && photo && locationOk) && !submitting;
 
   const handleSubmit = async () => {
     if (!coords || !photo) return;
@@ -406,6 +407,12 @@ export function CheckInScreen() {
                 <Text style={styles.subtle}>
                   {geofence.name} · radius {Math.round(geofence.radiusMeters)} m · jarak Anda{' '}
                   {formatDistance(distanceMeters)}
+                </Text>
+              )}
+              {geofence && !isInside && nextType === 'clock_out' && (
+                <Text style={[styles.subtle, { color: '#B45309' }]}>
+                  Absen pulang tetap bisa walau di luar area — akan tercatat sebagai
+                  &ldquo;luar area&rdquo;.
                 </Text>
               )}
             </View>
