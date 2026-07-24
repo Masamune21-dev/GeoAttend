@@ -13,6 +13,8 @@ export function getLeaveTypeLabel(type: string): string {
       return 'Berangkat Telat';
     case 'siang':
       return 'Masuk Siang';
+    case 'remote':
+      return 'Remote';
     case 'libur':
       return 'Libur';
     default:

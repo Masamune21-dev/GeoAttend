@@ -51,7 +51,7 @@ export interface ShiftSettingResponse {
   endTime: string;
 }
 
-export type LeaveType = 'sakit' | 'izin' | 'cuti' | 'telat' | 'siang' | 'libur';
+export type LeaveType = 'sakit' | 'izin' | 'cuti' | 'telat' | 'siang' | 'remote' | 'libur';
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
 
 export interface LeaveRequestResponse {

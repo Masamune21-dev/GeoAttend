@@ -10,13 +10,14 @@ import { STOCK_NAV } from '@/components/features/stock/stock-nav';
 interface StockSidebarProps {
   appName: string;
   logoUrl?: string | null;
-  isAdmin: boolean;
+  /** Boleh kelola master barang (administrator / admin gudang). */
+  canManage: boolean;
 }
 
-export function StockSidebar({ appName, logoUrl, isAdmin }: StockSidebarProps) {
+export function StockSidebar({ appName, logoUrl, canManage }: StockSidebarProps) {
   const pathname = usePathname();
   const nav = [
-    ...STOCK_NAV.filter((n) => isAdmin || !n.adminOnly),
+    ...STOCK_NAV.filter((n) => canManage || !n.adminOnly),
     { href: '/profile', label: 'Profil', icon: User },
   ];
 

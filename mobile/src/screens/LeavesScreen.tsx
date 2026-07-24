@@ -13,6 +13,7 @@ import {
 import { CalendarPlus, TreePalm } from 'lucide-react-native';
 import { api, ApiRequestError } from '../api/client';
 import type { LeaveRequestResponse, LeaveType } from '../api/types';
+import { useSession } from '../auth/session';
 import { toLocalDateString } from '../lib/geo';
 import { Badge, Button, Card, Field } from '../components/ui';
 import { colors, spacing } from '../theme';
@@ -23,6 +24,7 @@ const TYPE_LABELS: Record<string, string> = {
   cuti: 'Cuti',
   telat: 'Berangkat Telat',
   siang: 'Masuk Siang',
+  remote: 'Remote',
   libur: 'Libur',
 };
 
@@ -36,6 +38,16 @@ const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
 export function LeavesScreen() {
   const today = toLocalDateString(new Date());
+  const { user } = useSession();
+  const canRemote = user?.role === 'admin' || user?.role === 'noc';
+  const typeOptions: Exclude<LeaveType, 'libur'>[] = [
+    'sakit',
+    'izin',
+    'cuti',
+    'telat',
+    'siang',
+    ...(canRemote ? (['remote'] as const) : []),
+  ];
 
   const [leaves, setLeaves] = useState<LeaveRequestResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -234,7 +246,7 @@ export function LeavesScreen() {
               <View style={{ gap: 8 }}>
                 <Text style={styles.label}>Jenis</Text>
                 <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
-                  {(['sakit', 'izin', 'cuti', 'telat', 'siang'] as const).map((t) => (
+                  {typeOptions.map((t) => (
                     <Pressable
                       key={t}
                       onPress={() => setType(t)}

@@ -12,6 +12,8 @@ import {
   useTodayAttendance,
 } from '@/hooks/useAttendance';
 import { getLeaveStatusLabel, getLeaveTypeLabel, toLocalDateString } from '@/lib/leaves';
+import { useSession } from '@/lib/auth/client';
+import { canRequestRemote } from '@/lib/roles';
 import type { LeaveRequestResponse, LeaveType } from '@/types/api';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -45,6 +47,16 @@ export function LeaveSection() {
   const { data: todayData } = useTodayAttendance();
   const createLeave = useCreateLeave();
   const deleteLeave = useDeleteLeave();
+
+  const { data: session } = useSession();
+  const typeOptions: Exclude<LeaveType, 'libur'>[] = [
+    'sakit',
+    'izin',
+    'cuti',
+    'telat',
+    'siang',
+    ...(canRequestRemote(session?.user?.role) ? (['remote'] as const) : []),
+  ];
 
   const [dialogOpen, setDialogOpen] = useState(false);
   const [type, setType] = useState<Exclude<LeaveType, 'libur'>>('izin');
@@ -215,7 +227,7 @@ export function LeaveSection() {
           <div className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-text-primary">Jenis</span>
             <div className="grid grid-cols-3 gap-2">
-              {(['sakit', 'izin', 'cuti', 'telat', 'siang'] as const).map((t) => (
+              {typeOptions.map((t) => (
                 <button
                   key={t}
                   type="button"

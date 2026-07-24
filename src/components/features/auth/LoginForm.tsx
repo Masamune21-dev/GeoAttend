@@ -4,7 +4,8 @@ import { useState, type FormEvent } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { toast } from 'sonner';
-import { signIn } from '@/lib/auth/client';
+import { signIn, signOut } from '@/lib/auth/client';
+import { isWarehouseOnly } from '@/lib/roles';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -46,8 +47,15 @@ export function LoginForm({
       return;
     }
 
-    toast.success('Berhasil masuk');
     const role = (data?.user as { role?: string } | undefined)?.role;
+    // Akun Admin Gudang hanya boleh di domain stok — batalkan sesi bila login dari absensi.
+    if (isWarehouseOnly(role) && brand !== 'stok') {
+      await signOut();
+      setError('Akun Admin Gudang hanya bisa masuk lewat stok.kusumavision.net');
+      return;
+    }
+
+    toast.success('Berhasil masuk');
     // Domain stok → dashboard stok. Selain itu: administrator → panel admin, lainnya → absensi.
     const target = brand === 'stok' ? '/stock' : role === 'administrator' ? '/admin' : '/checkin';
     router.push(target);

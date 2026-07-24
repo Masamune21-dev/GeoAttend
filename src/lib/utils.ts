@@ -28,6 +28,7 @@ const ROLE_LABELS: Record<string, string> = {
   noc: 'NOC',
   teknisi: 'Teknisi',
   employee: 'Karyawan',
+  gudang: 'Admin Gudang',
 };
 
 /** Label role untuk ditampilkan di UI. */

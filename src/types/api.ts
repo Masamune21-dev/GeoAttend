@@ -22,7 +22,7 @@ export const UpdateGeofenceSchema = z.object({
 export type UpdateGeofenceInput = z.infer<typeof UpdateGeofenceSchema>;
 
 export const UpdateUserSchema = z.object({
-  role: z.enum(['administrator', 'admin', 'noc', 'teknisi', 'employee']).optional(),
+  role: z.enum(['administrator', 'admin', 'noc', 'teknisi', 'employee', 'gudang']).optional(),
   name: z.string().min(1).max(255).optional(),
   email: z.string().email('Format email tidak valid').optional(),
   password: z.string().min(8, 'Kata sandi minimal 8 karakter').optional(),
@@ -73,7 +73,7 @@ export const CreateUserSchema = z.object({
   name: z.string().min(1).max(255),
   email: z.string().email('Format email tidak valid'),
   password: z.string().min(8, 'Kata sandi minimal 8 karakter'),
-  role: z.enum(['administrator', 'admin', 'noc', 'teknisi', 'employee']),
+  role: z.enum(['administrator', 'admin', 'noc', 'teknisi', 'employee', 'gudang']),
 });
 export type CreateUserInput = z.infer<typeof CreateUserSchema>;
 
@@ -114,7 +114,7 @@ export type UpsertShiftsInput = z.infer<typeof UpsertShiftsSchema>;
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
-export const LEAVE_TYPES = ['sakit', 'izin', 'cuti', 'telat', 'siang', 'libur'] as const;
+export const LEAVE_TYPES = ['sakit', 'izin', 'cuti', 'telat', 'siang', 'remote', 'libur'] as const;
 export type LeaveType = (typeof LEAVE_TYPES)[number];
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
 
@@ -193,7 +193,7 @@ export interface UserProfile {
   id: string;
   name: string;
   email: string;
-  role: 'administrator' | 'admin' | 'noc' | 'teknisi' | 'employee';
+  role: 'administrator' | 'admin' | 'noc' | 'teknisi' | 'employee' | 'gudang';
   image?: string | null;
   createdAt?: string;
 }

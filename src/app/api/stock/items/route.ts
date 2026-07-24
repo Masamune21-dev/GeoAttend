@@ -1,7 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { db } from '@/lib/db';
 import { stockItems } from '@/lib/db/schema';
-import { forbiddenResponse, getApiSession, isAdmin, unauthorizedResponse } from '@/lib/auth/utils';
+import { forbiddenResponse, getApiSession, unauthorizedResponse } from '@/lib/auth/utils';
+import { isStockManager } from '@/lib/roles';
 import { getStockItems, getStockItemById } from '@/lib/stock';
 import { saveStockPhoto } from '@/lib/storage/local-fs';
 import { CreateStockItemSchema } from '@/types/api';
@@ -36,7 +37,7 @@ export async function POST(req: NextRequest) {
   try {
     const session = await getApiSession(req);
     if (!session) return unauthorizedResponse();
-    if (!isAdmin(session)) return forbiddenResponse();
+    if (!isStockManager(session.user.role)) return forbiddenResponse();
 
     const parsed = CreateStockItemSchema.safeParse(await req.json());
     if (!parsed.success) return validationError(parsed.error.flatten());

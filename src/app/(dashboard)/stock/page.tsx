@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ArrowRight, ArrowDownToLine, ArrowUpFromLine, Inbox, Plus } from 'lucide-react';
 import { useSession } from '@/lib/auth/client';
+import { isStockManager } from '@/lib/roles';
 import { useStockOverview } from '@/hooks/useStock';
 import { StatCards } from '@/components/features/stock/StatCards';
 import { StockStatusBadge } from '@/components/features/stock/StockStatusBadge';
@@ -24,7 +25,7 @@ function formatTime(iso: string): string {
 export default function StockOverviewPage() {
   const { data, isLoading } = useStockOverview();
   const { data: session } = useSession();
-  const isAdmin = session?.user.role === 'administrator';
+  const canManage = isStockManager(session?.user.role);
 
   if (isLoading || !data) {
     return (
@@ -54,7 +55,7 @@ export default function StockOverviewPage() {
         <Card>
           <CardHeader className="flex-row items-center justify-between">
             <CardTitle className="text-base">Perlu Perhatian</CardTitle>
-            {isAdmin && (
+            {canManage && (
               <Link href="/stock/inventory" className="flex items-center gap-1 text-sm font-medium text-primary hover:underline">
                 Inventory <ArrowRight className="h-4 w-4" />
               </Link>

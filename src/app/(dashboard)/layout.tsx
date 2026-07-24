@@ -3,6 +3,8 @@ import { getServerSession } from '@/lib/auth/utils';
 import { getAppSettings } from '@/lib/settings';
 import { getServerBrand } from '@/lib/brand.server';
 import { brandConfig } from '@/lib/brand';
+import { isStockManager, isWarehouseOnly } from '@/lib/roles';
+import { WarehouseWebOnlyNotice } from '@/components/features/auth/WarehouseWebOnlyNotice';
 import { Header } from '@/components/layouts/Header';
 import { MobileNav } from '@/components/layouts/MobileNav';
 import { DesktopSidebar } from '@/components/layouts/DesktopSidebar';
@@ -30,11 +32,20 @@ export default async function DashboardLayout({
   const cfg = brandConfig(brand, appSettings.appName);
   const isStock = brand === 'stok';
 
+  // Akun Admin Gudang hanya boleh di domain stok — tolak di absensi (defense-in-depth).
+  if (!isStock && isWarehouseOnly(session.user.role)) {
+    return <WarehouseWebOnlyNotice />;
+  }
+
   return (
     <BrandProvider brand={brand}>
       <div className="flex min-h-dvh">
         {isStock ? (
-          <StockSidebar appName={cfg.name} logoUrl={appSettings.logoUrl} isAdmin={isAdmin} />
+          <StockSidebar
+            appName={cfg.name}
+            logoUrl={appSettings.logoUrl}
+            canManage={isStockManager(session.user.role)}
+          />
         ) : (
           <DesktopSidebar isAdmin={isAdmin} appName={appSettings.appName} logoUrl={appSettings.logoUrl} />
         )}

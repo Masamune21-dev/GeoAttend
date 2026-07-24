@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useSession } from '@/lib/auth/client';
+import { isStockManager } from '@/lib/roles';
 import { useBrand } from '@/components/providers/BrandProvider';
 import { STOCK_NAV } from '@/components/features/stock/stock-nav';
 
@@ -11,8 +12,8 @@ export default function StockLayout({ children }: { children: React.ReactNode })
   const pathname = usePathname();
   const brand = useBrand();
   const { data: session } = useSession();
-  const isAdmin = session?.user.role === 'administrator';
-  const navItems = STOCK_NAV.filter((n) => isAdmin || !n.adminOnly);
+  const canManage = isStockManager(session?.user.role);
+  const navItems = STOCK_NAV.filter((n) => canManage || !n.adminOnly);
 
   return (
     <div className="flex flex-col gap-5">

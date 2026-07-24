@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from 'next/server';
 import { eq } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { stockItems } from '@/lib/db/schema';
-import { forbiddenResponse, getApiSession, isAdmin, unauthorizedResponse } from '@/lib/auth/utils';
+import { forbiddenResponse, getApiSession, unauthorizedResponse } from '@/lib/auth/utils';
+import { isStockManager } from '@/lib/roles';
 import { getStockItemById } from '@/lib/stock';
 import { saveStockPhoto } from '@/lib/storage/local-fs';
 import { UpdateStockItemSchema } from '@/types/api';
@@ -29,7 +30,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
   try {
     const session = await getApiSession(req);
     if (!session) return unauthorizedResponse();
-    if (!isAdmin(session)) return forbiddenResponse();
+    if (!isStockManager(session.user.role)) return forbiddenResponse();
 
     const parsed = UpdateStockItemSchema.safeParse(await req.json());
     if (!parsed.success) return validationError(parsed.error.flatten());
@@ -69,7 +70,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
   try {
     const session = await getApiSession(req);
     if (!session) return unauthorizedResponse();
-    if (!isAdmin(session)) return forbiddenResponse();
+    if (!isStockManager(session.user.role)) return forbiddenResponse();
 
     const existing = await getStockItemById(params.id);
     if (!existing) return errorJson('NOT_FOUND', 'Barang tidak ditemukan', 404);

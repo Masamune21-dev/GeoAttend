@@ -21,6 +21,7 @@ const ROLE_OPTIONS: { value: UserProfile['role']; label: string }[] = [
   { value: 'teknisi', label: 'Teknisi' },
   { value: 'noc', label: 'NOC' },
   { value: 'admin', label: 'Admin (staf)' },
+  { value: 'gudang', label: 'Admin Gudang (web stok)' },
   { value: 'administrator', label: 'Administrator (sistem)' },
 ];
 
