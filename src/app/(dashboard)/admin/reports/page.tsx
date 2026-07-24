@@ -14,6 +14,7 @@ import { ChevronLeft, ChevronRight, Download, FileSpreadsheet, FileText } from '
 import { toast } from 'sonner';
 import { useAttendanceList, useLeaves, useShifts, useUsers } from '@/hooks/useAttendance';
 import { computeRecap, formatMinutes, type ShiftTime } from '@/lib/shifts/calc';
+import { OPEN_SESSION_WINDOW_HOURS } from '@/lib/constants';
 import { expandDateRange, getLeaveTypeLabel } from '@/lib/leaves';
 import { getRoleLabel } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
@@ -93,53 +94,79 @@ export default function ReportsPage() {
       shiftsByRole.set(shift.role, list);
     }
 
-    // Kelompokkan record per user per tanggal lokal per shift tercatat:
-    // jam masuk = clock_in PERTAMA, jam pulang = clock_out TERAKHIR grup itu.
-    // Data lama tanpa shift tercatat tetap tergabung per hari (shift null).
-    const byUserDayShift = new Map<
-      string,
-      {
-        userId: string;
-        userName: string;
-        date: string;
-        shiftNumber: number | null;
-        clockIn: Date | null;
-        clockOut: Date | null;
-      }
-    >();
+    // Bentuk SESI kerja per user secara KRONOLOGIS: clock_in membuka sesi,
+    // clock_out menutupnya. clock_out mewarisi TANGGAL & shift dari clock-in
+    // sesinya — jadi pulang 02:00 keesokan hari tetap masuk rekap tanggal
+    // clock-in (shift lintas tengah malam), bukan baris terpisah di tanggal
+    // berikutnya. clock_out tanpa sesi terbuka (masuk hilang / data lama)
+    // menjadi baris pulang berdiri sendiri pada tanggalnya.
+    const OPEN_SESSION_WINDOW_MS = OPEN_SESSION_WINDOW_HOURS * 60 * 60 * 1000;
 
+    const sessions: {
+      userId: string;
+      userName: string;
+      date: string;
+      shiftNumber: number | null;
+      clockIn: Date | null;
+      clockOut: Date | null;
+    }[] = [];
+
+    const recordsByUser = new Map<string, typeof records>();
     for (const record of records) {
-      const ts = new Date(record.timestamp);
-      const date = format(ts, 'yyyy-MM-dd');
-      const shiftNumber = record.shiftNumber ?? null;
-      const key = `${record.userId}|${date}|${shiftNumber ?? 'x'}`;
-      const entry =
-        byUserDayShift.get(key) ??
-        {
-          userId: record.userId,
-          userName: record.userName,
-          date,
-          shiftNumber,
-          clockIn: null as Date | null,
-          clockOut: null as Date | null,
-        };
-
-      if (record.type === 'clock_in') {
-        if (!entry.clockIn || ts < entry.clockIn) entry.clockIn = ts;
-      } else {
-        if (!entry.clockOut || ts > entry.clockOut) entry.clockOut = ts;
-      }
-      byUserDayShift.set(key, entry);
+      const list = recordsByUser.get(record.userId) ?? [];
+      list.push(record);
+      recordsByUser.set(record.userId, list);
     }
 
-    const rows: DailyRow[] = Array.from(byUserDayShift.entries()).map(([key, entry]) => {
+    for (const list of Array.from(recordsByUser.values())) {
+      const sorted = [...list].sort(
+        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+      );
+      let open: (typeof sessions)[number] | null = null;
+      for (const record of sorted) {
+        const ts = new Date(record.timestamp);
+        const shiftNumber = record.shiftNumber ?? null;
+        if (record.type === 'clock_in') {
+          // clock_in baru membuka sesi baru; sesi sebelumnya yang belum ditutup
+          // dianggap lupa clock-out (jam pulang tetap kosong).
+          open = {
+            userId: record.userId,
+            userName: record.userName,
+            date: format(ts, 'yyyy-MM-dd'),
+            shiftNumber,
+            clockIn: ts,
+            clockOut: null,
+          };
+          sessions.push(open);
+        } else if (
+          open &&
+          open.clockIn &&
+          ts.getTime() - open.clockIn.getTime() <= OPEN_SESSION_WINDOW_MS
+        ) {
+          open.clockOut = ts;
+          open = null;
+        } else {
+          sessions.push({
+            userId: record.userId,
+            userName: record.userName,
+            date: format(ts, 'yyyy-MM-dd'),
+            shiftNumber,
+            clockIn: null,
+            clockOut: ts,
+          });
+          open = null;
+        }
+      }
+    }
+
+    const rows: DailyRow[] = sessions.map((entry, index) => {
       const role = roleByUser.get(entry.userId) ?? 'employee';
       const recap = computeRecap(
         { clockIn: entry.clockIn, clockOut: entry.clockOut, shiftNumber: entry.shiftNumber },
         shiftsByRole.get(role) ?? []
       );
       return {
-        key,
+        key: `${entry.userId}|${entry.date}|${entry.shiftNumber ?? 'x'}|${index}`,
         date: entry.date,
         userId: entry.userId,
         userName: entry.userName,
@@ -156,7 +183,7 @@ export default function ReportsPage() {
 
     // Sisipkan baris izin/libur (yang disetujui) untuk tanggal tanpa absensi.
     // Bila karyawan tetap absen di tanggal tersebut, baris kehadiran yang dipakai.
-    const attendedDates = new Set(records.map((r) => `${r.userId}|${format(new Date(r.timestamp), 'yyyy-MM-dd')}`));
+    const attendedDates = new Set(sessions.map((s) => `${s.userId}|${s.date}`));
     for (const leave of leavesData?.data ?? []) {
       const from = leave.startDate < monthStart ? monthStart : leave.startDate;
       const to = leave.endDate > monthEnd ? monthEnd : leave.endDate;

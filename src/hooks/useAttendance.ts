@@ -1,6 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { OPEN_SESSION_WINDOW_HOURS } from '@/lib/constants';
 import type {
   AttendanceRecordResponse,
   CreateAttendanceInput,
@@ -60,7 +61,7 @@ export function useAttendanceList(filters: AttendanceFilters, options?: { refetc
   });
 }
 
-/** Query record absensi hari ini milik user login (untuk menentukan clock in/out). */
+/** Query record absensi hari ini milik user login (kehadiran pada TANGGAL ini). */
 export function useTodayAttendance() {
   return useQuery({
     queryKey: ['attendance', 'today', 'self'],
@@ -68,6 +69,30 @@ export function useTodayAttendance() {
       fetchJson<PaginatedResponse<AttendanceRecordResponse>>(
         '/api/attendance?today=true&userId=self&limit=10'
       ),
+    staleTime: 30_000,
+  });
+}
+
+/**
+ * Status "sesi kerja terbuka" milik user login: record absensi TERAKHIR dalam
+ * jendela bergulir {@link OPEN_SESSION_WINDOW_HOURS} jam. Beda dari
+ * {@link useTodayAttendance} — jendela ini menembus tengah malam, jadi Shift 2
+ * yang masuk 15:00 & belum pulang tetap terbaca "sedang bekerja" pada jam 02:00
+ * keesokan hari (tombol jadi "Absen Pulang", bukan "Absen Masuk").
+ */
+export function useOpenSession() {
+  return useQuery({
+    queryKey: ['attendance', 'open-session', 'self'],
+    queryFn: async () => {
+      const from = new Date(
+        Date.now() - OPEN_SESSION_WINDOW_HOURS * 60 * 60 * 1000
+      ).toISOString();
+      const res = await fetchJson<PaginatedResponse<AttendanceRecordResponse>>(
+        `/api/attendance?userId=self&from=${encodeURIComponent(from)}&limit=1`
+      );
+      const lastRecord = res.data[0] ?? null;
+      return { lastRecord, isOpen: lastRecord?.type === 'clock_in' };
+    },
     staleTime: 30_000,
   });
 }

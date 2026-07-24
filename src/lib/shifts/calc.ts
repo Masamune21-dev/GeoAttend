@@ -45,6 +45,13 @@ export function minutesOfDay(date: Date): number {
   return date.getHours() * 60 + date.getMinutes();
 }
 
+/** Selisih hari kalender lokal antara dua waktu (0 = hari sama, 1 = besoknya). */
+export function dayOffset(from: Date, to: Date): number {
+  const a = new Date(from.getFullYear(), from.getMonth(), from.getDate());
+  const b = new Date(to.getFullYear(), to.getMonth(), to.getDate());
+  return Math.round((b.getTime() - a.getTime()) / 86_400_000);
+}
+
 /**
  * Tentukan shift yang berlaku untuk sebuah absensi: shift dengan jam masuk
  * paling dekat dengan waktu clock-in. Contoh (admin, shift 07:00 & 15:00):
@@ -86,9 +93,14 @@ export function computeRecap(day: DailyAttendance, roleShifts: ShiftTime[]): Rec
   let overtimeMinutes = 0;
   let earlyLeaveMinutes = 0;
 
+  const startMinutes = timeToMinutes(shift.startTime);
+  // Shift yang jam pulangnya lebih kecil/sama dari jam masuk (mis. 22:00–06:00)
+  // berarti berakhir keesokan hari → geser +24 jam agar durasinya positif.
+  let endMinutes = timeToMinutes(shift.endTime);
+  if (endMinutes <= startMinutes) endMinutes += 24 * 60;
+
   if (day.clockIn) {
     const inMinutes = minutesOfDay(day.clockIn);
-    const startMinutes = timeToMinutes(shift.startTime);
     if (inMinutes < startMinutes) {
       overtimeMinutes += startMinutes - inMinutes; // berangkat lebih awal = lembur
     } else {
@@ -97,8 +109,11 @@ export function computeRecap(day: DailyAttendance, roleShifts: ShiftTime[]): Rec
   }
 
   if (day.clockOut) {
-    const outMinutes = minutesOfDay(day.clockOut);
-    const endMinutes = timeToMinutes(shift.endTime);
+    // Jam pulang diukur relatif terhadap HARI clock-in agar sesi yang menembus
+    // tengah malam (mis. pulang 02:00 keesokan hari) terhitung lembur, bukan
+    // "pulang cepat" 20+ jam. Tanpa clock-in (data lama) pakai harinya sendiri.
+    const anchor = day.clockIn ?? day.clockOut;
+    const outMinutes = minutesOfDay(day.clockOut) + dayOffset(anchor, day.clockOut) * 24 * 60;
     if (outMinutes > endMinutes) {
       overtimeMinutes += outMinutes - endMinutes; // pulang lebih larut = lembur
     } else {

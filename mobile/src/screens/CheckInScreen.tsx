@@ -40,6 +40,14 @@ import { colors, spacing } from '../theme';
 
 const GPS_WEAK_THRESHOLD = 50;
 
+/**
+ * Jendela "sesi kerja terbuka" (jam). Sesi (masuk → pulang) bisa menembus tengah
+ * malam (Shift 2 masuk 15:00, pulang 02:00 keesokan hari), jadi status
+ * masuk/pulang ditentukan dari record terakhir dalam jendela ini — bukan "sejak
+ * tengah malam". Selaras dengan OPEN_SESSION_WINDOW_HOURS di server.
+ */
+const OPEN_SESSION_WINDOW_HOURS = 18;
+
 export function CheckInScreen() {
   const { user } = useSession();
 
@@ -47,7 +55,7 @@ export function CheckInScreen() {
   const [geoError, setGeoError] = useState<string | null>(null);
 
   const [geofence, setGeofence] = useState<GeofenceResponse | null>(null);
-  const [todayRecords, setTodayRecords] = useState<AttendanceRecordResponse[]>([]);
+  const [recentRecords, setRecentRecords] = useState<AttendanceRecordResponse[]>([]);
   const [shifts, setShifts] = useState<ShiftSettingResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -103,17 +111,21 @@ export function CheckInScreen() {
 
   // --- Data server ---
   const loadData = useCallback(async () => {
-    const [geofenceRes, todayRes, shiftsRes] = await Promise.all([
+    // Record terakhir dalam jendela sesi (menembus tengah malam), bukan "hari ini".
+    const sessionFrom = new Date(
+      Date.now() - OPEN_SESSION_WINDOW_HOURS * 60 * 60 * 1000
+    ).toISOString();
+    const [geofenceRes, recentRes, shiftsRes] = await Promise.all([
       api<GeofenceResponse>('/api/geofence').catch((err) =>
         err instanceof ApiRequestError && err.status === 404 ? null : Promise.reject(err)
       ),
       api<PaginatedResponse<AttendanceRecordResponse>>(
-        '/api/attendance?today=true&userId=self&limit=10'
+        `/api/attendance?userId=self&from=${encodeURIComponent(sessionFrom)}&limit=10`
       ),
       api<{ data: ShiftSettingResponse[] }>('/api/shifts'),
     ]);
     setGeofence(geofenceRes);
-    setTodayRecords(todayRes.data);
+    setRecentRecords(recentRes.data);
     setShifts(shiftsRes.data);
   }, []);
 
@@ -131,7 +143,7 @@ export function CheckInScreen() {
   }, [loadData]);
 
   // --- Turunan ---
-  const lastRecord = todayRecords[0];
+  const lastRecord = recentRecords[0];
   const nextType: 'clock_in' | 'clock_out' =
     lastRecord?.type === 'clock_in' ? 'clock_out' : 'clock_in';
 
@@ -146,7 +158,8 @@ export function CheckInScreen() {
   const defaultShift = useMemo(() => {
     if (roleShifts.length === 0) return null;
     if (nextType === 'clock_out') {
-      const lastClockIn = todayRecords.find((r) => r.type === 'clock_in');
+      // Record terbaru saat sesi terbuka = clock-in-nya (desc, paling atas).
+      const lastClockIn = recentRecords.find((r) => r.type === 'clock_in');
       if (
         lastClockIn?.shiftNumber != null &&
         roleShifts.some((s) => s.shiftNumber === lastClockIn.shiftNumber)
@@ -155,7 +168,7 @@ export function CheckInScreen() {
       }
     }
     return pickShift(new Date(), roleShifts)?.shiftNumber ?? null;
-  }, [roleShifts, nextType, todayRecords]);
+  }, [roleShifts, nextType, recentRecords]);
 
   const selectedShift =
     manualShift != null && roleShifts.some((s) => s.shiftNumber === manualShift)
@@ -281,7 +294,7 @@ export function CheckInScreen() {
           Alert.alert('Di luar area', e.message);
           break;
         case 'DUPLICATE_CHECKIN':
-          Alert.alert('Sudah absen', 'Anda sudah absen masuk hari ini');
+          Alert.alert('Sudah absen', 'Anda sudah absen masuk dan belum absen pulang');
           break;
         case 'INVALID_SEQUENCE':
           Alert.alert('Urutan salah', 'Anda harus absen masuk terlebih dahulu');

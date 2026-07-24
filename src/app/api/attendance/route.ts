@@ -10,6 +10,7 @@ import {
 import { CreateAttendanceSchema, type AttendanceRecordResponse } from '@/types/api';
 import { checkGeofence } from '@/lib/geo/validation';
 import { pickShift } from '@/lib/shifts/calc';
+import { OPEN_SESSION_WINDOW_HOURS } from '@/lib/constants';
 import { saveAttendancePhoto, StorageError } from '@/lib/storage/local-fs';
 
 export const dynamic = 'force-dynamic';
@@ -143,27 +144,31 @@ export async function POST(req: NextRequest) {
 
     const input = parsed.data;
 
-    // Cek duplikasi: tidak boleh clock_in dua kali tanpa clock_out (dan sebaliknya)
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const todayRecords = await db
+    // Cek duplikasi: tidak boleh clock_in dua kali tanpa clock_out (dan sebaliknya).
+    // Sesi kerja bisa menembus tengah malam (mis. Shift 2 masuk 15:00, pulang
+    // 02:00 keesokan hari), jadi "record terakhir" dicari dalam JENDELA BERGULIR,
+    // bukan "sejak tengah malam". Tanpa ini, absen pulang dini hari ditolak
+    // (INVALID_SEQUENCE) dan lemburnya hilang.
+    const sessionWindowStart = new Date(Date.now() - OPEN_SESSION_WINDOW_HOURS * 60 * 60 * 1000);
+    const recentRecords = await db
       .select({ type: attendanceRecords.type, shiftNumber: attendanceRecords.shiftNumber })
       .from(attendanceRecords)
       .where(
         and(
           eq(attendanceRecords.userId, session.user.id),
-          gte(attendanceRecords.timestamp, startOfDay)
+          gte(attendanceRecords.timestamp, sessionWindowStart)
         )
       )
       .orderBy(desc(attendanceRecords.timestamp))
       .limit(1);
 
-    const lastType = todayRecords[0]?.type;
+    const lastRecord = recentRecords[0];
+    const lastType = lastRecord?.type;
     if (input.type === 'clock_in' && lastType === 'clock_in') {
       return NextResponse.json(
         {
           code: 'DUPLICATE_CHECKIN',
-          message: 'Anda sudah absen masuk hari ini',
+          message: 'Anda sudah absen masuk dan belum absen pulang',
           timestamp: new Date().toISOString(),
         },
         { status: 409 }
@@ -208,8 +213,8 @@ export async function POST(req: NextRequest) {
           );
         }
         shiftNumber = input.shiftNumber;
-      } else if (input.type === 'clock_out' && todayRecords[0]?.shiftNumber != null) {
-        shiftNumber = todayRecords[0].shiftNumber;
+      } else if (input.type === 'clock_out' && lastRecord?.shiftNumber != null) {
+        shiftNumber = lastRecord.shiftNumber;
       } else {
         shiftNumber = pickShift(new Date(), roleShifts)?.shiftNumber ?? null;
       }

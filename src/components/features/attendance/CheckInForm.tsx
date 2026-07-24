@@ -8,8 +8,8 @@ import { useGeolocation } from '@/hooks/useGeolocation';
 import {
   useCreateAttendance,
   useGeofence,
+  useOpenSession,
   useShifts,
-  useTodayAttendance,
 } from '@/hooks/useAttendance';
 import { haversineDistance } from '@/lib/geo/distance';
 import { pickShift, type ShiftTime } from '@/lib/shifts/calc';
@@ -27,7 +27,7 @@ export function CheckInForm() {
   const { data: session } = useSession();
   const { coords, error: geoError } = useGeolocation();
   const { data: geofence, isLoading: geofenceLoading } = useGeofence();
-  const { data: todayData, isLoading: todayLoading } = useTodayAttendance();
+  const { data: sessionData, isLoading: sessionLoading } = useOpenSession();
   const { data: shiftsData, isLoading: shiftsLoading } = useShifts();
   const createAttendance = useCreateAttendance();
 
@@ -36,10 +36,9 @@ export function CheckInForm() {
   const [justSubmitted, setJustSubmitted] = useState(false);
   const [manualShift, setManualShift] = useState<number | null>(null);
 
-  const todayRecords = todayData?.data ?? [];
-  const lastRecord = todayRecords[0];
+  const lastRecord = sessionData?.lastRecord ?? undefined;
   const nextType: 'clock_in' | 'clock_out' =
-    lastRecord?.type === 'clock_in' ? 'clock_out' : 'clock_in';
+    sessionData?.isOpen ? 'clock_out' : 'clock_in';
 
   // Shift milik role user login (untuk pilihan shift saat absen)
   const roleShifts: ShiftTime[] = useMemo(() => {
@@ -56,21 +55,20 @@ export function CheckInForm() {
       .sort((a, b) => a.shiftNumber - b.shiftNumber);
   }, [session?.user.role, shiftsData]);
 
-  // Default shift: absen pulang mengikuti shift absen masuk hari ini;
-  // absen masuk memakai shift dengan jam masuk terdekat dari sekarang.
+  // Default shift: absen pulang mengikuti shift absen masuk sesi berjalan (record
+  // terakhir saat sesi terbuka = clock-in-nya); absen masuk memakai shift dengan
+  // jam masuk terdekat dari sekarang.
   const defaultShift = useMemo(() => {
     if (roleShifts.length === 0) return null;
-    if (nextType === 'clock_out') {
-      const lastClockIn = (todayData?.data ?? []).find((r) => r.type === 'clock_in');
-      if (
-        lastClockIn?.shiftNumber != null &&
-        roleShifts.some((s) => s.shiftNumber === lastClockIn.shiftNumber)
-      ) {
-        return lastClockIn.shiftNumber;
-      }
+    if (
+      nextType === 'clock_out' &&
+      lastRecord?.shiftNumber != null &&
+      roleShifts.some((s) => s.shiftNumber === lastRecord.shiftNumber)
+    ) {
+      return lastRecord.shiftNumber;
     }
     return pickShift(new Date(), roleShifts)?.shiftNumber ?? null;
-  }, [roleShifts, nextType, todayData]);
+  }, [roleShifts, nextType, lastRecord]);
 
   const selectedShift =
     manualShift != null && roleShifts.some((s) => s.shiftNumber === manualShift)
@@ -133,7 +131,7 @@ export function CheckInForm() {
               toast.error(err.message);
               break;
             case 'DUPLICATE_CHECKIN':
-              toast.warning('Anda sudah absen masuk hari ini');
+              toast.warning('Anda sudah absen masuk dan belum absen pulang');
               break;
             case 'INVALID_SEQUENCE':
               toast.warning('Anda harus absen masuk terlebih dahulu');
@@ -149,7 +147,7 @@ export function CheckInForm() {
     );
   };
 
-  if (geofenceLoading || todayLoading || shiftsLoading) {
+  if (geofenceLoading || sessionLoading || shiftsLoading) {
     return (
       <div className="flex flex-col gap-4">
         <Skeleton className="h-16 w-full" />

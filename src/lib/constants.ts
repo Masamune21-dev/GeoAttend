@@ -17,6 +17,14 @@ export const GPS_WEAK_ACCURACY_THRESHOLD = 50;
 /** Interval polling live map (ms). */
 export const LIVE_MAP_POLL_INTERVAL = 30_000;
 
+/**
+ * Jendela "sesi kerja terbuka" (jam). Sebuah sesi (clock-in → clock-out) bisa
+ * menembus tengah malam (mis. Shift 2 masuk 15:00, pulang 02:00 keesokan hari),
+ * jadi status "sedang bekerja" & validasi urutan absen memakai jendela bergulir
+ * ini — bukan "sejak tengah malam". Shift 8 jam + lembur realistis < 18 jam.
+ */
+export const OPEN_SESSION_WINDOW_HOURS = 18;
+
 export const MAX_PHOTO_SIZE_MB = Number(process.env.MAX_UPLOAD_SIZE_MB ?? 5);
 
 /** Role yang punya SOP jam kerja. Role 'employee' = belum ditetapkan admin. */

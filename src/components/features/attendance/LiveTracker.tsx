@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
-import { useTodayAttendance } from '@/hooks/useAttendance';
+import { useOpenSession } from '@/hooks/useAttendance';
 
 /** Interval pengiriman posisi live (ms). */
 const SEND_INTERVAL_MS = 20_000;
@@ -15,9 +15,8 @@ const SEND_INTERVAL_MS = 20_000;
  * pelacakan background penuh memerlukan aplikasi mobile native.
  */
 export function LiveTracker() {
-  const { data: todayData } = useTodayAttendance();
-  const lastRecord = todayData?.data?.[0];
-  const isPresent = lastRecord?.type === 'clock_in';
+  const { data: sessionData } = useOpenSession();
+  const isPresent = sessionData?.isOpen ?? false;
 
   useEffect(() => {
     if (!isPresent) return;

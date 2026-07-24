@@ -23,6 +23,13 @@ function at(hours: number, minutes: number): Date {
   return d;
 }
 
+/** Date lokal keesokan hari (untuk sesi yang menembus tengah malam). */
+function atNextDay(hours: number, minutes: number): Date {
+  const d = new Date(2026, 6, 21);
+  d.setHours(hours, minutes, 0, 0);
+  return d;
+}
+
 describe('timeToMinutes', () => {
   it('konversi HH:mm ke menit', () => {
     expect(timeToMinutes('07:00')).toBe(420);
@@ -157,6 +164,68 @@ describe('computeRecap — aturan SOP', () => {
       { clockIn: at(7, 0), clockOut: null, shiftNumber: 1 },
       ADMIN_SHIFTS
     );
+    expect(result.earlyLeaveMinutes).toBe(0);
+  });
+});
+
+describe('computeRecap — sesi lintas tengah malam', () => {
+  it('config produksi (Shift 2 = 15:00–23:00): masuk 15:00 → pulang 02:00 = lembur 3 jam', () => {
+    const PROD_SHIFTS: ShiftTime[] = [
+      { role: 'admin', shiftNumber: 1, startTime: '07:00', endTime: '15:00' },
+      { role: 'admin', shiftNumber: 2, startTime: '15:00', endTime: '23:00' },
+    ];
+    const result = computeRecap(
+      { clockIn: at(15, 0), clockOut: atNextDay(2, 0), shiftNumber: 2 },
+      PROD_SHIFTS
+    );
+    expect(result.overtimeMinutes).toBe(180); // 23:00 → 02:00 = 3 jam
+    expect(result.earlyLeaveMinutes).toBe(0);
+    expect(result.lateMinutes).toBe(0);
+  });
+
+  it('shift 2 (15:00–22:00): pulang 02:00 keesokan hari = lembur 4 jam, bukan pulang cepat', () => {
+    // Masuk 15:00 tgl X (tepat waktu), pulang 02:00 tgl X+1.
+    // Jam pulang shift 22:00 → lembur 22:00→02:00 = 4 jam. earlyLeave harus 0.
+    const result = computeRecap(
+      { clockIn: at(15, 0), clockOut: atNextDay(2, 0), shiftNumber: 2 },
+      ADMIN_SHIFTS
+    );
+    expect(result.shift?.shiftNumber).toBe(2);
+    expect(result.overtimeMinutes).toBe(240);
+    expect(result.earlyLeaveMinutes).toBe(0);
+    expect(result.lateMinutes).toBe(0);
+  });
+
+  it('shift 2: masuk telat 10m + pulang 01:30 keesokan hari (lembur 210m) keduanya tercatat', () => {
+    const result = computeRecap(
+      { clockIn: at(15, 10), clockOut: atNextDay(1, 30), shiftNumber: 2 },
+      ADMIN_SHIFTS
+    );
+    expect(result.lateMinutes).toBe(10);
+    expect(result.overtimeMinutes).toBe(210); // 22:00 → 01:30
+    expect(result.earlyLeaveMinutes).toBe(0);
+  });
+
+  it('pulang sebelum tengah malam tetap terhitung pulang cepat (dayOffset 0)', () => {
+    // Regression: masuk 15:00, pulang 21:30 hari sama → pulang cepat 30m.
+    const result = computeRecap(
+      { clockIn: at(15, 0), clockOut: at(21, 30), shiftNumber: 2 },
+      ADMIN_SHIFTS
+    );
+    expect(result.earlyLeaveMinutes).toBe(30);
+    expect(result.overtimeMinutes).toBe(0);
+  });
+
+  it('shift malam yang jam pulangnya < jam masuk (22:00–06:00) dihitung penuh', () => {
+    const NIGHT_SHIFTS: ShiftTime[] = [
+      { role: 'satpam', shiftNumber: 1, startTime: '22:00', endTime: '06:00' },
+    ];
+    const result = computeRecap(
+      { clockIn: at(22, 0), clockOut: atNextDay(6, 0), shiftNumber: 1 },
+      NIGHT_SHIFTS
+    );
+    expect(result.lateMinutes).toBe(0);
+    expect(result.overtimeMinutes).toBe(0);
     expect(result.earlyLeaveMinutes).toBe(0);
   });
 });
