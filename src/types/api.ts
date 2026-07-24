@@ -340,3 +340,103 @@ export interface PiketResponse {
   users: ScheduleUser[];
   assignments: PiketAssignment[];
 }
+
+// --- Stok Gudang ---
+
+export const STOCK_MOVEMENT_TYPES = ['masuk', 'keluar', 'adjust'] as const;
+export type StockMovementType = (typeof STOCK_MOVEMENT_TYPES)[number];
+
+/** habis: stok <= 0 · menipis: 0 < stok <= minStock · aman: stok > minStock */
+export type StockStatus = 'habis' | 'menipis' | 'aman';
+
+export const CreateStockCategorySchema = z.object({
+  name: z.string().min(1, 'Nama kategori wajib diisi').max(100),
+  sortOrder: z.number().int().min(0).optional(),
+});
+export type CreateStockCategoryInput = z.infer<typeof CreateStockCategorySchema>;
+
+export const CreateStockItemSchema = z.object({
+  code: z.string().min(1, 'Kode wajib diisi').max(50),
+  name: z.string().min(1, 'Nama barang wajib diisi').max(255),
+  categoryId: z.string().uuid().nullable().optional(),
+  unit: z.string().min(1).max(20).optional(),
+  openingStock: z.number().int().optional(),
+  minStock: z.number().int().min(0).optional(),
+  photoBase64: z.string().startsWith('data:image/jpeg;base64,').optional(),
+});
+export type CreateStockItemInput = z.infer<typeof CreateStockItemSchema>;
+
+export const UpdateStockItemSchema = z.object({
+  code: z.string().min(1).max(50).optional(),
+  name: z.string().min(1).max(255).optional(),
+  categoryId: z.string().uuid().nullable().optional(),
+  unit: z.string().min(1).max(20).optional(),
+  openingStock: z.number().int().optional(),
+  minStock: z.number().int().min(0).optional(),
+  isActive: z.boolean().optional(),
+  photoBase64: z.string().startsWith('data:image/jpeg;base64,').optional(),
+});
+export type UpdateStockItemInput = z.infer<typeof UpdateStockItemSchema>;
+
+export const CreateStockMovementSchema = z
+  .object({
+    itemId: z.string().uuid(),
+    type: z.enum(STOCK_MOVEMENT_TYPES),
+    quantity: z.number().int(),
+    note: z.string().max(500).optional(),
+    photoBase64: z.string().startsWith('data:image/jpeg;base64,').optional(),
+  })
+  .refine((v) => (v.type === 'adjust' ? v.quantity !== 0 : v.quantity >= 1), {
+    message: 'Jumlah masuk/keluar minimal 1; penyesuaian tidak boleh 0',
+    path: ['quantity'],
+  });
+export type CreateStockMovementInput = z.infer<typeof CreateStockMovementSchema>;
+
+export interface StockCategoryResponse {
+  id: string;
+  name: string;
+  sortOrder: number;
+  itemCount: number;
+}
+
+export interface StockItemResponse {
+  id: string;
+  code: string;
+  name: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  unit: string;
+  photoUrl: string | null;
+  openingStock: number;
+  minStock: number;
+  currentStock: number;
+  status: StockStatus;
+  isActive: boolean;
+  lastMovementAt: string | null; // ISO 8601
+  createdAt: string; // ISO 8601
+}
+
+export interface StockMovementResponse {
+  id: string;
+  itemId: string;
+  itemCode: string;
+  itemName: string;
+  type: StockMovementType;
+  quantity: number;
+  photoUrl: string | null;
+  note: string | null;
+  createdByName: string | null;
+  createdAt: string; // ISO 8601
+}
+
+export interface StockOverviewResponse {
+  totalItems: number;
+  totalStock: number;
+  totalIn: number; // total masuk pada periode
+  totalOut: number; // total keluar pada periode
+  lowStockCount: number;
+  outOfStockCount: number;
+  period: { from: string; to: string }; // yyyy-MM-dd
+  recentMovements: StockMovementResponse[];
+  lowStockItems: StockItemResponse[];
+}

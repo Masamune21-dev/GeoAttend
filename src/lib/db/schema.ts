@@ -272,3 +272,67 @@ export const attendanceRecords = pgTable(
     timestampIdx: index('attendance_timestamp_idx').on(table.timestamp),
   })
 );
+
+// ============================================
+// Modul Stok Gudang (KusumaVisionStock)
+// ============================================
+
+/**
+ * Kategori barang gudang (KABEL, AKSESORIS TV, RATIO, dll).
+ */
+export const stockCategories = pgTable('stock_categories', {
+  id: uuid('id').defaultRandom().primaryKey(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+  sortOrder: integer('sort_order').default(0).notNull(),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
+
+/**
+ * Master barang. `openingStock` = stok awal saat migrasi (diambil dari kolom
+ * "Stok Akhir" sheet lama). Stok berjalan = openingStock + Σmasuk − Σkeluar
+ * ± Σpenyesuaian (dihitung dari stock_movements, bukan disimpan).
+ * `minStock` = ambang "menipis". `photoUrl` = foto barang (opsional).
+ */
+export const stockItems = pgTable(
+  'stock_items',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    code: varchar('code', { length: 50 }).notNull().unique(),
+    name: varchar('name', { length: 255 }).notNull(),
+    categoryId: uuid('category_id').references(() => stockCategories.id),
+    unit: varchar('unit', { length: 20 }).default('pcs').notNull(),
+    photoUrl: text('photo_url'),
+    openingStock: integer('opening_stock').default(0).notNull(),
+    minStock: integer('min_stock').default(0).notNull(),
+    isActive: boolean('is_active').default(true).notNull(),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    updatedAt: timestamp('updated_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    categoryIdx: index('stock_items_category_idx').on(table.categoryId),
+  })
+);
+
+/**
+ * Buku besar pergerakan stok. Satu baris = satu barang masuk/keluar/penyesuaian,
+ * dengan foto bukti. Sumber kebenaran untuk menghitung stok berjalan.
+ */
+export const stockMovements = pgTable(
+  'stock_movements',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    itemId: uuid('item_id')
+      .references(() => stockItems.id, { onDelete: 'cascade' })
+      .notNull(),
+    type: varchar('type', { length: 10 }).notNull(), // 'masuk' | 'keluar' | 'adjust'
+    quantity: integer('quantity').notNull(),
+    photoUrl: text('photo_url'),
+    note: text('note'),
+    createdBy: text('created_by').references(() => user.id),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    itemIdx: index('stock_movements_item_idx').on(table.itemId),
+    createdAtIdx: index('stock_movements_created_at_idx').on(table.createdAt),
+  })
+);

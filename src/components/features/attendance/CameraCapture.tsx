@@ -9,15 +9,22 @@ interface CameraCaptureProps {
   onCapture: (base64: string) => void;
   onRetake?: () => void;
   capturedImage: string | null;
+  /** Kamera awal: 'user' (depan, default) atau 'environment' (belakang). */
+  initialFacingMode?: 'user' | 'environment';
 }
 
 /**
  * Komponen pengambilan foto real-time via kamera browser.
  * Galeri tidak diizinkan — foto harus diambil langsung.
  */
-export function CameraCapture({ onCapture, onRetake, capturedImage }: CameraCaptureProps) {
+export function CameraCapture({
+  onCapture,
+  onRetake,
+  capturedImage,
+  initialFacingMode = 'user',
+}: CameraCaptureProps) {
   const webcamRef = useRef<Webcam>(null);
-  const [facingMode, setFacingMode] = useState<'user' | 'environment'>('user');
+  const [facingMode, setFacingMode] = useState<'user' | 'environment'>(initialFacingMode);
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
 

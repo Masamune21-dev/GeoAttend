@@ -15,6 +15,7 @@ import {
   Settings,
   User,
   Users,
+  Warehouse,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { APP_NAME, APP_VERSION } from '@/lib/constants';
@@ -31,6 +32,7 @@ export function DesktopSidebar({ isAdmin, appName = APP_NAME, logoUrl }: Desktop
   const mainItems = [
     { href: '/checkin', label: 'Absensi', icon: Camera },
     { href: '/schedule', label: 'Jadwal Saya', icon: CalendarRange },
+    { href: '/stock', label: 'Stok Gudang', icon: Warehouse },
     { href: '/history', label: 'Riwayat', icon: CalendarDays },
     { href: '/profile', label: 'Profil', icon: User },
   ];
@@ -46,7 +48,8 @@ export function DesktopSidebar({ isAdmin, appName = APP_NAME, logoUrl }: Desktop
   ];
 
   const renderItem = (item: { href: string; label: string; icon: typeof Camera }) => {
-    const isActive = pathname === item.href;
+    const isActive =
+      item.href === '/stock' ? pathname.startsWith('/stock') : pathname === item.href;
     const Icon = item.icon;
     return (
       <Link

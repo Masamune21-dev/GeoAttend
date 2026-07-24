@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { CalendarDays, CalendarRange, Camera, LayoutDashboard, User } from 'lucide-react';
+import { CalendarDays, CalendarRange, Camera, LayoutDashboard, User, Warehouse } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface MobileNavProps {
@@ -17,12 +17,14 @@ export function MobileNav({ isAdmin }: MobileNavProps) {
     ? [
         { href: '/admin', label: 'Admin', icon: LayoutDashboard },
         { href: '/checkin', label: 'Absen', icon: Camera },
+        { href: '/stock', label: 'Stok', icon: Warehouse },
         { href: '/history', label: 'Riwayat', icon: CalendarDays },
         { href: '/profile', label: 'Profil', icon: User },
       ]
     : [
         { href: '/checkin', label: 'Absen', icon: Camera },
         { href: '/schedule', label: 'Jadwal', icon: CalendarRange },
+        { href: '/stock', label: 'Stok', icon: Warehouse },
         { href: '/history', label: 'Riwayat', icon: CalendarDays },
         { href: '/profile', label: 'Profil', icon: User },
       ];
@@ -34,7 +36,9 @@ export function MobileNav({ isAdmin }: MobileNavProps) {
     >
       {items.map((item) => {
         const isActive =
-          item.href === '/admin' ? pathname.startsWith('/admin') : pathname === item.href;
+          item.href === '/admin' || item.href === '/stock'
+            ? pathname.startsWith(item.href)
+            : pathname === item.href;
         const Icon = item.icon;
         return (
           <Link
