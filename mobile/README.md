@@ -57,6 +57,10 @@ eas init                       # tautkan proyek (ikuti prompt)
 Build:
 
 ```bash
+# Untuk PowerShell di Windows (bila npx terblokir Script Execution Policy):
+npx.cmd eas build -p android --profile production
+
+# Atau standar CLI:
 eas build -p android --profile production
 ```
 
