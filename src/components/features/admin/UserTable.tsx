@@ -219,12 +219,22 @@ export function UserTable() {
                   >
                     <td className="px-4 py-2.5">
                       <div className="flex items-center gap-3">
-                        <span
-                          aria-hidden="true"
-                          className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white"
-                        >
-                          {getInitials(user.name)}
-                        </span>
+                        {user.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={user.image}
+                            alt=""
+                            aria-hidden="true"
+                            className="h-9 w-9 shrink-0 rounded-full object-cover ring-1 ring-border"
+                          />
+                        ) : (
+                          <span
+                            aria-hidden="true"
+                            className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-primary text-xs font-semibold text-white"
+                          >
+                            {getInitials(user.name)}
+                          </span>
+                        )}
                         <span className="font-medium text-text-primary">
                           {user.name}
                           {isSelf && (
