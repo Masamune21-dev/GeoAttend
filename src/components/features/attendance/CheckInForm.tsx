@@ -94,9 +94,14 @@ export function CheckInForm() {
     };
   }, [coords, geofence]);
 
-  // Absen pulang boleh di luar area; hanya absen masuk yang wajib di dalam area.
-  const locationOk = isInside || !geofence || nextType === 'clock_out';
-  const canSubmit = Boolean(coords && photo && locationOk) && !createAttendance.isPending;
+  // Absen masuk & pulang sama-sama boleh di luar area. Absen MASUK di luar area
+  // (mis. teknisi langsung ke lapangan) wajib disertai alasan.
+  const isOutside = Boolean(coords && geofence && !isInside);
+  const needReason = nextType === 'clock_in' && isOutside;
+  const canSubmit =
+    Boolean(coords && photo) &&
+    (!needReason || notes.trim().length > 0) &&
+    !createAttendance.isPending;
 
   const handleSubmit = () => {
     if (!coords || !photo) return;
@@ -124,6 +129,7 @@ export function CheckInForm() {
         onError: (err: Error & { code?: string }) => {
           switch (err.code) {
             case 'GEOFENCE_VIOLATION':
+            case 'GEOFENCE_REASON_REQUIRED':
               toast.error(err.message);
               break;
             case 'DUPLICATE_CHECKIN':
@@ -267,14 +273,20 @@ export function CheckInForm() {
 
         {photo && (
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="notes">Catatan (opsional)</Label>
+            <Label htmlFor="notes">
+              {needReason ? 'Alasan absen di luar area (wajib)' : 'Catatan (opsional)'}
+            </Label>
             <Textarea
               id="notes"
               value={notes}
               onChange={(e) => setNotes(e.target.value)}
               maxLength={500}
               rows={2}
-              placeholder="Contoh: Datang tepat waktu"
+              placeholder={
+                needReason
+                  ? 'Contoh: Langsung ke lapangan / lokasi pelanggan'
+                  : 'Contoh: Datang tepat waktu'
+              }
             />
           </div>
         )}
@@ -297,10 +309,16 @@ export function CheckInForm() {
             Ambil foto terlebih dahulu untuk mengaktifkan tombol kirim
           </p>
         )}
-        {photo && nextType === 'clock_out' && geofence && !isInside && (
+        {isOutside && (
           <p className="text-center text-xs text-text-secondary">
-            Anda di luar area — absen pulang tetap bisa dan akan tercatat sebagai
-            &ldquo;luar area&rdquo;.
+            {nextType === 'clock_out'
+              ? 'Anda di luar area — absen pulang tetap bisa dan tercatat sebagai “luar area”.'
+              : 'Anda di luar area — absen masuk tetap bisa, wajib isi alasan (mis. langsung ke lapangan).'}
+          </p>
+        )}
+        {photo && needReason && !notes.trim() && (
+          <p className="text-center text-xs font-medium text-amber-700">
+            Isi alasan dulu untuk mengaktifkan tombol kirim.
           </p>
         )}
       </div>

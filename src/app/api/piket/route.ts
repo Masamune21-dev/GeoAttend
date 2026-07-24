@@ -56,7 +56,7 @@ export async function GET(req: NextRequest) {
 
     const users = isAdmin(session)
       ? await db
-          .select({ id: user.id, name: user.name, role: user.role })
+          .select({ id: user.id, name: user.name, role: user.role, image: user.image })
           .from(user)
           .where(inArray(user.role, SCHEDULABLE_ROLES))
           .orderBy(

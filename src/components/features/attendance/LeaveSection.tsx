@@ -215,7 +215,7 @@ export function LeaveSection() {
           <div className="flex flex-col gap-1.5">
             <span className="text-sm font-medium text-text-primary">Jenis</span>
             <div className="grid grid-cols-3 gap-2">
-              {(['sakit', 'izin', 'cuti'] as const).map((t) => (
+              {(['sakit', 'izin', 'cuti', 'telat', 'siang'] as const).map((t) => (
                 <button
                   key={t}
                   type="button"

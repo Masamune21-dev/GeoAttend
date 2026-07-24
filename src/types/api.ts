@@ -114,7 +114,7 @@ export type UpsertShiftsInput = z.infer<typeof UpsertShiftsSchema>;
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
 
-export const LEAVE_TYPES = ['sakit', 'izin', 'cuti', 'libur'] as const;
+export const LEAVE_TYPES = ['sakit', 'izin', 'cuti', 'telat', 'siang', 'libur'] as const;
 export type LeaveType = (typeof LEAVE_TYPES)[number];
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
 
@@ -216,6 +216,7 @@ export type UpdateLocationInput = z.infer<typeof UpdateLocationSchema>;
 export interface LiveLocationResponse {
   userId: string;
   userName: string;
+  userAvatar: string | null;
   role: string;
   latitude: number;
   longitude: number;
@@ -259,6 +260,7 @@ export interface ScheduleUser {
   id: string;
   name: string;
   role: string;
+  image: string | null;
 }
 
 export interface ScheduleResponse {

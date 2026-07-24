@@ -9,6 +9,10 @@ export function getLeaveTypeLabel(type: string): string {
       return 'Izin';
     case 'cuti':
       return 'Cuti';
+    case 'telat':
+      return 'Berangkat Telat';
+    case 'siang':
+      return 'Masuk Siang';
     case 'libur':
       return 'Libur';
     default:

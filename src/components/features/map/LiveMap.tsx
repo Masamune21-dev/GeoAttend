@@ -22,14 +22,23 @@ interface LiveMapProps {
   showGeofence?: boolean;
 }
 
-function createMarkerIcon(name: string, isWithinGeofence: boolean, isLive: boolean) {
+function createMarkerIcon(
+  name: string,
+  isWithinGeofence: boolean,
+  isLive: boolean,
+  avatar?: string | null
+) {
   const modifiers = [
     isLive ? ' geoattend-marker--live' : '',
     !isLive && !isWithinGeofence ? ' geoattend-marker--outside' : '',
   ].join('');
+  // Foto profil sebagai isi marker bila ada; jika tidak, pakai inisial.
+  const style = avatar
+    ? ` style="background-image:url('${avatar}');background-size:cover;background-position:center;color:transparent"`
+    : '';
   return L.divIcon({
     className: '',
-    html: `<div class="geoattend-marker${modifiers}">${getInitials(name)}</div>`,
+    html: `<div class="geoattend-marker${modifiers}"${style}>${getInitials(name)}</div>`,
     iconSize: [36, 36],
     iconAnchor: [18, 18],
     popupAnchor: [0, -20],
@@ -74,7 +83,8 @@ export default function LiveMap({ records, geofence, showGeofence = true }: Live
           icon={createMarkerIcon(
             record.userName,
             record.isWithinGeofence,
-            record.isLive ?? false
+            record.isLive ?? false,
+            record.userAvatar
           )}
         >
           <Popup>

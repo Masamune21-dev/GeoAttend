@@ -240,14 +240,14 @@ export async function POST(req: NextRequest) {
       input.accuracyMeters ?? 0
     );
 
-    // Hanya absen MASUK yang wajib di dalam area. Absen PULANG boleh di luar
-    // area (mis. selesai kerja lapangan / langsung pulang) — lokasi tetap dicatat
-    // (isWithinGeofence + jarak) untuk pelaporan.
-    if (input.type === 'clock_in' && geofence && !check.isInside) {
+    // Absen MASUK & PULANG sama-sama boleh di luar area. Bila absen MASUK di luar
+    // area (mis. teknisi langsung ke lapangan tanpa ke kantor), WAJIB isi alasan
+    // (notes). Lokasi tetap dicatat (isWithinGeofence + jarak) untuk pelaporan.
+    if (input.type === 'clock_in' && geofence && !check.isInside && !input.notes?.trim()) {
       return NextResponse.json(
         {
-          code: 'GEOFENCE_VIOLATION',
-          message: `Anda berada di luar area absensi (jarak: ${Math.round(check.distanceMeters)}m)`,
+          code: 'GEOFENCE_REASON_REQUIRED',
+          message: `Anda di luar area absensi (jarak: ${Math.round(check.distanceMeters)}m). Wajib isi alasan absen masuk di luar kantor.`,
           details: { distance: `${Math.round(check.distanceMeters)}m` },
           timestamp: new Date().toISOString(),
         },

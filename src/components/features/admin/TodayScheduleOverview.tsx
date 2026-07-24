@@ -6,7 +6,7 @@ import { ArrowRight, CalendarClock, Sparkles } from 'lucide-react';
 import { useSchedule, usePiket } from '@/hooks/useSchedule';
 import { toLocalMonth } from '@/lib/schedule/rotation';
 import { toLocalDateString } from '@/lib/leaves';
-import { getInitials } from '@/lib/utils';
+import { Avatar } from '@/components/ui/avatar';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 
@@ -28,15 +28,20 @@ export function TodayScheduleOverview() {
     for (const e of sched?.entries ?? []) {
       if (e.date === today) shiftToday.set(e.userId, e.shift);
     }
-    const result: Record<string, { id: string; name: string }[]> = { '1': [], '2': [], libur: [] };
+    const result: Record<string, { id: string; name: string; image: string | null }[]> = {
+      '1': [],
+      '2': [],
+      libur: [],
+    };
     for (const u of sched?.users ?? []) {
       const s = shiftToday.get(u.id);
-      if (s && result[s]) result[s].push({ id: u.id, name: u.name });
+      if (s && result[s]) result[s].push({ id: u.id, name: u.name, image: u.image });
     }
     return result;
   }, [sched, today]);
 
   const todayPiket = (piketData?.assignments ?? []).find((a) => a.date === today);
+  const piketUser = piketData?.users.find((u) => u.id === todayPiket?.userId);
 
   return (
     <section className="grid gap-4 md:grid-cols-2">
@@ -72,9 +77,7 @@ export function TodayScheduleOverview() {
                       key={u.id}
                       className="inline-flex items-center gap-1.5 rounded-full bg-secondary py-0.5 pl-0.5 pr-2.5 text-xs text-text-primary"
                     >
-                      <span className="flex h-5 w-5 items-center justify-center rounded-full bg-primary text-[10px] font-semibold text-white">
-                        {getInitials(u.name)}
-                      </span>
+                      <Avatar src={u.image} name={u.name} className="h-5 w-5" textClassName="text-[10px]" />
                       {u.name}
                     </span>
                   ))}
@@ -104,9 +107,13 @@ export function TodayScheduleOverview() {
         <CardContent>
           {todayPiket ? (
             <div className="flex items-center gap-3">
-              <span className="flex h-11 w-11 items-center justify-center rounded-full bg-primary text-base font-semibold text-white">
-                {getInitials(todayPiket.userName)}
-              </span>
+              <Avatar
+                src={piketUser?.image}
+                name={todayPiket.userName}
+                className="h-11 w-11"
+                textClassName="text-base"
+                preview
+              />
               <div className="flex flex-col gap-1">
                 <p className="font-medium text-text-primary">{todayPiket.userName}</p>
                 {todayPiket.done ? (

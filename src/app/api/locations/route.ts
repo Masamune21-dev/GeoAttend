@@ -109,6 +109,7 @@ export async function GET(req: NextRequest) {
         updatedAt: liveLocations.updatedAt,
         userName: user.name,
         role: user.role,
+        userImage: user.image,
       })
       .from(liveLocations)
       .leftJoin(user, eq(liveLocations.userId, user.id));
@@ -117,6 +118,7 @@ export async function GET(req: NextRequest) {
       data: rows.map((row) => ({
         userId: row.userId,
         userName: row.userName ?? 'Pengguna terhapus',
+        userAvatar: row.userImage,
         role: row.role ?? 'employee',
         latitude: Number(row.latitude),
         longitude: Number(row.longitude),

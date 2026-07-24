@@ -150,7 +150,7 @@ export const leaveRequests = pgTable(
     userId: text('user_id')
       .references(() => user.id, { onDelete: 'cascade' })
       .notNull(),
-    type: varchar('type', { length: 10 }).notNull(), // 'sakit' | 'izin' | 'cuti' | 'libur'
+    type: varchar('type', { length: 10 }).notNull(), // 'sakit' | 'izin' | 'cuti' | 'telat' | 'siang' | 'libur'
     startDate: varchar('start_date', { length: 10 }).notNull(), // "yyyy-MM-dd"
     endDate: varchar('end_date', { length: 10 }).notNull(),
     reason: text('reason'),

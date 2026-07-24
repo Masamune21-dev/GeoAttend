@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { Camera, KeyRound, Save } from 'lucide-react';
 import { toast } from 'sonner';
 import { authClient, useSession } from '@/lib/auth/client';
-import { getInitials, getRoleLabel } from '@/lib/utils';
+import { getRoleLabel } from '@/lib/utils';
+import { Avatar } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
@@ -154,21 +155,14 @@ export function ProfileForm() {
       <Card>
         <CardContent className="flex flex-col items-center gap-5 p-6 pt-6 md:flex-row md:p-6 md:pt-6">
           <div className="relative">
-            {user.image ? (
-              // eslint-disable-next-line @next/next/no-img-element
-              <img
-                src={user.image}
-                alt={`Foto profil ${user.name}`}
-                className="h-24 w-24 rounded-full object-cover ring-2 ring-border"
-              />
-            ) : (
-              <span
-                aria-hidden="true"
-                className="flex h-24 w-24 items-center justify-center rounded-full bg-primary text-2xl font-bold text-white"
-              >
-                {getInitials(user.name)}
-              </span>
-            )}
+            <Avatar
+              src={user.image}
+              name={user.name}
+              className="h-24 w-24"
+              textClassName="text-2xl"
+              ring
+              preview
+            />
             <button
               type="button"
               onClick={() => fileInputRef.current?.click()}

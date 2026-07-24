@@ -4,7 +4,8 @@ import { usePathname, useRouter } from 'next/navigation';
 import { LogOut } from 'lucide-react';
 import { toast } from 'sonner';
 import { signOut } from '@/lib/auth/client';
-import { getInitials, getRoleLabel } from '@/lib/utils';
+import { getRoleLabel } from '@/lib/utils';
+import { Avatar } from '@/components/ui/avatar';
 
 const PAGE_TITLES: Record<string, string> = {
   '/checkin': 'Absensi',
@@ -49,22 +50,14 @@ export function Header({ userName, userRole, userImage, brandName = 'GeoAttend' 
           <p className="text-sm font-medium leading-tight text-text-primary">{userName}</p>
           <p className="text-xs text-text-secondary">{getRoleLabel(userRole)}</p>
         </div>
-        {userImage ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={userImage}
-            alt=""
-            aria-hidden="true"
-            className="h-9 w-9 rounded-full object-cover ring-2 ring-border"
-          />
-        ) : (
-          <span
-            aria-hidden="true"
-            className="flex h-9 w-9 items-center justify-center rounded-full bg-primary text-sm font-semibold text-white ring-2 ring-primary/20"
-          >
-            {getInitials(userName)}
-          </span>
-        )}
+        <Avatar
+          src={userImage}
+          name={userName}
+          className="h-9 w-9"
+          textClassName="text-sm"
+          ring
+          preview
+        />
         <button
           type="button"
           onClick={handleSignOut}
