@@ -10,6 +10,7 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import * as Location from 'expo-location';
 import { CameraView, useCameraPermissions } from 'expo-camera';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
@@ -63,30 +64,42 @@ export function CheckInScreen() {
   const [cameraPermission, requestCameraPermission] = useCameraPermissions();
 
   // --- Lokasi foreground (indikator jarak) ---
+  // Hanya aktif saat layar Absen benar-benar dibuka. Tab bawah membuat layar
+  // tetap "mounted" walau pindah tab; tanpa gerbang fokus ini, GPS akurasi
+  // tinggi akan terus menyala di tab lain — sumber panas & boros baterai
+  // terbesar. Saat pindah tab, langganan dilepas dan GNSS ikut mati.
+  const isFocused = useIsFocused();
   useEffect(() => {
+    if (!isFocused) return;
+
     let sub: Location.LocationSubscription | undefined;
-    let mounted = true;
+    let cancelled = false;
     (async () => {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        if (mounted) setGeoError('Izin lokasi ditolak — aktifkan di pengaturan HP');
+        if (!cancelled) setGeoError('Izin lokasi ditolak — aktifkan di pengaturan HP');
         return;
       }
-      sub = await Location.watchPositionAsync(
-        { accuracy: Location.Accuracy.High, timeInterval: 5000, distanceInterval: 5 },
+      const subscription = await Location.watchPositionAsync(
+        // High tetap dipakai (akurasi penting saat menilai di dalam/luar area),
+        // tapi cadence dilonggarkan 5→10 dtk agar GPS punya jeda bernapas.
+        { accuracy: Location.Accuracy.High, timeInterval: 10_000, distanceInterval: 10 },
         (loc) => {
-          if (mounted) {
+          if (!cancelled) {
             setCoords(loc.coords);
             setGeoError(null);
           }
         }
       );
+      // Bila layar sudah tak fokus selama menunggu di atas, segera lepas.
+      if (cancelled) subscription.remove();
+      else sub = subscription;
     })();
     return () => {
-      mounted = false;
+      cancelled = true;
       sub?.remove();
     };
-  }, []);
+  }, [isFocused]);
 
   // --- Data server ---
   const loadData = useCallback(async () => {

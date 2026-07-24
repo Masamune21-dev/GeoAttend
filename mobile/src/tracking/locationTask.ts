@@ -67,9 +67,24 @@ async function waitUntilActive(timeoutMs = 10_000): Promise<void> {
 
 async function startUpdates(): Promise<void> {
   await Location.startLocationUpdatesAsync(LOCATION_TASK, {
+    // Balanced = ~100m via WiFi/seluler, GPS chip jarang menyala (jauh lebih
+    // hemat & dingin dari High). Cukup untuk memantau "masih di lokasi kerja".
     accuracy: Location.Accuracy.Balanced,
-    timeInterval: 20_000, // selaras dengan web (20 detik)
-    distanceInterval: 15,
+    timeInterval: 30_000,
+    distanceInterval: 25, // di bawah ini = jitter GPS saat diam, tak perlu dikirim
+
+    // Kunci hemat baterai & anti-panas: saat aplikasi di background, Android
+    // MENGUMPULKAN posisi lalu mengirimnya sekaligus tiap ~60 dtk. Radio
+    // GPS/seluler bisa tidur di antaranya — panas berasal dari radio yang tak
+    // pernah sleep, bukan sekadar seberapa sering update.
+    deferredUpdatesInterval: 60_000,
+    deferredUpdatesDistance: 40,
+
+    // iOS: jeda otomatis saat pengguna diam (posisi toh tak berubah), lanjut
+    // saat bergerak — hemat baterai tanpa kehilangan info berarti.
+    pausesUpdatesAutomatically: true,
+    activityType: Location.ActivityType.Other,
+
     showsBackgroundLocationIndicator: true,
     foregroundService: {
       notificationTitle: 'GeoAttend',
