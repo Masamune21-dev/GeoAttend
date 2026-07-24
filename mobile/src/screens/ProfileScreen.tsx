@@ -3,6 +3,9 @@ import {
   ActivityIndicator,
   Alert,
   Image,
+  KeyboardAvoidingView,
+  Modal,
+  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -12,7 +15,16 @@ import {
 import Constants from 'expo-constants';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
-import { Camera, ImagePlus, KeyRound, LogOut, UserRound } from 'lucide-react-native';
+import {
+  Camera,
+  ChevronRight,
+  ImagePlus,
+  KeyRound,
+  LogOut,
+  Settings,
+  UserRound,
+  X,
+} from 'lucide-react-native';
 import { useSession } from '../auth/session';
 import { api, ApiRequestError, getServerUrl, getToken } from '../api/client';
 import { Badge, Button, Card, Field, PasswordField } from '../components/ui';
@@ -56,6 +68,9 @@ export function ProfileScreen() {
   const { user, signOut, refresh } = useSession();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+
+  // Modal pengaturan akun (form nama & sandi disembunyikan di sini)
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   // Ubah nama
   const [name, setName] = useState(user?.name ?? '');
@@ -126,6 +141,7 @@ export function ProfileScreen() {
         body: JSON.stringify({ name: trimmed }),
       });
       await refresh();
+      setSettingsOpen(false);
       Alert.alert('Tersimpan ✓', 'Nama berhasil diubah');
     } catch (err) {
       Alert.alert('Gagal menyimpan nama', (err as Error).message);
@@ -152,6 +168,7 @@ export function ProfileScreen() {
       setCurrentPassword('');
       setNewPassword('');
       setConfirmPassword('');
+      setSettingsOpen(false);
       Alert.alert('Tersimpan ✓', 'Kata sandi berhasil diubah');
     } catch (err) {
       const e = err as ApiRequestError;
@@ -162,6 +179,14 @@ export function ProfileScreen() {
     } finally {
       setChangingPassword(false);
     }
+  };
+
+  const openSettings = () => {
+    setName(user?.name ?? '');
+    setCurrentPassword('');
+    setNewPassword('');
+    setConfirmPassword('');
+    setSettingsOpen(true);
   };
 
   const handleSignOut = () => {
@@ -179,8 +204,9 @@ export function ProfileScreen() {
     .toUpperCase();
 
   return (
+    <View style={{ flex: 1, backgroundColor: colors.background }}>
     <ScrollView
-      style={{ flex: 1, backgroundColor: colors.background }}
+      style={{ flex: 1 }}
       contentContainerStyle={{ padding: spacing.lg, gap: spacing.lg, paddingBottom: 40 }}
     >
       {/* Kartu profil dengan sampul + avatar overlap */}
@@ -242,58 +268,20 @@ export function ProfileScreen() {
         </View>
       </Card>
 
-      {/* Data diri — ubah nama */}
-      <Card style={{ gap: spacing.md }}>
-        <View style={styles.sectionRow}>
-          <UserRound size={18} color={colors.primary} strokeWidth={2.2} />
-          <Text style={styles.sectionTitle}>Data Diri</Text>
+      {/* Tombol pengaturan akun (form nama & sandi ada di dalam modal) */}
+      <Pressable
+        onPress={openSettings}
+        style={({ pressed }) => [styles.settingsRow, pressed && { opacity: 0.7 }]}
+      >
+        <View style={styles.settingsIcon}>
+          <Settings size={20} color={colors.primary} strokeWidth={2.2} />
         </View>
-        <Field label="Nama Lengkap" value={name} onChangeText={setName} placeholder="Nama Anda" />
-        <Text style={[styles.subtle, { fontSize: 12 }]}>
-          Email (username login) hanya bisa diubah oleh administrator.
-        </Text>
-        <Button
-          title="Simpan Nama"
-          onPress={handleSaveName}
-          loading={savingName}
-          disabled={name.trim().length === 0 || name.trim() === (user?.name ?? '')}
-        />
-      </Card>
-
-      {/* Ganti kata sandi */}
-      <Card style={{ gap: spacing.md }}>
-        <View style={styles.sectionRow}>
-          <KeyRound size={18} color={colors.primary} strokeWidth={2.2} />
-          <Text style={styles.sectionTitle}>Ganti Kata Sandi</Text>
+        <View style={{ flex: 1 }}>
+          <Text style={styles.settingsTitle}>Pengaturan Akun</Text>
+          <Text style={styles.subtle}>Ubah nama & kata sandi</Text>
         </View>
-        <PasswordField
-          label="Kata Sandi Saat Ini"
-          value={currentPassword}
-          onChangeText={setCurrentPassword}
-          placeholder="••••••••"
-        />
-        <PasswordField
-          label="Kata Sandi Baru"
-          value={newPassword}
-          onChangeText={setNewPassword}
-          placeholder="Minimal 8 karakter"
-        />
-        <PasswordField
-          label="Konfirmasi Kata Sandi Baru"
-          value={confirmPassword}
-          onChangeText={setConfirmPassword}
-          placeholder="••••••••"
-        />
-        <Text style={[styles.subtle, { fontSize: 12 }]}>
-          Setelah berhasil, sesi login di perangkat lain akan dikeluarkan.
-        </Text>
-        <Button
-          title="Ubah Kata Sandi"
-          onPress={handleChangePassword}
-          loading={changingPassword}
-          disabled={!currentPassword || !newPassword || !confirmPassword}
-        />
-      </Card>
+        <ChevronRight size={20} color={colors.textSecondary} />
+      </Pressable>
 
       <Card>
         <Text style={styles.sectionTitle}>Informasi Aplikasi</Text>
@@ -313,6 +301,95 @@ export function ProfileScreen() {
 
       <Button title="Keluar" icon={LogOut} variant="destructive" onPress={handleSignOut} />
     </ScrollView>
+
+    {/* Modal Pengaturan Akun */}
+    <Modal
+      visible={settingsOpen}
+      animationType="slide"
+      transparent
+      onRequestClose={() => setSettingsOpen(false)}
+    >
+      <KeyboardAvoidingView
+        style={{ flex: 1 }}
+        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalSheet}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Pengaturan Akun</Text>
+              <Pressable onPress={() => setSettingsOpen(false)} hitSlop={8}>
+                <X size={22} color={colors.textSecondary} />
+              </Pressable>
+            </View>
+
+            <ScrollView
+              contentContainerStyle={{ gap: spacing.xl, paddingBottom: spacing.lg }}
+              keyboardShouldPersistTaps="handled"
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Data diri — ubah nama */}
+              <View style={{ gap: spacing.md }}>
+                <View style={styles.sectionRow}>
+                  <UserRound size={18} color={colors.primary} strokeWidth={2.2} />
+                  <Text style={styles.sectionTitle}>Data Diri</Text>
+                </View>
+                <Field
+                  label="Nama Lengkap"
+                  value={name}
+                  onChangeText={setName}
+                  placeholder="Nama Anda"
+                />
+                <Text style={[styles.subtle, { fontSize: 12 }]}>
+                  Email (username login) hanya bisa diubah oleh administrator.
+                </Text>
+                <Button
+                  title="Simpan Nama"
+                  onPress={handleSaveName}
+                  loading={savingName}
+                  disabled={name.trim().length === 0 || name.trim() === (user?.name ?? '')}
+                />
+              </View>
+
+              {/* Ganti kata sandi */}
+              <View style={{ gap: spacing.md, borderTopWidth: 1, borderTopColor: colors.border, paddingTop: spacing.lg }}>
+                <View style={styles.sectionRow}>
+                  <KeyRound size={18} color={colors.primary} strokeWidth={2.2} />
+                  <Text style={styles.sectionTitle}>Ganti Kata Sandi</Text>
+                </View>
+                <PasswordField
+                  label="Kata Sandi Saat Ini"
+                  value={currentPassword}
+                  onChangeText={setCurrentPassword}
+                  placeholder="••••••••"
+                />
+                <PasswordField
+                  label="Kata Sandi Baru"
+                  value={newPassword}
+                  onChangeText={setNewPassword}
+                  placeholder="Minimal 8 karakter"
+                />
+                <PasswordField
+                  label="Konfirmasi Kata Sandi Baru"
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="••••••••"
+                />
+                <Text style={[styles.subtle, { fontSize: 12 }]}>
+                  Setelah berhasil, sesi login di perangkat lain akan dikeluarkan.
+                </Text>
+                <Button
+                  title="Ubah Kata Sandi"
+                  onPress={handleChangePassword}
+                  loading={changingPassword}
+                  disabled={!currentPassword || !newPassword || !confirmPassword}
+                />
+              </View>
+            </ScrollView>
+          </View>
+        </View>
+      </KeyboardAvoidingView>
+    </Modal>
+    </View>
   );
 }
 
@@ -381,6 +458,44 @@ const styles = StyleSheet.create({
   subtle: { fontSize: 14, color: colors.textSecondary },
   sectionTitle: { fontSize: 16, fontWeight: '700', color: colors.textPrimary },
   sectionRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  settingsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: spacing.md,
+    backgroundColor: colors.surface,
+    borderRadius: radius.lg,
+    borderWidth: 1,
+    borderColor: colors.border,
+    padding: spacing.lg,
+  },
+  settingsIcon: {
+    width: 40,
+    height: 40,
+    borderRadius: radius.md,
+    backgroundColor: colors.primarySubtle,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  settingsTitle: { fontSize: 15, fontWeight: '600', color: colors.textPrimary },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: 'rgba(15,23,42,0.55)',
+    justifyContent: 'flex-end',
+  },
+  modalSheet: {
+    backgroundColor: colors.surface,
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: spacing.xl,
+    maxHeight: '88%',
+  },
+  modalHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: spacing.lg,
+  },
+  modalTitle: { fontSize: 20, fontWeight: '700', color: colors.textPrimary },
   row: {
     flexDirection: 'row',
     justifyContent: 'space-between',
