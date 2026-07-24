@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<title>Pembaruan Aplikasi GeoAttend v1.5</title>
+<style>
+  :root {
+    --primary: #2563EB;
+    --primary-hover: #1D4ED8;
+    --sky: #0EA5E9;
+    --ink: #0F172A;
+    --muted: #64748B;
+    --line: #E2E8F0;
+    --bg-soft: #F6F8FB;
+    --success: #16A34A;
+    --success-bg: #ECFDF5;
+    --warning: #B45309;
+    --warning-bg: #FFFBEB;
+    --danger: #B91C1C;
+    --danger-bg: #FEF2F2;
+    --amber: #D97706;
+    --amber-bg: #FFF7ED;
+  }
+
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  @page { size: A4; margin: 16mm 15mm 18mm 15mm; }
+
+  html, body {
+    margin: 0; padding: 0;
+    font-family: "Segoe UI", "Inter", system-ui, sans-serif;
+    color: var(--ink);
+    font-size: 10.6pt;
+    line-height: 1.55;
+  }
+
+  h1, h2, h3 { margin: 0; letter-spacing: -0.01em; }
+  p { margin: 0 0 8px; }
+  strong { color: var(--ink); font-weight: 600; }
+  .muted { color: var(--muted); }
+
+  /* ---------- Cover ---------- */
+  .cover {
+    min-height: 250mm;
+    background: linear-gradient(150deg, #1D4ED8 0%, var(--primary) 45%, var(--sky) 100%);
+    border-radius: 20px;
+    color: #fff;
+    padding: 26mm 20mm;
+    display: flex; flex-direction: column; justify-content: space-between;
+    position: relative; overflow: hidden;
+    page-break-after: always;
+  }
+  .cover::after {
+    content: ""; position: absolute; right: -60mm; top: -60mm;
+    width: 140mm; height: 140mm;
+    background: rgba(255,255,255,0.10); border-radius: 50%;
+  }
+  .cover-mark { display: inline-flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
+  .cover-logo {
+    width: 46px; height: 46px; border-radius: 12px;
+    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.30);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cover-logo svg { width: 26px; height: 26px; }
+  .cover-brand { font-size: 15pt; font-weight: 700; }
+  .cover-center { position: relative; z-index: 1; }
+  .cover-kicker {
+    text-transform: uppercase; letter-spacing: 0.18em;
+    font-size: 9pt; font-weight: 600; color: rgba(255,255,255,0.85); margin-bottom: 10px;
+  }
+  .cover h1 { font-size: 30pt; font-weight: 800; line-height: 1.12; }
+  .cover-sub { font-size: 12.5pt; color: rgba(255,255,255,0.92); margin-top: 12px; max-width: 130mm; }
+  .cover-meta {
+    position: relative; z-index: 1;
+    display: flex; gap: 26px; font-size: 9.5pt; color: rgba(255,255,255,0.9);
+    border-top: 1px solid rgba(255,255,255,0.25); padding-top: 14px;
+  }
+  .cover-meta b { color: #fff; font-weight: 700; }
+
+  /* ---------- Section headings ---------- */
+  .section { break-inside: avoid-page; margin-bottom: 14px; }
+  .h-num { display: flex; align-items: center; gap: 10px; margin: 20px 0 10px; break-after: avoid; }
+  .h-num .badge {
+    flex: none; width: 26px; height: 26px; border-radius: 8px;
+    background: var(--primary); color: #fff; font-weight: 700; font-size: 11pt;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .h-num h2 { font-size: 15pt; font-weight: 700; }
+  h3.sub { font-size: 11.5pt; font-weight: 700; margin: 12px 0 6px; color: var(--primary-hover); }
+
+  /* ---------- Steps ---------- */
+  ol.steps { list-style: none; margin: 6px 0 10px; padding: 0; counter-reset: step; }
+  ol.steps > li { position: relative; padding: 2px 0 10px 30px; break-inside: avoid; }
+  ol.steps > li::before {
+    counter-increment: step; content: counter(step);
+    position: absolute; left: 0; top: 0; width: 21px; height: 21px; border-radius: 50%;
+    background: var(--primary); color: #fff; font-size: 8.5pt; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  ol.steps > li:not(:last-child)::after {
+    content: ""; position: absolute; left: 10px; top: 21px; bottom: 0; width: 1.5px; background: var(--line);
+  }
+  ul.bullets { margin: 4px 0 10px; padding-left: 18px; }
+  ul.bullets li { margin-bottom: 4px; }
+
+  /* ---------- Callouts ---------- */
+  .callout { border-radius: 10px; padding: 10px 13px; margin: 10px 0; font-size: 10pt; break-inside: avoid; border: 1px solid transparent; }
+  .callout .t { font-weight: 700; display: block; margin-bottom: 2px; }
+  .callout.tip { background: var(--success-bg); border-color: #BBF7D0; color: #166534; }
+  .callout.warn { background: var(--warning-bg); border-color: #FDE68A; color: var(--warning); }
+  .callout.info { background: #EFF6FF; border-color: #BFDBFE; color: var(--primary-hover); }
+  .callout.danger { background: var(--danger-bg); border-color: #FECACA; color: var(--danger); }
+
+  .card { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; background: #fff; margin: 8px 0; break-inside: avoid; }
+
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9.8pt; break-inside: avoid; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--bg-soft); font-weight: 700; color: var(--ink); }
+  td:first-child { font-weight: 600; white-space: nowrap; }
+
+  .pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 8.5pt; font-weight: 700; }
+  .pill.g { background: var(--success-bg); color: var(--success); }
+  .pill.r { background: var(--danger-bg); color: var(--danger); }
+  .pill.a { background: var(--warning-bg); color: var(--warning); }
+  .pill.b { background: #EFF6FF; color: var(--primary-hover); }
+
+  .lead { font-size: 11pt; color: var(--muted); border-left: 3px solid var(--primary); padding-left: 12px; margin: 4px 0 14px; }
+  .divider { height: 1px; background: var(--line); margin: 18px 0; border: 0; }
+  .footer-note { margin-top: 22px; padding-top: 12px; border-top: 1px solid var(--line); font-size: 9pt; color: var(--muted); text-align: center; }
+  .page-break { page-break-before: always; }
+
+  /* ---------- "What's new" chips grid ---------- */
+  .new-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 10px 0 6px; }
+  .new-item { border: 1px solid var(--line); border-radius: 12px; padding: 12px 14px; break-inside: avoid; background: #fff; }
+  .new-item .tag { font-size: 8pt; font-weight: 700; text-transform: uppercase; letter-spacing: 0.08em; color: var(--primary); }
+  .new-item h4 { margin: 3px 0 4px; font-size: 11pt; }
+  .new-item p { margin: 0; font-size: 9.6pt; color: var(--muted); }
+
+  /* ---------- Tab strip illustration ---------- */
+  .tabstrip { display: flex; gap: 6px; margin: 10px 0; border: 1px solid var(--line); border-radius: 12px; padding: 8px; background: var(--bg-soft); }
+  .tab { flex: 1; text-align: center; font-size: 8.6pt; font-weight: 600; color: var(--muted); padding: 8px 4px; border-radius: 8px; }
+  .tab.on { background: #fff; color: var(--primary); border: 1px solid var(--line); }
+  .tab .ic { display: block; font-size: 13pt; margin-bottom: 2px; }
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<section class="cover">
+  <div class="cover-mark">
+    <span class="cover-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.4-8 12-8 12s-8-7.6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+    </span>
+    <span class="cover-brand">GeoAttend</span>
+  </div>
+
+  <div class="cover-center">
+    <div class="cover-kicker">Pembaruan Aplikasi · Untuk Karyawan</div>
+    <h1>Apa yang Baru<br/>di Versi 1.5</h1>
+    <p class="cover-sub">Tampilan tab lebih ringkas, absen lapangan untuk teknisi, jenis izin baru, serta pencatatan stok gudang — semua langsung dari HP Anda.</p>
+  </div>
+
+  <div class="cover-meta">
+    <span><b>Aplikasi</b><br/>Android · versi 1.5.0</span>
+    <span><b>Untuk</b><br/>Karyawan KusumaVision</span>
+    <span><b>Diterbitkan</b><br/>Juli 2026</span>
+  </div>
+</section>
+
+<!-- ============ INTRO / RINGKASAN ============ -->
+<h2 style="font-size:16pt;font-weight:800;margin-bottom:4px;">Ringkasan Pembaruan</h2>
+<p class="lead">Panduan ini hanya menjelaskan <strong>hal-hal baru</strong> di versi 1.5. Cara absen harian tetap sama seperti biasa.</p>
+
+<div class="new-grid">
+  <div class="new-item">
+    <span class="tag">Tampilan</span>
+    <h4>Tab lebih ringkas</h4>
+    <p>Jadwal &amp; Izin kini jadi satu tab. Ada tab baru <strong>Stok</strong>.</p>
+  </div>
+  <div class="new-item">
+    <span class="tag">Absen</span>
+    <h4>Absen masuk di lapangan</h4>
+    <p>Teknisi bisa absen masuk di luar kantor — cukup isi alasan.</p>
+  </div>
+  <div class="new-item">
+    <span class="tag">Izin</span>
+    <h4>Jenis izin baru</h4>
+    <p>Berangkat Telat, Masuk Siang, dan Remote (khusus admin &amp; NOC).</p>
+  </div>
+  <div class="new-item">
+    <span class="tag">Stok</span>
+    <h4>Catat barang keluar/masuk</h4>
+    <p>Rekam stok gudang berikut fotonya langsung dari HP.</p>
+  </div>
+</div>
+
+<div class="callout tip">
+  <span class="t">Cara memperbarui aplikasi</span>
+  Pasang <strong>APK versi 1.5.0</strong> yang dibagikan administrator, menimpa aplikasi lama. Data &amp; akun Anda tetap aman — tidak perlu uninstall atau daftar ulang.
+</div>
+
+<!-- ============ 1. TAB BARU ============ -->
+<div class="section">
+  <div class="h-num"><span class="badge">1</span><h2>Susunan Tab yang Baru</h2></div>
+  <p>Menu bawah kini berisi <strong>5 tab</strong>. Yang berubah: <strong>Jadwal</strong> dan <strong>Izin</strong> digabung, dan muncul tab <strong>Stok</strong>.</p>
+
+  <div class="tabstrip">
+    <div class="tab on"><span class="ic">📷</span>Absen</div>
+    <div class="tab"><span class="ic">🗓️</span>Jadwal &amp; Izin</div>
+    <div class="tab"><span class="ic">🕘</span>Riwayat</div>
+    <div class="tab"><span class="ic">📦</span>Stok</div>
+    <div class="tab"><span class="ic">👤</span>Profil</div>
+  </div>
+
+  <table>
+    <tr><th>Tab</th><th>Isi</th></tr>
+    <tr><td>Absen</td><td>Absen masuk &amp; pulang (sama seperti sebelumnya).</td></tr>
+    <tr><td>Jadwal &amp; Izin</td><td>Satu tab dengan dua sisi: <strong>Jadwal Shift</strong> dan <strong>Izin &amp; Libur</strong>. Ketuk tombol geser di atas untuk berpindah.</td></tr>
+    <tr><td>Riwayat</td><td>Kini punya dua bagian: <strong>Absensi</strong> dan <strong>Stok Barang</strong>.</td></tr>
+    <tr><td>Stok</td><td><strong>Baru</strong> — mencatat barang gudang masuk/keluar.</td></tr>
+    <tr><td>Profil</td><td>Foto &amp; data diri, ganti sandi, keluar.</td></tr>
+  </table>
+
+  <div class="callout info">
+    <span class="t">Isi Jadwal &amp; Izin tidak berubah</span>
+    Jadwal shift, tukar shift, piket, ajukan izin, dan tandai libur semua masih ada — hanya kini berada dalam <strong>satu tab</strong> dengan tombol geser <strong>Jadwal Shift / Izin &amp; Libur</strong> di bagian atas.
+  </div>
+</div>
+
+<!-- ============ 2. ABSEN LUAR AREA ============ -->
+<div class="section">
+  <div class="h-num"><span class="badge">2</span><h2>Absen Masuk dari Lapangan</h2></div>
+  <p class="lead">Untuk staf/teknisi yang langsung ke lokasi pelanggan tanpa mampir ke kantor.</p>
+
+  <p>Sebelumnya absen <strong>masuk</strong> wajib di dalam area kantor. Sekarang absen masuk <strong>boleh di luar area</strong>, dengan syarat <strong>mengisi alasan</strong>.</p>
+
+  <ol class="steps">
+    <li>Buka tab <strong>Absen</strong>. Bila Anda di luar area, kotak status berwarna merah <span class="pill r">Luar area</span> — ini normal.</li>
+    <li>Ambil <strong>foto</strong> seperti biasa.</li>
+    <li>Kolom catatan berubah menjadi <strong>"Alasan absen di luar area (wajib)"</strong>. Isi alasannya, mis. <em>"Langsung ke lokasi pelanggan"</em>.</li>
+    <li>Tombol <strong>Kirim Absen Masuk</strong> aktif setelah alasan diisi. Ketuk untuk mengirim.</li>
+  </ol>
+
+  <div class="callout warn">
+    <span class="t">Tanpa alasan, tidak bisa kirim</span>
+    Bila di luar area dan alasan masih kosong, tombol kirim tetap nonaktif dan muncul pesan <em>"Isi alasan dulu untuk mengaktifkan tombol kirim"</em>. Absensi tetap tercatat sebagai <span class="pill r">Luar area</span> untuk pelaporan.
+  </div>
+  <div class="callout tip">
+    <span class="t">Di dalam area? Tidak berubah</span>
+    Bila Anda absen dari kantor (dalam area), caranya sama seperti biasa — alasan tidak wajib.
+  </div>
+</div>
+
+<!-- ============ 3. JENIS IZIN BARU ============ -->
+<div class="section page-break">
+  <div class="h-num"><span class="badge">3</span><h2>Jenis Izin Baru</h2></div>
+  <p>Di <strong>Jadwal &amp; Izin → Izin &amp; Libur → Ajukan Izin</strong>, pilihan jenis bertambah:</p>
+
+  <table>
+    <tr><th>Jenis</th><th>Untuk</th><th>Siapa</th></tr>
+    <tr><td>Berangkat Telat</td><td>Datang terlambat dari jam shift</td><td>Semua</td></tr>
+    <tr><td>Masuk Siang</td><td>Baru bisa masuk mulai siang hari</td><td>Semua</td></tr>
+    <tr><td>Remote</td><td>Bekerja dari jarak jauh (tidak ke kantor)</td><td><span class="pill b">Admin &amp; NOC saja</span></td></tr>
+  </table>
+
+  <ol class="steps">
+    <li>Buka tab <strong>Jadwal &amp; Izin</strong>, pindah ke sisi <strong>Izin &amp; Libur</strong>.</li>
+    <li>Ketuk <strong>Ajukan Izin</strong>, lalu pilih jenis (Sakit, Izin, Cuti, Berangkat Telat, Masuk Siang, atau Remote).</li>
+    <li>Isi tanggal (format YYYY-MM-DD) dan <strong>alasan</strong>, lalu <strong>Kirim Pengajuan</strong>.</li>
+  </ol>
+
+  <div class="callout info">
+    <span class="t">Kenapa saya tidak melihat "Remote"?</span>
+    Pilihan <strong>Remote</strong> hanya muncul untuk role <strong>Admin (staf)</strong> dan <strong>NOC</strong>. Bila role Anda lain, opsi ini memang tidak ditampilkan.
+  </div>
+  <p class="muted">Status pengajuan tetap sama: <span class="pill a">Menunggu</span> → <span class="pill g">Disetujui</span> / <span class="pill r">Ditolak</span>. Selama masih menunggu, bisa dibatalkan.</p>
+</div>
+
+<!-- ============ 4. TAB STOK ============ -->
+<div class="section">
+  <div class="h-num"><span class="badge">4</span><h2>Tab Stok — Catat Barang Masuk/Keluar</h2></div>
+  <p class="lead">Untuk mencatat barang gudang yang masuk (dari supplier) atau keluar (dipakai/diambil), lengkap dengan foto.</p>
+
+  <ol class="steps">
+    <li>Buka tab <strong>Stok</strong>.</li>
+    <li>Pilih <strong>Masuk</strong> (barang datang) atau <strong>Keluar</strong> (barang diambil).</li>
+    <li>Ketuk <strong>Pilih barang</strong> — muncul daftar; gunakan kolom <strong>cari</strong> untuk menemukan barang lebih cepat (ketik nama atau kode). Stok terkini tiap barang ikut ditampilkan.</li>
+    <li>Isi <strong>jumlah</strong>.</li>
+    <li>(Disarankan) ketuk <strong>Ambil Foto</strong> sebagai bukti barang.</li>
+    <li>(Opsional) tulis <strong>catatan</strong>, mis. nama supplier atau tujuan pemakaian.</li>
+    <li>Ketuk <strong>Simpan</strong>. Stok barang otomatis diperbarui.</li>
+  </ol>
+
+  <div class="callout warn">
+    <span class="t">Barang keluar tidak boleh melebihi stok</span>
+    Bila jumlah "Keluar" lebih besar dari stok yang tersedia, aplikasi menolak dan memberi tahu sisa stok. Periksa kembali jumlahnya.
+  </div>
+  <div class="callout info">
+    <span class="t">Hanya form keluar/masuk</span>
+    Di HP, tab Stok sengaja dibuat ringkas — <strong>hanya untuk mencatat</strong> barang keluar/masuk. Pengelolaan daftar barang &amp; laporan lengkap ada di dashboard web.
+  </div>
+</div>
+
+<!-- ============ 5. RIWAYAT STOK ============ -->
+<div class="section">
+  <div class="h-num"><span class="badge">5</span><h2>Riwayat Kini Dua Bagian</h2></div>
+  <p>Tab <strong>Riwayat</strong> sekarang punya tombol geser di atas:</p>
+  <ul class="bullets">
+    <li><strong>Absensi</strong> — riwayat absen masuk/pulang Anda (seperti sebelumnya).</li>
+    <li><strong>Stok Barang</strong> — daftar barang masuk/keluar yang tercatat: nama barang, jumlah (<span style="color:var(--success);font-weight:700;">+</span> masuk / <span style="color:var(--amber);font-weight:700;">−</span> keluar), tanggal, dan siapa yang mencatat.</li>
+  </ul>
+  <p class="muted">Tarik ke bawah untuk menyegarkan daftar.</p>
+</div>
+
+<!-- ============ 6. FOTO PROFIL ============ -->
+<div class="section">
+  <div class="h-num"><span class="badge">6</span><h2>Foto Profil Lebih Terlihat</h2></div>
+  <p>Foto profil Anda kini tampil di lebih banyak tempat (mis. daftar jadwal &amp; pemantauan), bukan sekadar inisial huruf. Pastikan sudah memasang foto lewat tab <strong>Profil</strong> → ketuk foto untuk menggantinya dari galeri.</p>
+
+  <div class="footer-note">
+    GeoAttend — Aplikasi Absensi KusumaVision · Panduan Pembaruan v1.5.0 · Juli 2026<br/>
+    Butuh bantuan? Hubungi administrator perusahaan Anda.
+  </div>
+</div>
+
+</body>
+</html>
