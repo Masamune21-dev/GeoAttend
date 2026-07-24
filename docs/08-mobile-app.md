@@ -1,0 +1,267 @@
+# 08 — Aplikasi Mobile (Android)
+
+Dokumentasi teknis aplikasi mobile GeoAttend yang **sudah dibangun** (React
+Native + Expo). Berbeda dengan [07 — Integrasi Mobile](07-mobile-integration.md)
+yang merupakan kontrak perencanaan, dokumen ini menjelaskan implementasi nyata di
+folder [`mobile/`](../mobile/).
+
+Backend tidak berubah: aplikasi mobile mengonsumsi REST API yang sama dengan web
+([02 — Referensi API](02-api.md)).
+
+---
+
+## 1. Ringkasan
+
+Aplikasi native untuk karyawan: absen masuk/pulang dengan verifikasi lokasi +
+foto, pelacakan posisi background selama jam kerja, serta jadwal shift, tukar
+shift, piket, izin, dan riwayat. Semua fitur karyawan yang ada di web tersedia di
+mobile; fitur administrator tetap di web.
+
+Alasan utama versi native (bukan sekadar web di HP): **pelacakan lokasi
+background**. Browser mematikan GPS saat layar mati/app di-background — native
+dengan izin *background location* bisa terus mengirim posisi walau HP di saku.
+
+---
+
+## 2. Tech Stack
+
+| Bagian | Pilihan |
+| :--- | :--- |
+| Framework | Expo SDK **57** (`expo ~57.0.8`) |
+| Runtime | React Native **0.86.0**, React **19.2.3** |
+| Bahasa | TypeScript ~6.0.3 (strict) |
+| Navigasi | `@react-navigation/native` + `@react-navigation/bottom-tabs` |
+| Lokasi | `expo-location` + `expo-task-manager` (task background) |
+| Kamera & gambar | `expo-camera`, `expo-image-manipulator`, `expo-image-picker` |
+| Penyimpanan | `expo-secure-store` (token), `@react-native-async-storage/async-storage` (alamat server) |
+| Ikon | `lucide-react-native` |
+| Build | EAS Build (cloud), distribusi APK internal |
+
+> Catatan versi Expo: SDK 57 berubah cukup banyak. Selalu rujuk dokumen resmi
+> berversi di <https://docs.expo.dev/versions/v57.0.0/> sebelum menulis kode
+> (lihat [`mobile/AGENTS.md`](../mobile/AGENTS.md)).
+
+---
+
+## 3. Struktur Folder
+
+```
+mobile/
+├── App.tsx                     # Root: provider + gate login/tab + tab navigator
+├── index.ts                    # Entry — mendaftarkan App & task lokasi
+├── app.json                    # Konfigurasi Expo (paket, izin, plugin, ikon)
+├── eas.json                    # Profil build EAS (development/preview/production)
+└── src/
+    ├── api/
+    │   ├── client.ts           # Fetch wrapper: base URL, bearer, Origin, error
+    │   └── types.ts            # Tipe API (subset src/types/api.ts web)
+    ├── auth/
+    │   └── session.tsx         # SessionProvider: signIn/signUp/signOut/refresh
+    ├── components/
+    │   └── ui.tsx              # Primitives: Button, Field, PasswordField, Card, Badge
+    ├── lib/
+    │   ├── geo.ts             # Haversine, format jarak/tanggal/jam
+    │   ├── schedule.ts        # Label shift/bulan, meta status tukar
+    │   └── shifts.ts          # pickShift (shift default berdasar jam)
+    ├── screens/
+    │   ├── AuthScreen.tsx      # Masuk / Daftar (segmented) + setelan server
+    │   ├── CheckInScreen.tsx   # Absen: status lokasi + kamera + kirim
+    │   ├── ScheduleScreen.tsx  # Jadwal shift, tukar shift, piket
+    │   ├── LeavesScreen.tsx    # Izin & libur
+    │   ├── HistoryScreen.tsx   # Riwayat absensi
+    │   └── ProfileScreen.tsx   # Profil, foto, keluar
+    ├── theme.ts                # Token warna/spacing/radius (selaras DESIGN.md)
+    └── tracking/
+        └── locationTask.ts     # Task background pelacakan posisi + start/stop
+```
+
+---
+
+## 4. Konfigurasi
+
+### 4.1 `app.json` (Expo)
+
+- **Identitas:** `name` GeoAttend, `version` 1.3.0, paket Android & bundle iOS
+  `net.kusumavision.geoattend`.
+- **Izin Android:** `CAMERA`, `ACCESS_COARSE/FINE/BACKGROUND_LOCATION`,
+  `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`, `RECEIVE_BOOT_COMPLETED`,
+  `WAKE_LOCK`, `POST_NOTIFICATIONS`.
+- **Plugin:** `expo-secure-store`, `expo-camera`, `expo-location`
+  (`isAndroidBackgroundLocationEnabled: true`, foreground service aktif),
+  `expo-image-picker`, `expo-build-properties` (ProGuard + shrink resources di
+  rilis).
+- **EAS projectId** dan `owner: masamune21s-team` untuk build cloud.
+
+### 4.2 `eas.json` (profil build)
+
+| Profil | Tujuan | Catatan |
+| :--- | :--- | :--- |
+| `development` | Dev client | APK, `developmentClient: true` |
+| `preview` | Uji internal | APK, hanya `arm64-v8a` (build lebih ringan) |
+| `production` | Rilis karyawan | APK, `autoIncrement` versionCode, `arm64-v8a` |
+
+Semua profil `distribution: internal` — APK dibagikan langsung (sideload),
+bukan lewat Play Store.
+
+---
+
+## 5. Arsitektur Runtime
+
+```
+index.ts
+  ├─ import './src/tracking/locationTask'   # DAFTARKAN task sebelum app jalan
+  └─ registerRootComponent(App)
+
+App.tsx
+  └─ SafeAreaProvider → SessionProvider → NavigationContainer → Root
+       Root:
+         initializing → spinner
+         !user        → <AuthScreen/>            (belum login)
+         user         → <Tab.Navigator/>          Absen · Jadwal · Izin · Riwayat · Profil
+```
+
+Penting: `locationTask.ts` **di-import di `index.ts`** agar
+`TaskManager.defineTask` terdaftar sebelum React dirender — kalau tidak, task
+background tak dikenali saat OS membangunkannya.
+
+---
+
+## 6. Lapisan API — [`src/api/client.ts`](../mobile/src/api/client.ts)
+
+Satu fungsi `api<T>(path, init)` membungkus `fetch`:
+
+- **Base URL** dapat dikonfigurasi. Default `https://absensi.kusumavision.net`,
+  disimpan di AsyncStorage (`geoattend_server_url`), bisa diubah di layar login.
+- **Token bearer** disimpan di SecureStore (`geoattend_auth_token`); dikirim
+  sebagai `Authorization: Bearer <token>`.
+- **Header `Origin`** diisi manual = URL server. React Native tidak mengirim
+  `Origin` otomatis seperti browser, dan Better Auth menolak request tanpa Origin.
+- **Refresh token:** bila respons memuat header `set-auth-token`, token tersimpan
+  diperbarui otomatis.
+- **Error seragam:** `ApiRequestError { message, status, code }`. Gagal jaringan →
+  `status: 0`, `code: 'NETWORK_ERROR'`.
+
+---
+
+## 7. Autentikasi — [`src/auth/session.tsx`](../mobile/src/auth/session.tsx)
+
+`SessionProvider` menyimpan `user`, `initializing`, dan aksi:
+
+| Aksi | Endpoint | Keterangan |
+| :--- | :--- | :--- |
+| `signIn(serverUrl, email, password)` | `POST /api/auth/sign-in/email` | Simpan server + token, lalu `refresh()` |
+| `signUp(serverUrl, { name, email, password, registrationCode })` | `POST /api/auth/sign-up/email` | Kode pendaftaran divalidasi server; `autoSignIn` → langsung dapat token |
+| `signOut()` | `POST /api/auth/sign-out` | **Menghentikan tracking dulu**, hapus token |
+| `refresh()` | `GET /api/auth/get-session` | Token 401 → paksa login ulang |
+
+`signIn` & `signUp` berbagi satu helper `authenticate()` (login sesudah daftar
+otomatis karena `autoSignIn` aktif di server).
+
+Layar [`AuthScreen`](../mobile/src/screens/AuthScreen.tsx) memakai *segmented
+control* Masuk/Daftar. Alamat server diubah lewat modal (draft terpisah agar bisa
+dibatalkan) — hanya diperlukan bila server bukan default.
+
+---
+
+## 8. Peta Layar → Fungsi → Endpoint
+
+| Layar | Fungsi utama | Endpoint |
+| :--- | :--- | :--- |
+| **Absen** ([CheckInScreen](../mobile/src/screens/CheckInScreen.tsx)) | Status lokasi (jarak ke area), foto bukti, pilih shift, kirim absen; mulai tracking saat masuk | `GET /api/geofence`, `GET /api/attendance?today=true&userId=self`, `GET /api/shifts`, `POST /api/attendance` |
+| **Jadwal** ([ScheduleScreen](../mobile/src/screens/ScheduleScreen.tsx)) | Lihat jadwal shift bulanan, ajukan/terima/tolak/batal tukar shift, tandai piket | `GET /api/schedules`, `GET /api/swaps`, `GET /api/swaps/candidates`, `POST/PATCH/DELETE /api/swaps`, `GET/PATCH /api/piket` |
+| **Izin** ([LeavesScreen](../mobile/src/screens/LeavesScreen.tsx)) | Tandai libur hari ini, ajukan sakit/izin/cuti, batalkan pengajuan | `GET /api/leaves?userId=self`, `POST /api/leaves`, `DELETE /api/leaves/:id` |
+| **Riwayat** ([HistoryScreen](../mobile/src/screens/HistoryScreen.tsx)) | Daftar absensi (masuk/pulang, jarak, dalam/luar area, catatan) | `GET /api/attendance?userId=self&limit=100` |
+| **Profil** ([ProfileScreen](../mobile/src/screens/ProfileScreen.tsx)) | Foto avatar & sampul, info server/versi, keluar | `POST /api/profile/avatar`, `POST /api/profile/cover`, `POST /api/auth/update-user`, `POST /api/auth/sign-out` |
+
+---
+
+## 9. Live Tracking — [`src/tracking/locationTask.ts`](../mobile/src/tracking/locationTask.ts)
+
+### 9.1 Cara kerja
+
+- Task `geoattend-live-tracking` didefinisikan via `TaskManager.defineTask`; tiap
+  update mengirim `POST /api/locations` dengan lat/lng/akurasi.
+- Berjalan sebagai **foreground service** dengan notifikasi persisten
+  "Pelacakan posisi aktif selama jam kerja" (wajib Android untuk lokasi background).
+- **Siklus hidup:** `startTracking()` dipanggil setelah absen **masuk**;
+  `stopTracking()` setelah absen **pulang** atau logout. Task juga berhenti sendiri
+  bila server menjawab `409 NOT_CLOCKED_IN` atau `401` (sudah pulang / sesi habis) —
+  hemat baterai & privasi.
+- `startTracking()` tidak pernah melempar error: bila izin background ditolak atau
+  service gagal, absensi tetap tercatat, hanya pelacakan yang tidak aktif. Ada
+  penanganan khusus Android 12+ (`waitUntilActive`) untuk mencegah force-close saat
+  memulai foreground service tepat setelah kembali dari halaman Pengaturan.
+
+### 9.2 Optimasi baterai & panas
+
+Dua sumber panas diperbaiki (commit `f8259ba`):
+
+**Tracking background** — opsi `startLocationUpdatesAsync`:
+- `accuracy: Balanced` (~100 m via WiFi/seluler, GPS jarang menyala).
+- `timeInterval: 30_000`, `distanceInterval: 25` (abaikan jitter GPS saat diam).
+- **`deferredUpdatesInterval: 60_000`** — kunci hemat baterai: Android membatch
+  posisi lalu mengirim sekaligus tiap ~60 dtk, membiarkan radio tidur di antaranya.
+  Panas berasal dari radio yang tak pernah *sleep*, bukan sekadar frekuensi update.
+- `pausesUpdatesAutomatically` + `activityType` untuk iOS (jeda saat diam).
+
+**GPS foreground** ([CheckInScreen](../mobile/src/screens/CheckInScreen.tsx)) —
+`watchPositionAsync` akurasi tinggi hanya aktif saat layar Absen **fokus**
+(`useIsFocused`). Tanpa ini, tab bawah menjaga layar tetap mounted sehingga GPS
+menyala terus walau pengguna di tab lain. Cadence 10 dtk.
+
+> Kompromi: posisi di peta live admin paling lambat ~60 dtk (dari ~20 dtk). Untuk
+> memantau "masih di lokasi kerja" ini memadai. Turunkan angka interval bila perlu
+> lebih real-time.
+
+---
+
+## 10. Tema & Komponen UI
+
+- [`theme.ts`](../mobile/src/theme.ts): token `colors`/`spacing`/`radius` yang
+  selaras dengan web (Tailwind slate + blue) — lihat [DESIGN.md](../DESIGN.md).
+- [`components/ui.tsx`](../mobile/src/components/ui.tsx): primitives `Button`
+  (varian primary/outline/destructive/success/warning, loading), `Field`,
+  `PasswordField` (toggle mata), `Card`, `Badge`. Halaman hanya menyusun primitives.
+
+---
+
+## 11. Build & Rilis (EAS)
+
+Server produksi (web) dideploy terpisah — lihat [05 — Deployment](05-deployment.md).
+Bagian ini khusus APK.
+
+```bash
+cd mobile
+# Login sekali (interaktif)
+npx eas-cli login
+
+# Build rilis (APK, versionCode auto-naik). --no-wait = tak menunggu di terminal.
+EAS_BUILD_NO_EXPO_GO_WARNING=true \
+  npx eas-cli build --platform android --profile production --non-interactive --no-wait
+
+# Pantau
+npx eas-cli build:list --platform android --limit 3
+npx eas-cli build:view <BUILD_ID>
+```
+
+- **Versi:** naikkan `version` di `app.json` untuk rilis fitur; `versionCode`
+  dinaikkan otomatis oleh EAS (`autoIncrement`).
+- **Keystore:** dikelola EAS (remote). APK memakai keystore yang sama, jadi bisa
+  menimpa instalasi lama tanpa uninstall.
+- **Distribusi:** APK internal — unduh dari halaman build Expo lalu bagikan
+  langsung ke karyawan.
+- **iOS:** belum disiapkan (butuh akun Apple Developer berbayar + kredensial
+  interaktif). Konfigurasi `app.json` sudah siap bila nanti diaktifkan.
+- **Estimasi antre:** build Android free tier bisa ~4 jam dari submit sampai selesai.
+
+---
+
+## 12. Batasan yang Diketahui
+
+- **Input tanggal** (izin & tukar shift) masih manual `YYYY-MM-DD`, belum date
+  picker native.
+- **Ubah nama & kata sandi** dilakukan lewat versi web (profil mobile hanya untuk
+  foto & info).
+- **Push notification** (pengingat absen) belum ada — perlu infrastruktur FCM di
+  server.
+- **iOS** belum dibangun (lihat §11).

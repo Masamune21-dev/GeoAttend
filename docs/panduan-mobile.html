@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<title>Panduan Aplikasi Mobile GeoAttend</title>
+<style>
+  :root {
+    --primary: #2563EB;
+    --primary-hover: #1D4ED8;
+    --sky: #0EA5E9;
+    --ink: #0F172A;
+    --muted: #64748B;
+    --line: #E2E8F0;
+    --bg-soft: #F6F8FB;
+    --success: #16A34A;
+    --success-bg: #ECFDF5;
+    --warning: #B45309;
+    --warning-bg: #FFFBEB;
+    --danger: #B91C1C;
+    --danger-bg: #FEF2F2;
+  }
+
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  @page {
+    size: A4;
+    margin: 16mm 15mm 18mm 15mm;
+  }
+
+  html, body {
+    margin: 0;
+    padding: 0;
+    font-family: "Segoe UI", "Inter", system-ui, sans-serif;
+    color: var(--ink);
+    font-size: 10.6pt;
+    line-height: 1.55;
+  }
+
+  h1, h2, h3 { margin: 0; letter-spacing: -0.01em; }
+
+  p { margin: 0 0 8px; }
+
+  strong { color: var(--ink); font-weight: 600; }
+
+  .muted { color: var(--muted); }
+
+  /* ---------- Cover ---------- */
+  .cover {
+    min-height: 250mm;
+    background: linear-gradient(150deg, #1D4ED8 0%, var(--primary) 45%, var(--sky) 100%);
+    border-radius: 20px;
+    color: #fff;
+    padding: 26mm 20mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    position: relative;
+    overflow: hidden;
+    page-break-after: always;
+  }
+  .cover::after {
+    content: "";
+    position: absolute;
+    right: -60mm; top: -60mm;
+    width: 140mm; height: 140mm;
+    background: rgba(255,255,255,0.10);
+    border-radius: 50%;
+  }
+  .cover-mark {
+    display: inline-flex;
+    align-items: center;
+    gap: 12px;
+    position: relative;
+    z-index: 1;
+  }
+  .cover-logo {
+    width: 46px; height: 46px;
+    border-radius: 12px;
+    background: rgba(255,255,255,0.15);
+    border: 1px solid rgba(255,255,255,0.30);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cover-logo svg { width: 26px; height: 26px; }
+  .cover-brand { font-size: 15pt; font-weight: 700; }
+  .cover-center { position: relative; z-index: 1; }
+  .cover-kicker {
+    text-transform: uppercase;
+    letter-spacing: 0.18em;
+    font-size: 9pt;
+    font-weight: 600;
+    color: rgba(255,255,255,0.85);
+    margin-bottom: 10px;
+  }
+  .cover h1 { font-size: 30pt; font-weight: 800; line-height: 1.12; }
+  .cover-sub { font-size: 12.5pt; color: rgba(255,255,255,0.92); margin-top: 12px; max-width: 130mm; }
+  .cover-meta {
+    position: relative; z-index: 1;
+    display: flex; gap: 26px;
+    font-size: 9.5pt; color: rgba(255,255,255,0.9);
+    border-top: 1px solid rgba(255,255,255,0.25);
+    padding-top: 14px;
+  }
+  .cover-meta b { color: #fff; font-weight: 700; }
+
+  /* ---------- Section headings ---------- */
+  .section { break-inside: avoid-page; margin-bottom: 14px; }
+  .h-num {
+    display: flex; align-items: center; gap: 10px;
+    margin: 20px 0 10px;
+    break-after: avoid;
+  }
+  .h-num .badge {
+    flex: none;
+    width: 26px; height: 26px;
+    border-radius: 8px;
+    background: var(--primary);
+    color: #fff;
+    font-weight: 700; font-size: 11pt;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .h-num h2 { font-size: 15pt; font-weight: 700; }
+
+  h3.sub { font-size: 11.5pt; font-weight: 700; margin: 12px 0 6px; color: var(--primary-hover); }
+
+  /* ---------- Steps ---------- */
+  ol.steps { list-style: none; margin: 6px 0 10px; padding: 0; counter-reset: step; }
+  ol.steps > li {
+    position: relative;
+    padding: 2px 0 10px 30px;
+    break-inside: avoid;
+  }
+  ol.steps > li::before {
+    counter-increment: step;
+    content: counter(step);
+    position: absolute; left: 0; top: 0;
+    width: 21px; height: 21px;
+    border-radius: 50%;
+    background: var(--primary);
+    color: #fff;
+    font-size: 8.5pt; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  ol.steps > li:not(:last-child)::after {
+    content: "";
+    position: absolute; left: 10px; top: 21px; bottom: 0;
+    width: 1.5px; background: var(--line);
+  }
+
+  ul.bullets { margin: 4px 0 10px; padding-left: 18px; }
+  ul.bullets li { margin-bottom: 4px; }
+
+  /* ---------- Callouts ---------- */
+  .callout {
+    border-radius: 10px;
+    padding: 10px 13px;
+    margin: 10px 0;
+    font-size: 10pt;
+    break-inside: avoid;
+    border: 1px solid transparent;
+  }
+  .callout .t { font-weight: 700; display: block; margin-bottom: 2px; }
+  .callout.tip { background: var(--success-bg); border-color: #BBF7D0; color: #166534; }
+  .callout.warn { background: var(--warning-bg); border-color: #FDE68A; color: var(--warning); }
+  .callout.info { background: #EFF6FF; border-color: #BFDBFE; color: var(--primary-hover); }
+  .callout.danger { background: var(--danger-bg); border-color: #FECACA; color: var(--danger); }
+
+  /* ---------- Cards / tables ---------- */
+  .card {
+    border: 1px solid var(--line);
+    border-radius: 12px;
+    padding: 12px 14px;
+    background: #fff;
+    margin: 8px 0;
+    break-inside: avoid;
+  }
+
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9.8pt; break-inside: avoid; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--bg-soft); font-weight: 700; color: var(--ink); }
+  td:first-child { font-weight: 600; white-space: nowrap; }
+
+  .pill {
+    display: inline-block; padding: 1px 9px; border-radius: 999px;
+    font-size: 8.5pt; font-weight: 700;
+  }
+  .pill.g { background: var(--success-bg); color: var(--success); }
+  .pill.r { background: var(--danger-bg); color: var(--danger); }
+  .pill.a { background: var(--warning-bg); color: var(--warning); }
+
+  /* ---------- TOC ---------- */
+  .toc { columns: 2; column-gap: 24px; font-size: 10pt; margin-top: 6px; }
+  .toc div { break-inside: avoid; margin-bottom: 5px; }
+  .toc .n { display:inline-block; width: 20px; color: var(--primary); font-weight: 700; }
+
+  .lead {
+    font-size: 11pt; color: var(--muted);
+    border-left: 3px solid var(--primary);
+    padding-left: 12px; margin: 4px 0 14px;
+  }
+
+  .divider { height: 1px; background: var(--line); margin: 18px 0; border: 0; }
+
+  .footer-note {
+    margin-top: 22px; padding-top: 12px;
+    border-top: 1px solid var(--line);
+    font-size: 9pt; color: var(--muted);
+    text-align: center;
+  }
+  .page-break { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<section class="cover">
+  <div class="cover-mark">
+    <span class="cover-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.4-8 12-8 12s-8-7.6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+    </span>
+    <span class="cover-brand">GeoAttend</span>
+  </div>
+
+  <div class="cover-center">
+    <div class="cover-kicker">Panduan Karyawan</div>
+    <h1>Cara Menggunakan<br/>Aplikasi Absensi<br/>di Ponsel Anda</h1>
+    <p class="cover-sub">Absen masuk &amp; pulang dengan foto dan lokasi, kelola jadwal shift, izin, dan piket — semua dari satu aplikasi.</p>
+  </div>
+
+  <div class="cover-meta">
+    <span><b>Aplikasi</b><br/>Android · versi 1.3.0</span>
+    <span><b>Untuk</b><br/>Karyawan KusumaVision</span>
+    <span><b>Diterbitkan</b><br/>Juli 2026</span>
+  </div>
+</section>
+
+<!-- ============ TOC + INTRO ============ -->
+<h2 style="font-size:16pt;font-weight:800;margin-bottom:4px;">Daftar Isi</h2>
+<p class="lead">Ikuti panduan ini sekali di awal. Setelah terbiasa, absen harian hanya butuh beberapa detik.</p>
+<div class="toc">
+  <div><span class="n">1</span> Persiapan &amp; pemasangan</div>
+  <div><span class="n">2</span> Daftar akun &amp; masuk</div>
+  <div><span class="n">3</span> Absen masuk</div>
+  <div><span class="n">4</span> Selama jam kerja</div>
+  <div><span class="n">5</span> Absen pulang</div>
+  <div><span class="n">6</span> Jadwal &amp; tukar shift</div>
+  <div><span class="n">7</span> Piket kebersihan</div>
+  <div><span class="n">8</span> Izin &amp; libur</div>
+  <div><span class="n">9</span> Riwayat absensi</div>
+  <div><span class="n">10</span> Profil &amp; keluar</div>
+  <div><span class="n">11</span> Masalah umum &amp; solusi</div>
+</div>
+
+<div class="callout info">
+  <span class="t">Kenapa aplikasi ini butuh kamera &amp; lokasi?</span>
+  Absensi hanya sah bila Anda benar-benar berada di area kantor. Aplikasi memverifikasi lokasi GPS dan menyimpan swafoto sebagai bukti — jadi absen tidak bisa dititipkan, dan Anda tidak perlu lagi antre mesin fingerprint.
+</div>
+
+<!-- ============ 1. PERSIAPAN ============ -->
+<div class="section">
+  <div class="h-num"><span class="badge">1</span><h2>Persiapan &amp; Pemasangan</h2></div>
+
+  <h3 class="sub">Memasang aplikasi</h3>
+  <ol class="steps">
+    <li>Buka tautan/berkas <strong>APK GeoAttend</strong> yang dibagikan administrator (lewat WhatsApp, email, atau link unduhan).</li>
+    <li>Bila muncul peringatan "instal dari sumber tidak dikenal", ketuk <strong>Izinkan</strong> / <strong>Setelan</strong> lalu aktifkan izin pemasangan untuk aplikasi tempat Anda mengunduh.</li>
+    <li>Ketuk <strong>Pasang</strong>, tunggu selesai, lalu buka aplikasinya.</li>
+  </ol>
+
+  <div class="callout tip">
+    <span class="t">Sudah pernah pasang versi lama?</span>
+    Cukup pasang APK baru menimpa yang lama — data dan akun Anda tetap aman, tidak perlu uninstall.
+  </div>
+
+  <h3 class="sub">Izin yang akan diminta</h3>
+  <p>Saat pertama dipakai, aplikasi meminta beberapa izin. Semua diperlukan agar absensi berfungsi:</p>
+  <table>
+    <tr><th>Izin</th><th>Untuk apa</th></tr>
+    <tr><td>Kamera</td><td>Mengambil swafoto bukti absensi</td></tr>
+    <tr><td>Lokasi</td><td>Memastikan Anda di dalam area kantor saat absen</td></tr>
+    <tr><td>Lokasi "sepanjang waktu"</td><td>Memantau posisi selama jam kerja walau aplikasi ditutup (khusus staf lapangan)</td></tr>
+    <tr><td>Notifikasi</td><td>Menampilkan status "pelacakan aktif" selama jam kerja</td></tr>
+  </table>
+</div>
+
+<!-- ============ 2. DAFTAR & MASUK ============ -->
+<div class="section">
+  <div class="h-num"><span class="badge">2</span><h2>Daftar Akun &amp; Masuk</h2></div>
+
+  <p>Di layar awal ada dua tombol: <strong>Masuk</strong> dan <strong>Daftar</strong>.</p>
+
+  <h3 class="sub">Belum punya akun? Daftar dulu</h3>
+  <ol class="steps">
+    <li>Ketuk tab <strong>Daftar</strong>.</li>
+    <li>Isi <strong>Nama Lengkap</strong>, <strong>Email</strong>, dan <strong>Kata Sandi</strong> (minimal 8 karakter, ada huruf besar dan angka — tercentang hijau bila memenuhi).</li>
+    <li>Masukkan <strong>Kode Pendaftaran</strong> dari administrator.</li>
+    <li>Ketuk <strong>Daftar</strong>. Anda langsung masuk ke aplikasi.</li>
+  </ol>
+
+  <div class="callout warn">
+    <span class="t">Tidak punya kode pendaftaran?</span>
+    Kode ini wajib dan hanya diberikan administrator perusahaan. Hubungi admin bila belum menerimanya, atau bila muncul pesan "Kode pendaftaran salah / pendaftaran ditutup".
+  </div>
+
+  <h3 class="sub">Sudah punya akun? Masuk</h3>
+  <ol class="steps">
+    <li>Ketuk tab <strong>Masuk</strong>.</li>
+    <li>Masukkan <strong>Email</strong> dan <strong>Kata Sandi</strong>, lalu ketuk <strong>Masuk</strong>.</li>
+  </ol>
+
+  <div class="callout info">
+    <span class="t">Alamat server (jarang diperlukan)</span>
+    Di bawah kartu login ada tulisan alamat server. Biarkan apa adanya. Ubah hanya bila administrator secara khusus memberi alamat server yang berbeda — ketuk tulisan tersebut, isi alamat baru, lalu simpan.
+  </div>
+</div>
+
+<!-- ============ 3. ABSEN MASUK ============ -->
+<div class="section page-break">
+  <div class="h-num"><span class="badge">3</span><h2>Absen Masuk</h2></div>
+  <p class="lead">Tab <strong>Absen</strong> adalah layar utama. Tombol kirim baru aktif setelah lokasi valid dan foto diambil.</p>
+
+  <ol class="steps">
+    <li>Buka tab <strong>Absen</strong>. Aplikasi mencari sinyal GPS sebentar.</li>
+    <li>Perhatikan <strong>kotak status lokasi</strong> di bagian atas:
+      <ul class="bullets">
+        <li><span class="pill g">Dalam area</span> hijau — Anda siap absen.</li>
+        <li><span class="pill r">Luar area</span> merah — dekati kantor dulu; jarak Anda ditampilkan.</li>
+      </ul>
+    </li>
+    <li>Bila role Anda punya lebih dari satu shift, <strong>pilih shift</strong> yang sesuai (biasanya sudah terpilih otomatis).</li>
+    <li>Ketuk <strong>Ambil Foto</strong>, arahkan kamera ke wajah Anda, lalu ketuk tombol rana. Ulangi bila kurang jelas.</li>
+    <li>(Opsional) Isi <strong>Catatan</strong>, misalnya "Datang tepat waktu".</li>
+    <li>Ketuk <strong>Kirim Absen Masuk</strong>. Muncul konfirmasi "Absen masuk tercatat&nbsp;✓".</li>
+  </ol>
+
+  <h3 class="sub">Mengaktifkan pelacakan posisi</h3>
+  <p>Setelah absen masuk, aplikasi menawarkan pelacakan posisi selama jam kerja:</p>
+  <ul class="bullets">
+    <li>Ketuk <strong>Aktifkan Pelacakan</strong>. Bila diminta izin lokasi, pilih <strong>"Izinkan sepanjang waktu"</strong>.</li>
+    <li>HP mungkin membuka halaman <strong>Pengaturan</strong> — pilih izinnya, lalu <strong>kembali ke aplikasi</strong> (aplikasi tidak tertutup).</li>
+  </ul>
+
+  <div class="callout tip">
+    <span class="t">Aman untuk baterai</span>
+    Pelacakan dirancang hemat daya: posisi dikirim berkala dan berhenti otomatis saat Anda absen pulang. Selama aktif, ada notifikasi "Pelacakan posisi aktif selama jam kerja".
+  </div>
+</div>
+
+<!-- ============ 4. SELAMA JAM KERJA ============ -->
+<div class="section">
+  <div class="h-num"><span class="badge">4</span><h2>Selama Jam Kerja</h2></div>
+  <ul class="bullets">
+    <li>Anda <strong>tidak perlu membuka aplikasi terus-menerus</strong>. Setelah absen masuk, posisi terkirim otomatis di latar belakang.</li>
+    <li>Notifikasi "pelacakan aktif" adalah hal normal — jangan tutup paksa aplikasi agar pemantauan tidak terputus.</li>
+    <li>Baterai lebih hemat bila HP tidak menutup paksa aplikasi. Aplikasi sudah mengatur agar GPS "beristirahat" di sela pengiriman.</li>
+  </ul>
+</div>
+
+<!-- ============ 5. ABSEN PULANG ============ -->
+<div class="section">
+  <div class="h-num"><span class="badge">5</span><h2>Absen Pulang</h2></div>
+  <ol class="steps">
+    <li>Buka tab <strong>Absen</strong> — otomatis menampilkan <strong>Absen Pulang</strong> karena Anda sudah absen masuk.</li>
+    <li>Pastikan status lokasi <span class="pill g">Dalam area</span>, lalu ambil foto seperti biasa.</li>
+    <li>Ketuk <strong>Kirim Absen Pulang</strong>. Pelacakan posisi langsung <strong>berhenti otomatis</strong>.</li>
+  </ol>
+  <div class="callout info">
+    <span class="t">Shift otomatis</span>
+    Saat pulang, shift mengikuti shift absen masuk hari itu. Ubah hanya bila memang perlu.
+  </div>
+</div>
+
+<!-- ============ 6. JADWAL & TUKAR ============ -->
+<div class="section page-break">
+  <div class="h-num"><span class="badge">6</span><h2>Jadwal &amp; Tukar Shift</h2></div>
+  <p>Buka tab <strong>Jadwal</strong>. Gunakan panah kiri/kanan untuk berpindah bulan.</p>
+  <ul class="bullets">
+    <li><strong>Jadwal Saya</strong> menampilkan shift Anda tiap tanggal (Shift 1, Shift 2, atau Libur). Hari ini ditandai biru.</li>
+  </ul>
+
+  <h3 class="sub">Mengajukan tukar shift</h3>
+  <ol class="steps">
+    <li>Ketuk <strong>Ajukan Tukar Shift</strong>.</li>
+    <li>Isi <strong>tanggal</strong> (harus ke depan, format <strong>YYYY-MM-DD</strong>, mis. 2026-08-01).</li>
+    <li>Pilih <strong>rekan</strong> yang muncul (rekan satu role dengan shift berbeda).</li>
+    <li>(Opsional) tulis alasan, lalu <strong>Kirim Pengajuan</strong>.</li>
+  </ol>
+  <p class="muted">Pengajuan dikirim ke rekan dulu. Bila rekan menerima, administrator yang menyetujui akhirnya. Status pengajuan Anda terlihat di bagian "Pengajuan tukar saya".</p>
+
+  <h3 class="sub">Permintaan tukar dari rekan</h3>
+  <p>Bila ada rekan meminta tukar dengan Anda, muncul kartu di atas — ketuk <strong>Terima</strong> atau <strong>Tolak</strong>.</p>
+</div>
+
+<!-- ============ 7. PIKET ============ -->
+<div class="section">
+  <div class="h-num"><span class="badge">7</span><h2>Piket Kebersihan</h2></div>
+  <p>Masih di tab <strong>Jadwal</strong>, kartu <strong>Piket Kebersihan</strong> menampilkan petugas hari ini dan jadwal piket Anda bulan ini.</p>
+  <ul class="bullets">
+    <li>Bila hari ini giliran Anda, ketuk <strong>Tandai sudah piket</strong> setelah selesai.</li>
+    <li>Tanggal piket yang sudah lewat/hari ini bisa ditandai; keliru menandai bisa dibatalkan lewat tombol yang sama.</li>
+  </ul>
+</div>
+
+<!-- ============ 8. IZIN & LIBUR ============ -->
+<div class="section">
+  <div class="h-num"><span class="badge">8</span><h2>Izin &amp; Libur</h2></div>
+  <p>Buka tab <strong>Izin</strong>.</p>
+
+  <h3 class="sub">Libur hari ini</h3>
+  <p>Ketuk <strong>Libur Hari Ini</strong> untuk menandai hari ini sebagai libur (langsung tercatat). Tidak bisa dipakai bila Anda sudah absen hari ini.</p>
+
+  <h3 class="sub">Mengajukan sakit / izin / cuti</h3>
+  <ol class="steps">
+    <li>Ketuk <strong>Ajukan Izin</strong>.</li>
+    <li>Pilih <strong>jenis</strong>: Sakit, Izin, atau Cuti.</li>
+    <li>Isi <strong>tanggal mulai</strong> dan <strong>selesai</strong> (format YYYY-MM-DD).</li>
+    <li>Tulis <strong>alasan</strong> (wajib), lalu <strong>Kirim Pengajuan</strong>.</li>
+  </ol>
+  <p>Status pengajuan: <span class="pill a">Menunggu</span> → <span class="pill g">Disetujui</span> atau <span class="pill r">Ditolak</span> (dengan alasan). Selama masih "Menunggu", pengajuan bisa dibatalkan.</p>
+</div>
+
+<!-- ============ 9. RIWAYAT ============ -->
+<div class="section">
+  <div class="h-num"><span class="badge">9</span><h2>Riwayat Absensi</h2></div>
+  <p>Tab <strong>Riwayat</strong> menampilkan semua absen Anda: masuk/pulang, shift, tanggal &amp; jam, jarak dari pusat area, dan penanda <span class="pill g">Dalam area</span> / <span class="pill r">Luar area</span>. Tarik ke bawah untuk menyegarkan.</p>
+</div>
+
+<!-- ============ 10. PROFIL ============ -->
+<div class="section">
+  <div class="h-num"><span class="badge">10</span><h2>Profil &amp; Keluar</h2></div>
+  <ul class="bullets">
+    <li>Ketuk <strong>foto sampul</strong> atau <strong>foto profil</strong> untuk menggantinya dari galeri.</li>
+    <li>Bagian info menampilkan alamat server dan versi aplikasi.</li>
+    <li><strong>Keluar</strong> ada di bawah — pelacakan posisi ikut berhenti saat keluar.</li>
+  </ul>
+  <div class="callout info">
+    <span class="t">Ganti nama atau kata sandi</span>
+    Untuk saat ini, perubahan nama dan kata sandi dilakukan lewat <strong>versi web</strong>. Untuk mengganti alamat server, keluar dulu lalu buka "Pengaturan server" di layar login.
+  </div>
+</div>
+
+<!-- ============ 11. TROUBLESHOOTING ============ -->
+<div class="section page-break">
+  <div class="h-num"><span class="badge">11</span><h2>Masalah Umum &amp; Solusi</h2></div>
+  <table>
+    <tr><th>Masalah</th><th>Solusi</th></tr>
+    <tr>
+      <td>"Mencari sinyal GPS..." lama</td>
+      <td>Pindah ke area terbuka (dekat jendela/luar ruangan), pastikan <strong>Lokasi/GPS HP menyala</strong>, lalu tunggu beberapa detik.</td>
+    </tr>
+    <tr>
+      <td>Status "Sinyal GPS lemah"</td>
+      <td>Akurasi sedang rendah. Tunggu sebentar atau pindah ke tempat lebih terbuka sebelum mengirim.</td>
+    </tr>
+    <tr>
+      <td>"Luar area" padahal di kantor</td>
+      <td>Tunggu GPS lebih akurat, atau melangkah sedikit ke tempat terbuka. Bila terus terjadi, laporkan ke admin (mungkin titik/radius area perlu disetel).</td>
+    </tr>
+    <tr>
+      <td>Tombol kirim tidak aktif</td>
+      <td>Pastikan sudah <strong>mengambil foto</strong> dan status lokasi <strong>Dalam area</strong>.</td>
+    </tr>
+    <tr>
+      <td>"Kode pendaftaran salah"</td>
+      <td>Minta kode terbaru ke administrator — kode bisa berganti.</td>
+    </tr>
+    <tr>
+      <td>"Email sudah terdaftar"</td>
+      <td>Akun sudah ada. Gunakan tab <strong>Masuk</strong>, atau pakai email lain.</td>
+    </tr>
+    <tr>
+      <td>Tidak bisa terhubung ke server</td>
+      <td>Periksa koneksi internet. Bila admin memberi alamat server baru, atur lewat "Pengaturan server" di layar login.</td>
+    </tr>
+    <tr>
+      <td>HP terasa hangat / baterai turun</td>
+      <td>Wajar saat pelacakan aktif, tapi sudah dioptimalkan. Jangan tutup paksa aplikasi; pastikan memakai versi terbaru (1.3.0+).</td>
+    </tr>
+    <tr>
+      <td>Pelacakan tidak aktif</td>
+      <td>Izin lokasi belum "sepanjang waktu". Buka Pengaturan HP &rarr; Aplikasi &rarr; GeoAttend &rarr; Izin &rarr; Lokasi &rarr; <strong>Izinkan sepanjang waktu</strong>.</td>
+    </tr>
+  </table>
+
+  <div class="callout danger">
+    <span class="t">Butuh bantuan lebih lanjut?</span>
+    Hubungi administrator perusahaan Anda. Sertakan pesan error yang muncul (bila ada) agar lebih cepat ditangani.
+  </div>
+
+  <div class="footer-note">
+    GeoAttend — Aplikasi Absensi KusumaVision · Panduan Karyawan v1.3.0 · Juli 2026<br/>
+    Absensi dengan verifikasi lokasi &amp; foto.
+  </div>
+</div>
+
+</body>
+</html>

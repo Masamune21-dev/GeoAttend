@@ -10,6 +10,10 @@ Dokumentasi lengkap aplikasi absensi GeoAttend (KusumaVision).
 | [04 — Aturan Bisnis](04-business-rules.md) | Role & izin, aturan absensi, telat/lembur, live tracking | Semua |
 | [05 — Deployment](05-deployment.md) | Setup dev, produksi, Proxmox VM vs LXC, HTTPS, backup | DevOps/Admin sistem |
 | [06 — Panduan Pengguna](06-user-guide.md) | Cara pakai untuk karyawan & administrator | Pengguna akhir |
-| [07 — Integrasi Mobile](07-mobile-integration.md) | Kontrak API & panduan untuk aplikasi mobile mendatang | Developer mobile |
+| [07 — Integrasi Mobile](07-mobile-integration.md) | Kontrak API & rencana awal integrasi mobile | Developer mobile |
+| [08 — Aplikasi Mobile](08-mobile-app.md) | Dokumentasi teknis aplikasi mobile Android yang sudah dibangun | Developer mobile |
+
+**Panduan pengguna aplikasi mobile (PDF, untuk karyawan):**
+[Panduan-Mobile-GeoAttend.pdf](Panduan-Mobile-GeoAttend.pdf).
 
 **Mulai cepat (development):** lihat [README utama](../README.md).
