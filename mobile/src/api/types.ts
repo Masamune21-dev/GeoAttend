@@ -51,7 +51,7 @@ export interface ShiftSettingResponse {
   endTime: string;
 }
 
-export type LeaveType = 'sakit' | 'izin' | 'cuti' | 'libur';
+export type LeaveType = 'sakit' | 'izin' | 'cuti' | 'telat' | 'siang' | 'libur';
 export type LeaveStatus = 'pending' | 'approved' | 'rejected';
 
 export interface LeaveRequestResponse {
@@ -129,4 +129,39 @@ export interface PiketAssignment {
 export interface PiketResponse {
   users: ScheduleUser[];
   assignments: PiketAssignment[];
+}
+
+// --- Stok Gudang ---
+
+export type StockMovementType = 'masuk' | 'keluar' | 'adjust';
+export type StockStatus = 'habis' | 'menipis' | 'aman';
+
+export interface StockItemResponse {
+  id: string;
+  code: string;
+  name: string;
+  categoryId: string | null;
+  categoryName: string | null;
+  unit: string;
+  photoUrl: string | null;
+  openingStock: number;
+  minStock: number;
+  currentStock: number;
+  status: StockStatus;
+  isActive: boolean;
+  lastMovementAt: string | null;
+  createdAt: string;
+}
+
+export interface StockMovementResponse {
+  id: string;
+  itemId: string;
+  itemCode: string;
+  itemName: string;
+  type: StockMovementType;
+  quantity: number;
+  photoUrl: string | null;
+  note: string | null;
+  createdByName: string | null;
+  createdAt: string;
 }

@@ -210,9 +210,12 @@ export function CheckInScreen() {
   };
 
   // --- Kirim absensi ---
-  // Absen pulang boleh di luar area; hanya absen masuk yang wajib di dalam area.
-  const locationOk = isInside || !geofence || nextType === 'clock_out';
-  const canSubmit = Boolean(coords && photo && locationOk) && !submitting;
+  // Absen masuk & pulang boleh di luar area. Absen MASUK di luar area (mis. teknisi
+  // langsung ke lapangan) wajib disertai alasan.
+  const isOutside = Boolean(coords && geofence && !isInside);
+  const needReason = nextType === 'clock_in' && isOutside;
+  const canSubmit =
+    Boolean(coords && photo) && (!needReason || notes.trim().length > 0) && !submitting;
 
   const handleSubmit = async () => {
     if (!coords || !photo) return;
@@ -274,6 +277,7 @@ export function CheckInScreen() {
       const e = err as ApiRequestError;
       switch (e.code) {
         case 'GEOFENCE_VIOLATION':
+        case 'GEOFENCE_REASON_REQUIRED':
           Alert.alert('Di luar area', e.message);
           break;
         case 'DUPLICATE_CHECKIN':
@@ -409,10 +413,11 @@ export function CheckInScreen() {
                   {formatDistance(distanceMeters)}
                 </Text>
               )}
-              {geofence && !isInside && nextType === 'clock_out' && (
+              {geofence && !isInside && (
                 <Text style={[styles.subtle, { color: '#B45309' }]}>
-                  Absen pulang tetap bisa walau di luar area — akan tercatat sebagai
-                  &ldquo;luar area&rdquo;.
+                  {nextType === 'clock_out'
+                    ? 'Absen pulang tetap bisa walau di luar area — tercatat sebagai “luar area”.'
+                    : 'Absen masuk tetap bisa, wajib isi alasan (mis. langsung ke lapangan).'}
                 </Text>
               )}
             </View>
@@ -443,12 +448,14 @@ export function CheckInScreen() {
 
         {photo && (
           <Field
-            label="Catatan (opsional)"
+            label={needReason ? 'Alasan absen di luar area (wajib)' : 'Catatan (opsional)'}
             value={notes}
             onChangeText={setNotes}
             maxLength={500}
             multiline
-            placeholder="Contoh: Datang tepat waktu"
+            placeholder={
+              needReason ? 'Contoh: Langsung ke lapangan / lokasi pelanggan' : 'Contoh: Datang tepat waktu'
+            }
           />
         )}
 
@@ -467,6 +474,11 @@ export function CheckInScreen() {
         {!photo && (
           <Text style={[styles.subtle, { textAlign: 'center' }]}>
             Ambil foto terlebih dahulu untuk mengaktifkan tombol kirim
+          </Text>
+        )}
+        {photo && needReason && !notes.trim() && (
+          <Text style={[styles.subtle, { textAlign: 'center', color: '#B45309', fontWeight: '600' }]}>
+            Isi alasan dulu untuk mengaktifkan tombol kirim
           </Text>
         )}
       </Card>

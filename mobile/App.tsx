@@ -3,13 +3,13 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
-import { Camera, CalendarClock, CalendarOff, History, UserRound } from 'lucide-react-native';
+import { Camera, CalendarClock, History, Package, UserRound } from 'lucide-react-native';
 import { SessionProvider, useSession } from './src/auth/session';
 import { AuthScreen } from './src/screens/AuthScreen';
 import { CheckInScreen } from './src/screens/CheckInScreen';
-import { ScheduleScreen } from './src/screens/ScheduleScreen';
-import { LeavesScreen } from './src/screens/LeavesScreen';
+import { PlanningScreen } from './src/screens/PlanningScreen';
 import { HistoryScreen } from './src/screens/HistoryScreen';
+import { StockScreen } from './src/screens/StockScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { colors } from './src/theme';
 import type { IconType } from './src/components/ui';
@@ -18,9 +18,9 @@ const Tab = createBottomTabNavigator();
 
 const TAB_ICONS: Record<string, IconType> = {
   Absen: Camera,
-  Jadwal: CalendarClock,
-  Izin: CalendarOff,
+  JadwalIzin: CalendarClock,
   Riwayat: History,
+  Stok: Package,
   Profil: UserRound,
 };
 
@@ -50,9 +50,17 @@ function Root() {
       })}
     >
       <Tab.Screen name="Absen" component={CheckInScreen} options={{ title: 'Absensi' }} />
-      <Tab.Screen name="Jadwal" component={ScheduleScreen} options={{ title: 'Jadwal Shift' }} />
-      <Tab.Screen name="Izin" component={LeavesScreen} options={{ title: 'Izin & Libur' }} />
+      <Tab.Screen
+        name="JadwalIzin"
+        component={PlanningScreen}
+        options={{ title: 'Jadwal & Izin', tabBarLabel: 'Jadwal' }}
+      />
       <Tab.Screen name="Riwayat" component={HistoryScreen} />
+      <Tab.Screen
+        name="Stok"
+        component={StockScreen}
+        options={{ title: 'Stok Gudang', tabBarLabel: 'Stok' }}
+      />
       <Tab.Screen name="Profil" component={ProfileScreen} />
     </Tab.Navigator>
   );

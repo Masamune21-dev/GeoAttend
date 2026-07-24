@@ -1,28 +1,34 @@
 import { useCallback, useEffect, useState } from 'react';
-import {
-  FlatList,
-  RefreshControl,
-  StyleSheet,
-  Text,
-  View,
-} from 'react-native';
-import { LogIn, LogOut, StickyNote } from 'lucide-react-native';
+import { FlatList, RefreshControl, StyleSheet, Text, View } from 'react-native';
+import { ArrowDownToLine, ArrowUpFromLine, LogIn, LogOut, StickyNote } from 'lucide-react-native';
 import { api } from '../api/client';
-import type { AttendanceRecordResponse, PaginatedResponse } from '../api/types';
+import type {
+  AttendanceRecordResponse,
+  PaginatedResponse,
+  StockMovementResponse,
+} from '../api/types';
 import { formatDate, formatDistance, formatTime } from '../lib/geo';
-import { Badge, Card } from '../components/ui';
+import { Badge, Card, Segmented } from '../components/ui';
 import { colors, spacing } from '../theme';
 
+type Tab = 'absensi' | 'stok';
+
 export function HistoryScreen() {
+  const [tab, setTab] = useState<Tab>('absensi');
   const [records, setRecords] = useState<AttendanceRecordResponse[]>([]);
+  const [movements, setMovements] = useState<StockMovementResponse[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const loadData = useCallback(async () => {
-    const res = await api<PaginatedResponse<AttendanceRecordResponse>>(
-      '/api/attendance?userId=self&limit=100'
-    );
-    setRecords(res.data);
+    const [attRes, mvRes] = await Promise.all([
+      api<PaginatedResponse<AttendanceRecordResponse>>('/api/attendance?userId=self&limit=100'),
+      api<PaginatedResponse<StockMovementResponse>>('/api/stock/movements?limit=100').catch(
+        () => ({ data: [] as StockMovementResponse[] }) as PaginatedResponse<StockMovementResponse>
+      ),
+    ]);
+    setRecords(attRes.data);
+    setMovements(mvRes.data);
   }, []);
 
   useEffect(() => {
@@ -38,16 +44,11 @@ export function HistoryScreen() {
       .finally(() => setRefreshing(false));
   }, [loadData]);
 
-  const renderItem = ({ item }: { item: AttendanceRecordResponse }) => {
+  const renderAttendance = ({ item }: { item: AttendanceRecordResponse }) => {
     const isIn = item.type === 'clock_in';
     return (
       <Card style={styles.item}>
-        <View
-          style={[
-            styles.iconWrap,
-            !isIn && { backgroundColor: colors.warningSubtle },
-          ]}
-        >
+        <View style={[styles.iconWrap, !isIn && { backgroundColor: colors.warningSubtle }]}>
           {isIn ? (
             <LogIn size={20} color={colors.primary} strokeWidth={2.2} />
           ) : (
@@ -78,29 +79,95 @@ export function HistoryScreen() {
     );
   };
 
+  const renderMovement = ({ item }: { item: StockMovementResponse }) => {
+    const isIn = item.type === 'masuk';
+    const isOut = item.type === 'keluar';
+    return (
+      <Card style={styles.item}>
+        <View
+          style={[
+            styles.iconWrap,
+            { backgroundColor: isIn ? colors.successSubtle : isOut ? colors.warningSubtle : '#F1F5F9' },
+          ]}
+        >
+          {isIn ? (
+            <ArrowDownToLine size={20} color={colors.success} strokeWidth={2.2} />
+          ) : (
+            <ArrowUpFromLine size={20} color={isOut ? colors.warning : colors.textSecondary} strokeWidth={2.2} />
+          )}
+        </View>
+        <View style={{ flex: 1, gap: 2 }}>
+          <Text style={styles.itemTitle}>{item.itemName}</Text>
+          <Text style={styles.subtle}>
+            {item.itemCode} · {formatDate(item.createdAt)} {formatTime(item.createdAt)}
+            {item.createdByName ? ` · ${item.createdByName}` : ''}
+          </Text>
+          {item.note ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+              <StickyNote size={12} color={colors.textSecondary} />
+              <Text style={[styles.subtle, { flex: 1 }]}>{item.note}</Text>
+            </View>
+          ) : null}
+        </View>
+        <Text
+          style={{
+            fontSize: 16,
+            fontWeight: '700',
+            color: isIn ? colors.success : isOut ? colors.warning : colors.textPrimary,
+          }}
+        >
+          {isOut ? '−' : isIn ? '+' : ''}
+          {item.quantity}
+        </Text>
+      </Card>
+    );
+  };
+
+  const emptyText =
+    tab === 'absensi' ? 'Belum ada riwayat absensi' : 'Belum ada riwayat stok masuk/keluar';
+
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
-      <FlatList
-        data={records}
-        keyExtractor={(item) => item.id}
-        renderItem={renderItem}
-        contentContainerStyle={{ padding: spacing.lg, paddingBottom: 40, gap: spacing.md }}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-        ListEmptyComponent={
-          loading ? (
-            <Text style={[styles.subtle, { textAlign: 'center', marginTop: 24 }]}>Memuat...</Text>
-          ) : (
-            <Text style={[styles.subtle, { textAlign: 'center', marginTop: 24 }]}>
-              Belum ada riwayat absensi
-            </Text>
-          )
-        }
-      />
+      <View style={{ paddingHorizontal: spacing.lg, paddingTop: spacing.lg, paddingBottom: spacing.sm }}>
+        <Segmented
+          value={tab}
+          onChange={setTab}
+          options={[
+            { value: 'absensi', label: 'Absensi' },
+            { value: 'stok', label: 'Stok Barang' },
+          ]}
+        />
+      </View>
+      {tab === 'absensi' ? (
+        <FlatList
+          data={records}
+          keyExtractor={(item) => item.id}
+          renderItem={renderAttendance}
+          contentContainerStyle={styles.list}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+          ListEmptyComponent={
+            <Text style={styles.empty}>{loading ? 'Memuat...' : emptyText}</Text>
+          }
+        />
+      ) : (
+        <FlatList
+          data={movements}
+          keyExtractor={(item) => item.id}
+          renderItem={renderMovement}
+          contentContainerStyle={styles.list}
+          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+          ListEmptyComponent={
+            <Text style={styles.empty}>{loading ? 'Memuat...' : emptyText}</Text>
+          }
+        />
+      )}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
+  list: { padding: spacing.lg, paddingTop: spacing.sm, paddingBottom: 40, gap: spacing.md },
+  empty: { fontSize: 13, color: colors.textSecondary, textAlign: 'center', marginTop: 24 },
   item: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   iconWrap: {
     width: 44,

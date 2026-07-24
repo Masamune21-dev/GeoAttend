@@ -21,6 +21,8 @@ const TYPE_LABELS: Record<string, string> = {
   sakit: 'Sakit',
   izin: 'Izin',
   cuti: 'Cuti',
+  telat: 'Berangkat Telat',
+  siang: 'Masuk Siang',
   libur: 'Libur',
 };
 
@@ -231,8 +233,8 @@ export function LeavesScreen() {
 
               <View style={{ gap: 8 }}>
                 <Text style={styles.label}>Jenis</Text>
-                <View style={{ flexDirection: 'row', gap: 8 }}>
-                  {(['sakit', 'izin', 'cuti'] as const).map((t) => (
+                <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                  {(['sakit', 'izin', 'cuti', 'telat', 'siang'] as const).map((t) => (
                     <Pressable
                       key={t}
                       onPress={() => setType(t)}
@@ -311,9 +313,11 @@ const styles = StyleSheet.create({
     gap: 8,
   },
   typeButton: {
-    flex: 1,
+    flexGrow: 1,
+    flexBasis: '30%',
     alignItems: 'center',
     paddingVertical: 10,
+    paddingHorizontal: 6,
     borderWidth: 1,
     borderColor: colors.border,
     borderRadius: 10,

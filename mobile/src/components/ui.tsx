@@ -155,6 +155,37 @@ export function Badge({
   );
 }
 
+// ---------- Segmented (toggle antar sub-halaman) ----------
+
+export function Segmented<T extends string>({
+  options,
+  value,
+  onChange,
+  style,
+}: {
+  options: { value: T; label: string }[];
+  value: T;
+  onChange: (v: T) => void;
+  style?: StyleProp<ViewStyle>;
+}) {
+  return (
+    <View style={[styles.segmented, style]}>
+      {options.map((opt) => {
+        const active = opt.value === value;
+        return (
+          <Pressable
+            key={opt.value}
+            onPress={() => onChange(opt.value)}
+            style={[styles.segment, active && styles.segmentActive]}
+          >
+            <Text style={[styles.segmentText, active && styles.segmentTextActive]}>{opt.label}</Text>
+          </Pressable>
+        );
+      })}
+    </View>
+  );
+}
+
 const styles = StyleSheet.create({
   button: {
     flexDirection: 'row',
@@ -201,4 +232,28 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 3,
   },
+  segmented: {
+    flexDirection: 'row',
+    backgroundColor: '#F1F5F9',
+    borderRadius: radius.md,
+    padding: 4,
+    gap: 4,
+  },
+  segment: {
+    flex: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 9,
+    borderRadius: radius.sm,
+  },
+  segmentActive: {
+    backgroundColor: colors.surface,
+    shadowColor: '#0F172A',
+    shadowOpacity: 0.08,
+    shadowRadius: 3,
+    shadowOffset: { width: 0, height: 1 },
+    elevation: 1,
+  },
+  segmentText: { fontSize: 14, fontWeight: '600', color: colors.textSecondary },
+  segmentTextActive: { color: colors.textPrimary },
 });
