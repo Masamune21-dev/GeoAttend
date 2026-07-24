@@ -1,5 +1,6 @@
 import { redirect } from 'next/navigation';
 import { getServerSession } from '@/lib/auth/utils';
+import { getServerBrand } from '@/lib/brand.server';
 
 export const dynamic = 'force-dynamic';
 
@@ -10,5 +11,5 @@ export default async function RootPage() {
     redirect('/login');
   }
 
-  redirect('/checkin');
+  redirect(getServerBrand() === 'stok' ? '/stock' : '/checkin');
 }

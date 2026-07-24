@@ -11,8 +11,19 @@ import { Input } from '@/components/ui/input';
 import { PasswordInput } from '@/components/ui/password-input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import type { Brand } from '@/lib/brand';
 
-export function LoginForm() {
+interface LoginFormProps {
+  brand?: Brand;
+  title?: string;
+  subtitle?: string;
+}
+
+export function LoginForm({
+  brand = 'geoattend',
+  title = 'Selamat datang kembali',
+  subtitle = 'Masuk untuk mulai absensi hari ini',
+}: LoginFormProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const [email, setEmail] = useState('');
@@ -36,17 +47,18 @@ export function LoginForm() {
     }
 
     toast.success('Berhasil masuk');
-    // Administrator langsung ke dashboard admin; lainnya ke halaman absensi
     const role = (data?.user as { role?: string } | undefined)?.role;
-    router.push(role === 'administrator' ? '/admin' : '/checkin');
+    // Domain stok → dashboard stok. Selain itu: administrator → panel admin, lainnya → absensi.
+    const target = brand === 'stok' ? '/stock' : role === 'administrator' ? '/admin' : '/checkin';
+    router.push(target);
     router.refresh();
   };
 
   return (
     <Card className="shadow-elevated">
       <CardHeader>
-        <CardTitle className="text-2xl">Selamat datang kembali</CardTitle>
-        <CardDescription>Masuk untuk mulai absensi hari ini</CardDescription>
+        <CardTitle className="text-2xl">{title}</CardTitle>
+        <CardDescription>{subtitle}</CardDescription>
       </CardHeader>
       <CardContent>
         {expired && (

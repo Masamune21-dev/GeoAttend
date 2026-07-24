@@ -10,6 +10,10 @@ const PAGE_TITLES: Record<string, string> = {
   '/checkin': 'Absensi',
   '/history': 'Riwayat',
   '/profile': 'Profil',
+  '/stock': 'Overview',
+  '/stock/inventory': 'Inventory',
+  '/stock/movements': 'Masuk & Keluar',
+  '/stock/history': 'Riwayat',
   '/admin': 'Dashboard Admin',
   '/admin/live-map': 'Peta Live',
   '/admin/reports': 'Rekap Bulanan',
@@ -22,12 +26,13 @@ interface HeaderProps {
   userName: string;
   userRole: string;
   userImage?: string | null;
+  brandName?: string;
 }
 
-export function Header({ userName, userRole, userImage }: HeaderProps) {
+export function Header({ userName, userRole, userImage, brandName = 'GeoAttend' }: HeaderProps) {
   const pathname = usePathname();
   const router = useRouter();
-  const title = PAGE_TITLES[pathname] ?? 'GeoAttend';
+  const title = PAGE_TITLES[pathname] ?? brandName;
 
   const handleSignOut = async () => {
     await signOut();
