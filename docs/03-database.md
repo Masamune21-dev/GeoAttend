@@ -13,6 +13,7 @@ users 1───* accounts          (credential: hash password scrypt)
 users 1───* attendance_records *───1 geofences (nullable)
 users 1───* leave_requests     (reviewed_by → users, nullable)
 users 1───1 live_locations
+users 1───* location_trails      (jejak perjalanan, retensi 90 hari)
 shift_settings                 (berdiri sendiri, key: role+shift_number)
 app_settings                   (key-value: app_name, app_logo, registration_code)
 verifications                  (token verifikasi Better Auth)
@@ -105,9 +106,44 @@ jenis lain menunggu keputusan administrator.
 | user_id | text PK, FK→users (cascade) | Satu baris per user (upsert) |
 | latitude / longitude | numeric(10,7) | Posisi terkini |
 | accuracy_meters | numeric(6,2) null | |
-| updated_at | timestamp | Client anggap live bila < 90 detik |
+| updated_at | timestamp | Client anggap live bila < 6 menit |
 
 Diisi saat clock-in & tiap kiriman posisi; **dihapus saat clock-out**.
+
+### location_trails
+| Kolom | Tipe | Keterangan |
+| :--- | :--- | :--- |
+| id | uuid PK | |
+| user_id | text FK→users (cascade) | |
+| recorded_at | timestamp | Waktu fix GPS **di perangkat** |
+| latitude / longitude | numeric(10,7) | |
+| accuracy_meters | numeric(6,2) null | Fix > 150 m tidak pernah disimpan |
+| is_mocked | boolean | Android: terdeteksi aplikasi fake GPS |
+| created_at | timestamp | Waktu terima server (pembanding audit) |
+
+Index: `location_trails_user_recorded_idx` (UNIQUE `user_id, recorded_at` — sekaligus kunci idempotensi saat batch dikirim ulang) dan `location_trails_recorded_idx` (dipakai pembersih retensi).
+
+Append-only, diisi POST `/api/locations` selama sesi kerja. Berbeda dari
+`live_locations`, tabel ini **tidak dihapus saat clock-out** — justru itulah
+sumber data riwayat perjalanan.
+
+Data **operasional**, bukan absensi resmi: sengaja **tidak ikut backup**, ikut
+terhapus pada reset scope `attendance`, dan dibersihkan otomatis setelah
+`TRAIL_RETENTION_DAYS` (default 90) hari:
+
+```bash
+npm run db:cleanup-trails                          # retensi default
+TRAIL_RETENTION_DAYS=30 npm run db:cleanup-trails  # override
+```
+
+Perkiraan volume: ~240 titik/karyawan/shift → 20 karyawan × 26 hari ≈ 125 rb
+baris/bulan; pada retensi 90 hari ≈ 375 rb baris (~95 MB termasuk index).
+
+Untuk pengembangan, jejak sintetis bisa dibangkitkan tanpa berkendara:
+
+```bash
+npm run db:seed-trail -- --email budi@contoh.com --date 2026-07-29
+```
 
 ## Alur Migrasi
 

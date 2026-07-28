@@ -10,9 +10,16 @@ import {
   startOfMonth,
 } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Download, FileSpreadsheet, FileText } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, FileSpreadsheet, FileText, Route } from 'lucide-react';
 import { toast } from 'sonner';
-import { useAttendanceList, useLeaves, useShifts, useUsers } from '@/hooks/useAttendance';
+import {
+  useAttendanceList,
+  useLeaves,
+  useShifts,
+  useUsers,
+  type TrailTarget,
+} from '@/hooks/useAttendance';
+import { LocationTrailDialog } from '@/components/features/attendance/LocationTrailDialog';
 import { computeRecap, formatMinutes, type ShiftTime } from '@/lib/shifts/calc';
 import { OPEN_SESSION_WINDOW_HOURS } from '@/lib/constants';
 import { expandDateRange, getLeaveTypeLabel } from '@/lib/leaves';
@@ -56,6 +63,7 @@ interface UserSummary {
 export default function ReportsPage() {
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
   const [selectedUserId, setSelectedUserId] = useState<string>('all');
+  const [trailTarget, setTrailTarget] = useState<TrailTarget | null>(null);
   const today = new Date();
 
   const monthStart = format(startOfMonth(month), 'yyyy-MM-dd');
@@ -570,7 +578,8 @@ export default function ReportsPage() {
                     <th className="py-2 pr-3 text-center font-medium">Jam Pulang</th>
                     <th className="py-2 pr-3 text-center font-medium">Telat</th>
                     <th className="py-2 pr-3 text-center font-medium">Lembur</th>
-                    <th className="py-2 text-center font-medium">Pulang Cepat</th>
+                    <th className="py-2 pr-3 text-center font-medium">Pulang Cepat</th>
+                    <th className="py-2 text-center font-medium">Aksi</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -620,11 +629,32 @@ export default function ReportsPage() {
                           <span className="text-text-secondary">-</span>
                         )}
                       </td>
-                      <td className="py-2.5 text-center">
+                      <td className="py-2.5 pr-3 text-center">
                         {row.earlyLeaveMinutes > 0 ? (
                           <span className="font-medium text-warning">
                             {formatMinutes(row.earlyLeaveMinutes)}
                           </span>
+                        ) : (
+                          <span className="text-text-secondary">-</span>
+                        )}
+                      </td>
+                      <td className="py-2.5 text-center">
+                        {/* Baris izin/libur tidak punya sesi kerja → tak ada jejak */}
+                        {row.leaveType === null && row.clockIn ? (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() =>
+                              setTrailTarget({
+                                userId: row.userId,
+                                userName: row.userName,
+                                date: row.date,
+                                clockInAt: row.clockIn!.toISOString(),
+                              })
+                            }
+                          >
+                            <Route className="h-4 w-4" aria-hidden="true" /> Riwayat
+                          </Button>
                         ) : (
                           <span className="text-text-secondary">-</span>
                         )}
@@ -637,6 +667,8 @@ export default function ReportsPage() {
           </Card>
         </>
       )}
+
+      <LocationTrailDialog target={trailTarget} onClose={() => setTrailTarget(null)} />
     </div>
   );
 }

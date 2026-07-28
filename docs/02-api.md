@@ -194,10 +194,23 @@ Hapus user + seluruh riwayatnya (cascade). Akun sendiri ditolak (`SELF_DELETION`
 
 ## Pelacakan Posisi Live
 
-### POST `/api/locations` — kirim posisi (dipanggil otomatis oleh client tiap 20 detik)
-**Auth:** login. Body: `{latitude, longitude, accuracyMeters?}`.
-Ditolak **409 `NOT_CLOCKED_IN`** bila record terakhir hari ini bukan clock-in.
-Data di-upsert (satu baris per user).
+### POST `/api/locations` — kirim posisi
+**Auth:** login. Dipanggil otomatis: web tiap 20 detik, app mobile per batch ~5 menit.
+
+Menerima **dua bentuk body**:
+- Lama (app ≤ 1.5.0 & web): `{latitude, longitude, accuracyMeters?}` — satu titik.
+- Baru (app ≥ 1.6.0): `{points: [{latitude, longitude, accuracyMeters?, isMocked?, recordedAt}]}` — maks 60 titik per request.
+
+Kompatibilitas mundur dipertahankan permanen: app mobile tidak punya OTA, jadi HP yang belum di-update tetap harus diterima.
+
+Ditolak **409 `NOT_CLOCKED_IN`** bila record absensi terakhir dalam jendela bergulir 18 jam bukan clock-in (bukan "sejak tengah malam" — shift lintas tengah malam harus tetap terlacak).
+
+Efek: posisi live di-upsert (satu baris per user) **dan** titik yang lolos saringan anti-jitter disimpan ke `location_trails`. Respons `{success, received, stored}`.
+
+Saringan sebelum disimpan sebagai jejak:
+- akurasi > 150 m dibuang;
+- `recordedAt` > 2 menit di masa depan atau mendahului clock-in dibuang;
+- titik disimpan bila bergerak ≥ 25 m (atau ≥ setengah radius akurasi) **atau** sudah ≥ 60 detik sejak titik terakhir.
 
 ### GET `/api/locations` — posisi semua karyawan
 **Auth:** administrator. Respons:
@@ -207,7 +220,27 @@ Data di-upsert (satu baris per user).
              "accuracyMeters", "updatedAt": "ISO" }] }
 ```
 
-Client menganggap posisi "live" bila `updatedAt` < 90 detik lalu.
+Client menganggap posisi "live" bila `updatedAt` < 6 menit lalu (heartbeat 5 menit + toleransi). Di atas itu marker **tidak** kembali ke titik absen — tetap di posisi terakhir dengan label "terakhir terlihat".
+
+### GET `/api/locations/trail` — riwayat jejak satu sesi kerja
+**Auth:** administrator saja (jejak perjalanan = data pribadi).
+Query: `?userId=<id|self>&date=yyyy-MM-dd[&clockInAt=<ISO>]`.
+
+`clockInAt` memilih sesi yang tepat bila ada dua shift pada tanggal yang sama, sekaligus membuat pemilihan sesi tidak bergantung pada zona waktu server.
+
+Rentang jejak mengikuti **sesi kerja** (clock-in → clock-out), bukan 00:00–23:59. Bila belum absen pulang, dibatasi sampai sekarang atau 18 jam sejak masuk.
+
+```json
+{ "data": { "userId", "userName", "date", "shiftNumber",
+            "sessionStart", "sessionEnd",
+            "clockIn": { ...AttendanceRecordResponse }, "clockOut": { ... },
+            "points": [{ "latitude", "longitude", "accuracyMeters", "isMocked", "recordedAt" }],
+            "stops":  [{ "latitude", "longitude", "startedAt", "endedAt", "durationMinutes", "pointCount" }],
+            "totalDistanceMeters", "truncated", "thinned" } }
+```
+
+404 `SESSION_NOT_FOUND` bila tidak ada sesi kerja pada tanggal tersebut.
+Perhentian dideteksi dari data penuh (radius 100 m, minimal 10 menit); penipisan titik untuk peta baru dilakukan setelahnya (`thinned: true` bila terjadi).
 
 ## Profil & File
 

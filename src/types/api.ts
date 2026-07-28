@@ -206,11 +206,36 @@ export interface ShiftSettingResponse {
   endTime: string;
 }
 
-export const UpdateLocationSchema = z.object({
+export const LocationPointSchema = z.object({
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
   accuracyMeters: z.number().positive().optional(),
+  isMocked: z.boolean().optional(),
+  recordedAt: z.string().datetime(), // ISO 8601, waktu fix GPS di perangkat
 });
+export type LocationPointInput = z.infer<typeof LocationPointSchema>;
+
+/**
+ * Dua bentuk payload sengaja didukung sekaligus:
+ * - LAMA (app mobile ≤ 1.5.0 dan LiveTracker web): { latitude, longitude,
+ *   accuracyMeters } — satu titik, waktunya diambil saat server menerima.
+ * - BARU (app mobile ≥ 1.6.0): { points: [...] } — seluruh batch dari deferred
+ *   location updates Android, jadi tidak ada titik perjalanan yang dibuang.
+ *
+ * Kompatibilitas mundur WAJIB dipertahankan: app mobile tidak punya mekanisme
+ * OTA, sehingga HP yang belum di-update masih mengirim payload lama untuk
+ * waktu yang lama.
+ */
+export const UpdateLocationSchema = z
+  .object({
+    latitude: z.number().min(-90).max(90).optional(),
+    longitude: z.number().min(-180).max(180).optional(),
+    accuracyMeters: z.number().positive().optional(),
+    points: z.array(LocationPointSchema).min(1).max(60).optional(),
+  })
+  .refine((v) => v.points != null || (v.latitude != null && v.longitude != null), {
+    message: 'Kirim `points` (batch) atau latitude + longitude (payload lama)',
+  });
 export type UpdateLocationInput = z.infer<typeof UpdateLocationSchema>;
 
 export interface LiveLocationResponse {
@@ -222,6 +247,43 @@ export interface LiveLocationResponse {
   longitude: number;
   accuracyMeters: number | null;
   updatedAt: string; // ISO 8601
+}
+
+// --- Riwayat jejak lokasi (administrator saja) ---
+
+export interface TrailPointResponse {
+  latitude: number;
+  longitude: number;
+  accuracyMeters: number | null;
+  isMocked: boolean;
+  recordedAt: string; // ISO 8601
+}
+
+export interface TrailStopResponse {
+  latitude: number;
+  longitude: number;
+  startedAt: string; // ISO 8601
+  endedAt: string;
+  durationMinutes: number;
+  pointCount: number;
+}
+
+export interface LocationTrailResponse {
+  userId: string;
+  userName: string;
+  date: string; // "yyyy-MM-dd"
+  shiftNumber: number | null;
+  sessionStart: string | null; // ISO 8601
+  sessionEnd: string | null;
+  clockIn: AttendanceRecordResponse | null;
+  clockOut: AttendanceRecordResponse | null;
+  points: TrailPointResponse[];
+  stops: TrailStopResponse[];
+  totalDistanceMeters: number;
+  /** true bila jejak dipotong di TRAIL_MAX_POINTS (sesi luar biasa panjang) */
+  truncated: boolean;
+  /** true bila titik ditipiskan agar peta tetap responsif */
+  thinned: boolean;
 }
 
 export interface ApiError {

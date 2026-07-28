@@ -9,10 +9,21 @@ import { getInitials, formatTime } from '@/lib/utils';
 import { formatDistance } from '@/lib/geo/distance';
 import { DEFAULT_MAP_CENTER, DEFAULT_ZOOM_LEVEL } from '@/lib/constants';
 
+/**
+ * Asal koordinat marker — menentukan warna, isi popup, dan legenda.
+ *
+ * 'stale' penting: karyawan yang berhenti bergerak berhenti mengirim posisi
+ * (GPS tak menghasilkan update saat diam), tapi posisi terakhirnya tetap yang
+ * PALING BENAR. Marker bertahan di sana, hanya labelnya berubah.
+ */
+export type LivePositionSource =
+  | 'live' // posisi pelacakan yang masih segar
+  | 'stale' // posisi live TERAKHIR yang diketahui
+  | 'attendance'; // belum pernah mengirim posisi live → koordinat saat absen
+
 export interface LiveMarkerData extends AttendanceRecordResponse {
-  /** true bila posisi berasal dari pelacakan live yang masih segar */
-  isLive?: boolean;
-  /** waktu update posisi live terakhir (ISO) */
+  positionSource: LivePositionSource;
+  /** waktu update posisi live terakhir (ISO); tidak ada untuk 'attendance' */
   lastUpdate?: string;
 }
 
@@ -25,12 +36,15 @@ interface LiveMapProps {
 function createMarkerIcon(
   name: string,
   isWithinGeofence: boolean,
-  isLive: boolean,
+  source: LivePositionSource,
   avatar?: string | null
 ) {
   const modifiers = [
-    isLive ? ' geoattend-marker--live' : '',
-    !isLive && !isWithinGeofence ? ' geoattend-marker--outside' : '',
+    source === 'live' ? ' geoattend-marker--live' : '',
+    source === 'stale' ? ' geoattend-marker--stale' : '',
+    // Berlaku untuk SEMUA sumber posisi: statusnya dihitung dari koordinat yang
+    // benar-benar dipakai marker, bukan lagi dari titik absen.
+    !isWithinGeofence ? ' geoattend-marker--outside' : '',
   ].join('');
   // Foto profil sebagai isi marker bila ada; jika tidak, pakai inisial.
   const style = avatar
@@ -83,7 +97,7 @@ export default function LiveMap({ records, geofence, showGeofence = true }: Live
           icon={createMarkerIcon(
             record.userName,
             record.isWithinGeofence,
-            record.isLive ?? false,
+            record.positionSource,
             record.userAvatar
           )}
         >
@@ -99,9 +113,14 @@ export default function LiveMap({ records, geofence, showGeofence = true }: Live
               <br />
               Masuk · {formatTime(record.timestamp)}
               <br />
-              {record.isLive && record.lastUpdate ? (
+              {record.positionSource === 'live' && record.lastUpdate ? (
                 <span style={{ color: '#16a34a', fontWeight: 600 }}>
                   ● LIVE · update {formatTime(record.lastUpdate)}
+                </span>
+              ) : record.positionSource === 'stale' && record.lastUpdate ? (
+                <span style={{ color: '#64748b' }}>
+                  Terakhir terlihat {formatTime(record.lastUpdate)} ·{' '}
+                  {formatDistance(record.distanceFromCenter)} dari pusat
                 </span>
               ) : (
                 <span style={{ color: '#64748b' }}>

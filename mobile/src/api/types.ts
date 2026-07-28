@@ -34,6 +34,15 @@ export interface PaginatedResponse<T> {
   pagination: { page: number; limit: number; total: number; totalPages: number };
 }
 
+/** Satu titik jejak yang dikirim ke POST /api/locations (maks 60 per request). */
+export interface LocationPointInput {
+  latitude: number;
+  longitude: number;
+  accuracyMeters?: number;
+  isMocked?: boolean;
+  recordedAt: string; // ISO 8601, waktu fix GPS di perangkat
+}
+
 export interface GeofenceResponse {
   id: string;
   name: string;

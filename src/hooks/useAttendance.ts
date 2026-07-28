@@ -9,6 +9,7 @@ import type {
   GeofenceResponse,
   LeaveRequestResponse,
   LiveLocationResponse,
+  LocationTrailResponse,
   PaginatedResponse,
   ReviewLeaveInput,
   ShiftSettingResponse,
@@ -141,6 +142,32 @@ export function useLiveLocations(pollIntervalMs = 10_000) {
     queryFn: () => fetchJson<{ data: LiveLocationResponse[] }>('/api/locations'),
     refetchInterval: pollIntervalMs,
     staleTime: 5_000,
+  });
+}
+
+export interface TrailTarget {
+  userId: string;
+  userName: string;
+  date: string; // "yyyy-MM-dd"
+  /** ISO jam absen masuk — memilih sesi yang tepat bila ada 2 shift sehari */
+  clockInAt: string | null;
+}
+
+/**
+ * Riwayat jejak lokasi satu SESI kerja (administrator saja). Query baru
+ * menembak ketika dialog dibuka (target != null), bukan saat halaman rekap
+ * dirender — jejak bisa ribuan titik dan tidak perlu diambil sebelum diminta.
+ */
+export function useLocationTrail(target: TrailTarget | null) {
+  return useQuery({
+    queryKey: ['location-trail', target?.userId, target?.date, target?.clockInAt],
+    queryFn: () => {
+      const params = new URLSearchParams({ userId: target!.userId, date: target!.date });
+      if (target!.clockInAt) params.set('clockInAt', target!.clockInAt);
+      return fetchJson<{ data: LocationTrailResponse }>(`/api/locations/trail?${params}`);
+    },
+    enabled: target !== null,
+    staleTime: 5 * 60_000, // jejak sesi yang sudah lewat tidak berubah lagi
   });
 }
 

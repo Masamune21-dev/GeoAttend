@@ -2,6 +2,7 @@ import { AppState } from 'react-native';
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
 import { api, ApiRequestError } from '../api/client';
+import type { LocationPointInput } from '../api/types';
 
 /**
  * Task background: kirim posisi ke server selama status hadir (clock-in).
@@ -10,23 +11,41 @@ import { api, ApiRequestError } from '../api/client';
  */
 export const LOCATION_TASK = 'geoattend-live-tracking';
 
+/** Fix dengan akurasi lebih buruk dari ini dibuang sebelum dikirim (meter). */
+const MAX_ACCURACY_M = 150;
+
+/** Batas titik per request — sesuai kontrak POST /api/locations. */
+const MAX_POINTS_PER_REQUEST = 60;
+
 TaskManager.defineTask(LOCATION_TASK, async ({ data, error }) => {
   if (error || !data) return;
   const { locations } = data as { locations: Location.LocationObject[] };
-  const latest = locations[locations.length - 1];
-  if (!latest) return;
+  if (!locations || locations.length === 0) return;
+
+  // SELURUH batch dikirim. Sebelumnya hanya titik terakhir yang dipakai dan
+  // sisanya dibuang — padahal Android mengumpulkan fix selama beberapa menit
+  // sebelum membangunkan aplikasi, jadi justru titik-titik itulah jejak
+  // perjalanan karyawan.
+  const points: LocationPointInput[] = locations
+    .filter((l) => l.coords.accuracy == null || l.coords.accuracy <= MAX_ACCURACY_M)
+    .sort((a, b) => a.timestamp - b.timestamp)
+    .slice(-MAX_POINTS_PER_REQUEST)
+    .map((l) => ({
+      latitude: l.coords.latitude,
+      longitude: l.coords.longitude,
+      accuracyMeters:
+        l.coords.accuracy != null && l.coords.accuracy > 0 ? l.coords.accuracy : undefined,
+      // Android saja: menandai aplikasi fake GPS agar admin tidak tertipu
+      isMocked: l.mocked === true,
+      recordedAt: new Date(l.timestamp).toISOString(),
+    }));
+
+  if (points.length === 0) return;
 
   try {
     await api('/api/locations', {
       method: 'POST',
-      body: JSON.stringify({
-        latitude: latest.coords.latitude,
-        longitude: latest.coords.longitude,
-        accuracyMeters:
-          latest.coords.accuracy != null && latest.coords.accuracy > 0
-            ? latest.coords.accuracy
-            : undefined,
-      }),
+      body: JSON.stringify({ points }),
     });
   } catch (err) {
     // Sudah pulang / session habis → hentikan tracking (hemat baterai & privasi)
@@ -70,19 +89,25 @@ async function startUpdates(): Promise<void> {
     // Balanced = ~100m via WiFi/seluler, GPS chip jarang menyala (jauh lebih
     // hemat & dingin dari High). Cukup untuk memantau "masih di lokasi kerja".
     accuracy: Location.Accuracy.Balanced,
-    timeInterval: 30_000,
-    distanceInterval: 25, // di bawah ini = jitter GPS saat diam, tak perlu dikirim
+
+    // KUNCI HEARTBEAT (timeInterval hanya berlaku di Android): distanceInterval
+    // 0 = tanpa filter jarak, jadi fix tetap datang walau karyawan diam total.
+    // Nilai 25 yang lama justru MEMBUNUH heartbeat — HP diam berarti nol update,
+    // server kehilangan jejak, dan marker di live map dianggap kedaluwarsa.
+    timeInterval: 60_000,
+    distanceInterval: 0,
 
     // Kunci hemat baterai & anti-panas: saat aplikasi di background, Android
-    // MENGUMPULKAN posisi lalu mengirimnya sekaligus tiap ~60 dtk. Radio
-    // GPS/seluler bisa tidur di antaranya — panas berasal dari radio yang tak
-    // pernah sleep, bukan sekadar seberapa sering update.
-    deferredUpdatesInterval: 60_000,
-    deferredUpdatesDistance: 40,
+    // MENGUMPULKAN posisi lalu mengirimnya sekaligus tiap ~5 menit. Radio
+    // jaringan hanya bangun ~12x/jam, bukan 60x/jam — panas berasal dari radio
+    // yang tak pernah sleep, bukan sekadar seberapa sering fix diambil.
+    // Batch inilah yang sekarang dikirim utuh sebagai jejak perjalanan.
+    deferredUpdatesInterval: 300_000,
+    deferredUpdatesDistance: 200,
 
-    // iOS: jeda otomatis saat pengguna diam (posisi toh tak berubah), lanjut
-    // saat bergerak — hemat baterai tanpa kehilangan info berarti.
-    pausesUpdatesAutomatically: true,
+    // iOS: WAJIB false. Jeda otomatis menghentikan update saat pengguna diam —
+    // persis kebalikan dari heartbeat "masih di lokasi ini" yang kita butuhkan.
+    pausesUpdatesAutomatically: false,
     activityType: Location.ActivityType.Other,
 
     showsBackgroundLocationIndicator: true,

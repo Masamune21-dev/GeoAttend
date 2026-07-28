@@ -135,6 +135,42 @@ Set `BETTER_AUTH_URL` ke URL HTTPS final — cookie `__Secure-` menuntut HTTPS d
 
 - **Health check**: `GET /api/health` → pasang di Uptime Kuma (interval 30–60 detik)
 - **Backup harian** (cron): `pg_dump` + rsync/tar folder `uploads/` → simpan keluar host; vzdump LXC/VM mingguan dari Proxmox
+- **Pembersih jejak lokasi** (wajib, retensi 90 hari) — tanpa ini tabel `location_trails` tumbuh terus:
+
+  ```bash
+  cat > /etc/systemd/system/geoattend-cleanup-trails.service <<'EOF'
+  [Unit]
+  Description=GeoAttend - pembersih jejak lokasi (retensi 90 hari)
+  After=network.target postgresql.service
+
+  [Service]
+  Type=oneshot
+  WorkingDirectory=/opt/geoattend
+  Environment=NODE_ENV=production
+  EnvironmentFile=-/opt/geoattend/.env.production
+  ExecStart=/usr/bin/npm run db:cleanup-trails
+  EOF
+
+  cat > /etc/systemd/system/geoattend-cleanup-trails.timer <<'EOF'
+  [Unit]
+  Description=Jalankan pembersih jejak lokasi tiap hari 03:15
+
+  [Timer]
+  OnCalendar=*-*-* 03:15:00
+  Persistent=true
+
+  [Install]
+  WantedBy=timers.target
+  EOF
+
+  systemctl daemon-reload
+  systemctl enable --now geoattend-cleanup-trails.timer
+  systemctl list-timers | grep geoattend        # cek jadwal berikutnya
+  journalctl -u geoattend-cleanup-trails -n 20  # cek hasil
+  ```
+
+  Docker: `15 3 * * * docker compose -f /opt/geoattend/docker-compose.yml exec -T app npm run db:cleanup-trails`.
+  Catatan: `tsx` ada di devDependencies — deployment harus memakai `npm ci` (bukan `--omit=dev`), atau ganti `ExecStart` menjadi `npx tsx scripts/cleanup-trails.ts`.
 - **Update aplikasi**: `git pull && npm ci && npm run db:migrate && npm run build && systemctl restart geoattend` (atau rebuild image Docker). Migrasi bersifat additive sehingga aman dijalankan sebelum restart
 - **Rollback**: checkout tag sebelumnya + restart; DB tidak perlu di-rollback (migrasi additive)
 - **Log**: `journalctl -u geoattend -f` (native) atau `docker logs -f geoattend-app`
@@ -148,4 +184,5 @@ Set `BETTER_AUTH_URL` ke URL HTTPS final — cookie `__Secure-` menuntut HTTPS d
 - [ ] Kode pendaftaran dibuat di Pengaturan → General (atau biarkan kosong untuk menutup pendaftaran mandiri)
 - [ ] Uji dari HP: kamera + GPS + absen + live tracking
 - [ ] Backup otomatis DB + uploads terjadwal
+- [ ] Timer pembersih jejak lokasi aktif (`systemctl list-timers | grep geoattend`)
 - [ ] Uptime monitor ke `/api/health`

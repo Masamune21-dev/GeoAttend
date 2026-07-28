@@ -196,22 +196,36 @@ dibatalkan) — hanya diperlukan bila server bukan default.
 
 Dua sumber panas diperbaiki (commit `f8259ba`):
 
-**Tracking background** — opsi `startLocationUpdatesAsync`:
+**Tracking background** — opsi `startLocationUpdatesAsync` (disetel ulang di v1.6.0):
 - `accuracy: Balanced` (~100 m via WiFi/seluler, GPS jarang menyala).
-- `timeInterval: 30_000`, `distanceInterval: 25` (abaikan jitter GPS saat diam).
-- **`deferredUpdatesInterval: 60_000`** — kunci hemat baterai: Android membatch
-  posisi lalu mengirim sekaligus tiap ~60 dtk, membiarkan radio tidur di antaranya.
-  Panas berasal dari radio yang tak pernah *sleep*, bukan sekadar frekuensi update.
-- `pausesUpdatesAutomatically` + `activityType` untuk iOS (jeda saat diam).
+- `timeInterval: 60_000`, **`distanceInterval: 0`** — tanpa filter jarak, sehingga
+  fix tetap datang walau karyawan diam total. Nilai lama (`25`) justru membuat HP
+  yang diam berhenti melapor sama sekali: server kehilangan jejak dan marker di
+  peta admin dianggap kedaluwarsa.
+- **`deferredUpdatesInterval: 300_000`** (+ `deferredUpdatesDistance: 200`) — kunci
+  hemat baterai: Android membatch posisi lalu mengirim sekaligus tiap ~5 menit,
+  membiarkan radio tidur di antaranya. Panas berasal dari radio yang tak pernah
+  *sleep*, bukan sekadar frekuensi fix. Efeknya heartbeat posisi ≈ 5 menit.
+- **`pausesUpdatesAutomatically: false`** (iOS) — jeda otomatis menghentikan update
+  saat pengguna diam, persis kebalikan dari heartbeat yang dibutuhkan.
+- **Seluruh batch dikirim** ke `POST /api/locations` sebagai `{ points: [...] }`
+  (maks 60/request), bukan hanya titik terakhir. Titik-titik itulah yang menjadi
+  jejak perjalanan di fitur Riwayat Lokasi. `LocationObject.mocked` ikut dikirim
+  sebagai `isMocked` untuk menandai aplikasi fake GPS (Android).
 
 **GPS foreground** ([CheckInScreen](../mobile/src/screens/CheckInScreen.tsx)) —
 `watchPositionAsync` akurasi tinggi hanya aktif saat layar Absen **fokus**
 (`useIsFocused`). Tanpa ini, tab bawah menjaga layar tetap mounted sehingga GPS
 menyala terus walau pengguna di tab lain. Cadence 10 dtk.
 
-> Kompromi: posisi di peta live admin paling lambat ~60 dtk (dari ~20 dtk). Untuk
-> memantau "masih di lokasi kerja" ini memadai. Turunkan angka interval bila perlu
-> lebih real-time.
+> Kompromi: posisi di peta live admin paling lambat ~5 menit — karena itu ambang
+> "live" di web (`LIVE_FRESHNESS_MS`) adalah 6 menit. Bila admin butuh lebih
+> real-time, turunkan `deferredUpdatesInterval` ke `120_000` dan `LIVE_FRESHNESS_MS`
+> ke 3 menit, dengan konsekuensi ~2,5× lebih banyak wakeup radio.
+>
+> Bila ada keluhan panas setelah v1.6.0, tombol mundurnya adalah menaikkan
+> `timeInterval` ke `120_000` — heartbeat tetap 5 menit karena ditentukan
+> `deferredUpdatesInterval`, hanya jejak saat berkendara yang jadi lebih kasar.
 
 ---
 

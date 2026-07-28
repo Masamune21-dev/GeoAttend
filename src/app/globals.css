@@ -77,6 +77,29 @@ body {
   animation: geoattend-pulse 2s ease-out infinite;
 }
 
+/* Posisi terakhir diketahui (app tertutup / karyawan diam): abu-abu, diam */
+.geoattend-marker--stale {
+  background: #94a3b8;
+  border-style: dashed;
+}
+
+/* Di luar area menang atas warna live/stale — aturan ini HARUS berada setelah
+   keduanya, karena specificity-nya sama dan yang terakhir yang dipakai. */
+.geoattend-marker--outside,
+.geoattend-marker--live.geoattend-marker--outside,
+.geoattend-marker--stale.geoattend-marker--outside {
+  background: var(--destructive);
+}
+
+/* Marker titik absen masuk & pulang pada peta riwayat lokasi */
+.geoattend-marker--start {
+  background: var(--success);
+}
+
+.geoattend-marker--end {
+  background: var(--destructive);
+}
+
 @keyframes geoattend-pulse {
   0% {
     box-shadow:

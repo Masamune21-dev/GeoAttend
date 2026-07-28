@@ -7,7 +7,8 @@ import { Eye, EyeOff, Radio, Users } from 'lucide-react';
 import { useAttendanceList, useGeofence, useLiveLocations } from '@/hooks/useAttendance';
 import type { AttendanceRecordResponse } from '@/types/api';
 import type { LiveMarkerData } from '@/components/features/map/LiveMap';
-import { LIVE_MAP_POLL_INTERVAL } from '@/lib/constants';
+import { haversineDistance } from '@/lib/geo/distance';
+import { LIVE_FRESHNESS_MS, LIVE_MAP_POLL_INTERVAL } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -16,9 +17,6 @@ const LiveMap = dynamic(() => import('@/components/features/map/LiveMap'), {
   ssr: false,
   loading: () => <Skeleton className="h-full w-full" />,
 });
-
-/** Posisi live dianggap segar bila update terakhir < 90 detik lalu. */
-const LIVE_FRESHNESS_MS = 90_000;
 
 export default function LiveMapPage() {
   const [showGeofence, setShowGeofence] = useState(true);
@@ -45,29 +43,48 @@ export default function LiveMapPage() {
     return Array.from(latestByUser.values()).filter((r) => r.type === 'clock_in');
   }, [records]);
 
-  // Gabungkan dengan posisi live: bila ada update segar, marker pindah
-  // ke posisi terkini karyawan (pelacakan lapangan); bila tidak, tampilkan
-  // posisi terakhir yang diketahui (saat absen).
+  // Gabungkan dengan posisi live. Posisi live yang KEDALUWARSA tetap dipakai —
+  // karyawan yang berhenti bergerak berhenti mengirim update, dan titik
+  // terakhirnya jauh lebih benar daripada titik absen. Yang berubah hanya
+  // labelnya ('stale'), bukan koordinatnya. Titik absen hanya dipakai bila
+  // karyawan belum pernah mengirim posisi live sama sekali.
   const markers = useMemo<LiveMarkerData[]>(() => {
     const liveByUser = new Map((liveData?.data ?? []).map((l) => [l.userId, l]));
     const now = Date.now();
     return presentRecords.map((record) => {
       const live = liveByUser.get(record.userId);
-      const isFresh =
-        live !== undefined && now - new Date(live.updatedAt).getTime() < LIVE_FRESHNESS_MS;
-      if (!isFresh) return record;
+      if (!live) return { ...record, positionSource: 'attendance' as const };
+
+      const isFresh = now - new Date(live.updatedAt).getTime() < LIVE_FRESHNESS_MS;
+      const distance = geofence
+        ? haversineDistance(
+            live.latitude,
+            live.longitude,
+            geofence.latitude,
+            geofence.longitude
+          )
+        : record.distanceFromCenter;
+
       return {
         ...record,
         latitude: live.latitude,
         longitude: live.longitude,
-        isLive: true,
+        accuracyMeters: live.accuracyMeters,
+        // Dihitung ulang dari posisi live: karyawan yang absen di kantor lalu
+        // pergi ke lapangan harus terhitung "luar area", bukan tetap "dalam area".
+        isWithinGeofence: geofence
+          ? distance <= geofence.radiusMeters
+          : record.isWithinGeofence,
+        distanceFromCenter: distance,
+        positionSource: isFresh ? ('live' as const) : ('stale' as const),
         lastUpdate: live.updatedAt,
       };
     });
-  }, [presentRecords, liveData]);
+  }, [presentRecords, liveData, geofence]);
 
-  const liveCount = markers.filter((m) => m.isLive).length;
-  const withinCount = presentRecords.filter((r) => r.isWithinGeofence).length;
+  const liveCount = markers.filter((m) => m.positionSource === 'live').length;
+  const staleCount = markers.filter((m) => m.positionSource === 'stale').length;
+  const withinCount = markers.filter((m) => m.isWithinGeofence).length;
 
   return (
     <div className="flex h-[calc(100dvh-160px)] flex-col gap-3 md:h-[calc(100dvh-120px)]">
@@ -80,9 +97,10 @@ export default function LiveMapPage() {
           <Radio className="h-3 w-3" aria-hidden="true" />
           {liveCount} live
         </Badge>
+        {staleCount > 0 && <Badge variant="secondary">{staleCount} terakhir diketahui</Badge>}
         <Badge variant="success">{withinCount} dalam area</Badge>
-        {presentRecords.length - withinCount > 0 && (
-          <Badge variant="destructive">{presentRecords.length - withinCount} luar area</Badge>
+        {markers.length - withinCount > 0 && (
+          <Badge variant="destructive">{markers.length - withinCount} luar area</Badge>
         )}
         <Badge variant="secondary">{records.length} total absensi hari ini</Badge>
         <Button
@@ -122,14 +140,18 @@ export default function LiveMapPage() {
       <div className="flex flex-wrap gap-4 text-xs text-text-secondary">
         <span className="flex items-center gap-1.5">
           <span className="h-3 w-3 rounded-full bg-green-600" /> Live — posisi terkini
-          (update ≤ 90 detik)
+          (update ≤ {Math.round(LIVE_FRESHNESS_MS / 60_000)} menit)
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-full bg-primary" /> Posisi saat absen (app
-          karyawan tertutup)
+          <span className="h-3 w-3 rounded-full bg-slate-400" /> Posisi terakhir diketahui
+          (app tertutup / sinyal hilang)
         </span>
         <span className="flex items-center gap-1.5">
-          <span className="h-3 w-3 rounded-full bg-destructive" /> Absen di luar area
+          <span className="h-3 w-3 rounded-full bg-primary" /> Posisi saat absen (belum
+          pernah melapor)
+        </span>
+        <span className="flex items-center gap-1.5">
+          <span className="h-3 w-3 rounded-full bg-destructive" /> Di luar area
         </span>
       </div>
     </div>

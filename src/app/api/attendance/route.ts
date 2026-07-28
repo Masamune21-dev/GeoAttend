@@ -7,41 +7,14 @@ import {
   isAdmin,
   unauthorizedResponse,
 } from '@/lib/auth/utils';
-import { CreateAttendanceSchema, type AttendanceRecordResponse } from '@/types/api';
+import { CreateAttendanceSchema } from '@/types/api';
 import { checkGeofence } from '@/lib/geo/validation';
 import { pickShift } from '@/lib/shifts/calc';
 import { OPEN_SESSION_WINDOW_HOURS } from '@/lib/constants';
 import { saveAttendancePhoto, StorageError } from '@/lib/storage/local-fs';
+import { toAttendanceResponse as toResponse } from '@/lib/attendance/serialize';
 
 export const dynamic = 'force-dynamic';
-
-type AttendanceRow = {
-  record: typeof attendanceRecords.$inferSelect;
-  userName: string | null;
-  userImage: string | null;
-  geofenceName: string | null;
-};
-
-function toResponse(row: AttendanceRow): AttendanceRecordResponse {
-  const { record } = row;
-  return {
-    id: record.id,
-    userId: record.userId,
-    userName: row.userName ?? 'Pengguna terhapus',
-    userAvatar: row.userImage,
-    type: record.type as 'clock_in' | 'clock_out',
-    shiftNumber: record.shiftNumber,
-    timestamp: record.timestamp.toISOString(),
-    latitude: Number(record.latitude),
-    longitude: Number(record.longitude),
-    accuracyMeters: record.accuracyMeters ? Number(record.accuracyMeters) : null,
-    photoUrl: record.photoUrl,
-    isWithinGeofence: record.isWithinGeofence,
-    distanceFromCenter: record.distanceFromCenter ? Number(record.distanceFromCenter) : 0,
-    geofenceName: row.geofenceName,
-    notes: record.notes,
-  };
-}
 
 /**
  * GET /api/attendance

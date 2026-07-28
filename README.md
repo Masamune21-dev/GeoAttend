@@ -8,7 +8,7 @@ Aplikasi absensi berbasis web & native mobile dengan **verifikasi geofence GPS**
 
 ## 🚀 Fitur Utama
 
-### 📱 Aplikasi Mobile Native (Android - v1.5.0)
+### 📱 Aplikasi Mobile Native (Android - v1.6.0)
 - 📸 **Check-in/out Foto & GPS** — Ambil bukti foto langsung via kamera perangkat & verifikasi jarak geofence.
 - 🛰️ **Pelacakan Posisi Background (Live Tracking)** — Melacak lokasi karyawan secara otomatis di background (menggunakan `expo-task-manager` & foreground service) walau layar HP mati/tersimpan di saku selama jam kerja.
 - ⚙️ **Pengaturan Server Dinamis** — URL server backend bisa disesuaikan langsung di layar login aplikasi tanpa perlu re-build APK.
@@ -21,7 +21,8 @@ Aplikasi absensi berbasis web & native mobile dengan **verifikasi geofence GPS**
 - 📊 **Rekap Bulanan & Ekspor** — Laporan absensi lengkap karyawan per bulan, dengan dukungan ekspor CSV & PDF.
 - 🏖️ **Izin & Libur** — Pengajuan Sakit/Izin/Cuti dengan workflow persetujuan admin & fitur mandiri tandai libur.
 - 🎫 **Kode Pendaftaran** — Keamanan pendaftaran akun baru wajib menggunakan kode registrasi dari administrator.
-- 🗺️ **Peta Live Admin** — Pemantauan lokasi seluruh karyawan aktif secara real-time di peta interaktif Leaflet.
+- 🗺️ **Peta Live Admin** — Pemantauan lokasi seluruh karyawan aktif secara real-time di peta interaktif Leaflet. Marker terkunci di posisi terakhir yang diketahui saat karyawan berhenti bergerak — tidak pernah mundur ke titik absen.
+- 🧭 **Riwayat Lokasi Harian** — Dari rekap bulanan, admin bisa membuka rute perjalanan karyawan per hari (ala Google Maps Timeline): jalur tempuh, titik berhenti beserta durasinya, total jarak, plus foto absen masuk & pulang. Retensi 90 hari, otomatis dibersihkan.
 - 🔐 **Keamanan & Auth** — Better Auth, HTTP-only cookie, session sliding, CSP & proteksi CSRF domain proxy.
 
 ---

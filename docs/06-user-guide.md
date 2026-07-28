@@ -61,13 +61,14 @@ Email login hanya bisa diubah oleh administrator.
 
 ### Harian
 - **Overview**: ringkasan hadir hari ini + absensi terbaru
-- **Peta Live**: pantau posisi karyawan — hijau berdenyut = posisi terkini (live), biru = posisi saat absen (app karyawan tertutup), merah = absen di luar area. Klik marker untuk foto & jam. Data diperbarui otomatis (10–30 detik)
+- **Peta Live**: pantau posisi karyawan — hijau berdenyut = posisi terkini (live), **abu-abu = posisi terakhir yang diketahui** (karyawan berhenti bergerak atau sinyal hilang; marker tetap di tempat terakhir, tidak kembali ke titik absen), biru = belum pernah melapor sehingga dipakai posisi saat absen, merah = sedang di luar area. Klik marker untuk foto & jam. Data diperbarui otomatis (10–30 detik)
 - **Persetujuan Izin**: cek tab **Menunggu** — **Setujui** atau **Tolak** (bisa beri catatan alasan) pengajuan sakit/izin/cuti. Penanda libur karyawan tercatat otomatis tanpa persetujuan
 
 ### Bulanan (payroll)
 1. **Rekap Bulanan** → pilih bulan (dan karyawan tertentu bila perlu)
 2. Periksa tabel ringkasan (hari hadir, sakit/izin/cuti/libur, total telat, total lembur, total pulang cepat) dan detail harian — satu baris per shift; kolom **Keterangan** membedakan Hadir/Sakit/Izin/Cuti/Libur
-3. **PDF** untuk arsip/tanda tangan, **CSV** untuk olah di Excel
+3. **Riwayat lokasi**: pada tabel Detail Harian, klik tombol **Riwayat** di kolom Aksi untuk melihat ke mana saja karyawan pergi hari itu — rute perjalanan di peta, titik berhenti beserta lamanya, total jarak tempuh, dan foto absen masuk & pulang berdampingan. Tersedia untuk baris kehadiran (bukan izin/libur) dan tersimpan sampai 90 hari ke belakang
+4. **PDF** untuk arsip/tanda tangan, **CSV** untuk olah di Excel (kolom Aksi tidak ikut terekspor)
 
 > **Catatan pulang cepat:** lembur karena datang lebih awal TIDAK menutupi
 > kekurangan jam karena pulang lebih cepat — keduanya tampil terpisah agar

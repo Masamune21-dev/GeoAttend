@@ -14,7 +14,9 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:seed": "tsx scripts/seed.ts",
-    "db:seed-stock": "tsx scripts/seed-stock.ts"
+    "db:seed-stock": "tsx scripts/seed-stock.ts",
+    "db:cleanup-trails": "tsx scripts/cleanup-trails.ts",
+    "db:seed-trail": "tsx scripts/seed-trail.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.59.0",

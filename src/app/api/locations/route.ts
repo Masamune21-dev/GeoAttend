@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { and, desc, eq, gte } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { attendanceRecords, liveLocations, user } from '@/lib/db/schema';
+import { attendanceRecords, liveLocations, locationTrails, user } from '@/lib/db/schema';
 import {
   getApiSession,
   isAdmin,
@@ -9,12 +9,28 @@ import {
   forbiddenResponse,
 } from '@/lib/auth/utils';
 import { UpdateLocationSchema } from '@/types/api';
+import { haversineDistance } from '@/lib/geo/distance';
+import {
+  OPEN_SESSION_WINDOW_HOURS,
+  TRAIL_MAX_ACCURACY_M,
+  TRAIL_MIN_DISTANCE_M,
+  TRAIL_MIN_INTERVAL_MS,
+} from '@/lib/constants';
 
 export const dynamic = 'force-dynamic';
 
+/** Toleransi jam perangkat yang berjalan lebih cepat dari server (ms). */
+const CLOCK_SKEW_TOLERANCE_MS = 120_000;
+
 /**
- * POST /api/locations — karyawan mengirim posisi live miliknya.
- * Hanya diterima bila status hari ini masih clock-in (sedang hadir).
+ * POST /api/locations — karyawan mengirim posisi miliknya.
+ *
+ * Menerima dua bentuk payload (lihat UpdateLocationSchema): satu titik
+ * (app lama) atau batch `points` (app ≥ 1.6.0). Titik yang lolos saringan
+ * anti-jitter disimpan sebagai jejak (location_trails), dan titik terakhir
+ * selalu memperbarui posisi live.
+ *
+ * Hanya diterima bila pengguna sedang dalam sesi kerja terbuka.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -35,22 +51,27 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // Hanya lacak pengguna yang sedang hadir (record terakhir hari ini = clock_in)
-    const startOfDay = new Date();
-    startOfDay.setHours(0, 0, 0, 0);
-    const lastToday = await db
-      .select({ type: attendanceRecords.type })
+    // Hanya lacak pengguna yang sedang hadir. Memakai JENDELA BERGULIR, bukan
+    // "sejak tengah malam": sesi kerja bisa menembus tengah malam (Shift 2
+    // masuk 22:00 pulang 02:00), dan dengan startOfDay pelacakannya mati tepat
+    // pukul 00:00 karena clock-in-nya terhitung "kemarin".
+    const sessionWindowStart = new Date(
+      Date.now() - OPEN_SESSION_WINDOW_HOURS * 60 * 60 * 1000
+    );
+    const lastRecords = await db
+      .select({ type: attendanceRecords.type, timestamp: attendanceRecords.timestamp })
       .from(attendanceRecords)
       .where(
         and(
           eq(attendanceRecords.userId, session.user.id),
-          gte(attendanceRecords.timestamp, startOfDay)
+          gte(attendanceRecords.timestamp, sessionWindowStart)
         )
       )
       .orderBy(desc(attendanceRecords.timestamp))
       .limit(1);
 
-    if (lastToday[0]?.type !== 'clock_in') {
+    const openSession = lastRecords[0];
+    if (openSession?.type !== 'clock_in') {
       return NextResponse.json(
         {
           code: 'NOT_CLOCKED_IN',
@@ -62,26 +83,123 @@ export async function POST(req: NextRequest) {
     }
 
     const input = parsed.data;
+    const now = Date.now();
+
+    // Payload lama dibungkus jadi batch satu titik dengan waktu terima server.
+    const incoming = input.points ?? [
+      {
+        latitude: input.latitude!,
+        longitude: input.longitude!,
+        accuracyMeters: input.accuracyMeters,
+        isMocked: undefined,
+        recordedAt: new Date().toISOString(),
+      },
+    ];
+
+    const points = incoming
+      .map((p) => ({ ...p, at: new Date(p.recordedAt) }))
+      .filter(
+        (p) =>
+          !Number.isNaN(p.at.getTime()) &&
+          // Jam perangkat bisa salah atau dimanipulasi: tolak titik dari masa
+          // depan dan titik yang mendahului absen masuk sesi ini.
+          p.at.getTime() <= now + CLOCK_SKEW_TOLERANCE_MS &&
+          p.at.getTime() >= openSession.timestamp.getTime() &&
+          (p.accuracyMeters == null || p.accuracyMeters <= TRAIL_MAX_ACCURACY_M)
+      )
+      .sort((a, b) => a.at.getTime() - b.at.getTime());
+
+    if (points.length === 0) {
+      return NextResponse.json({ success: true, received: 0, stored: 0 });
+    }
+
+    // Titik acuan diambil dari database, bukan hanya dari batch ini, agar
+    // saringan anti-jitter tetap bekerja lintas pengiriman.
+    const [lastTrail] = await db
+      .select({
+        latitude: locationTrails.latitude,
+        longitude: locationTrails.longitude,
+        recordedAt: locationTrails.recordedAt,
+      })
+      .from(locationTrails)
+      .where(
+        and(
+          eq(locationTrails.userId, session.user.id),
+          gte(locationTrails.recordedAt, openSession.timestamp)
+        )
+      )
+      .orderBy(desc(locationTrails.recordedAt))
+      .limit(1);
+
+    let previous = lastTrail
+      ? {
+          latitude: Number(lastTrail.latitude),
+          longitude: Number(lastTrail.longitude),
+          time: lastTrail.recordedAt.getTime(),
+        }
+      : null;
+
+    const toInsert: (typeof locationTrails.$inferInsert)[] = [];
+    for (const p of points) {
+      if (previous) {
+        const moved = haversineDistance(
+          previous.latitude,
+          previous.longitude,
+          p.latitude,
+          p.longitude
+        );
+        // Perpindahan lebih kecil dari setengah radius akurasi tidak bisa
+        // dibedakan dari derau GPS. Titik tetap disimpan bila sudah lewat
+        // TRAIL_MIN_INTERVAL_MS — itulah heartbeat "masih di sini" yang
+        // kemudian membentuk titik berhenti pada peta riwayat.
+        const noiseFloor = Math.max(TRAIL_MIN_DISTANCE_M, (p.accuracyMeters ?? 0) / 2);
+        const elapsed = p.at.getTime() - previous.time;
+        if (moved < noiseFloor && elapsed < TRAIL_MIN_INTERVAL_MS) continue;
+      }
+
+      toInsert.push({
+        userId: session.user.id,
+        recordedAt: p.at,
+        latitude: String(p.latitude),
+        longitude: String(p.longitude),
+        accuracyMeters: p.accuracyMeters != null ? String(p.accuracyMeters) : null,
+        isMocked: p.isMocked ?? false,
+      });
+      previous = { latitude: p.latitude, longitude: p.longitude, time: p.at.getTime() };
+    }
+
+    let stored = 0;
+    if (toInsert.length > 0) {
+      const inserted = await db
+        .insert(locationTrails)
+        .values(toInsert)
+        // Idempoten: batch yang dikirim ulang setelah timeout jaringan tidak
+        // menghasilkan titik ganda.
+        .onConflictDoNothing({
+          target: [locationTrails.userId, locationTrails.recordedAt],
+        })
+        // returning() hanya mengembalikan baris yang BENAR-BENAR masuk, jadi
+        // angka `stored` tetap jujur saat batch dikirim ulang.
+        .returning({ id: locationTrails.id });
+      stored = inserted.length;
+    }
+
+    // Posisi live SELALU diperbarui dari titik terakhir batch, walau semua
+    // titik tersaring (karyawan diam): updatedAt harus maju agar marker di
+    // live map tetap berstatus "live", bukan "terakhir diketahui".
+    const latest = points[points.length - 1];
+    const liveValues = {
+      latitude: String(latest.latitude),
+      longitude: String(latest.longitude),
+      accuracyMeters: latest.accuracyMeters != null ? String(latest.accuracyMeters) : null,
+      updatedAt: new Date(),
+    };
     await db
       .insert(liveLocations)
-      .values({
-        userId: session.user.id,
-        latitude: String(input.latitude),
-        longitude: String(input.longitude),
-        accuracyMeters: input.accuracyMeters != null ? String(input.accuracyMeters) : null,
-        updatedAt: new Date(),
-      })
-      .onConflictDoUpdate({
-        target: liveLocations.userId,
-        set: {
-          latitude: String(input.latitude),
-          longitude: String(input.longitude),
-          accuracyMeters: input.accuracyMeters != null ? String(input.accuracyMeters) : null,
-          updatedAt: new Date(),
-        },
-      });
+      .values({ userId: session.user.id, ...liveValues })
+      .onConflictDoUpdate({ target: liveLocations.userId, set: liveValues });
 
-    return NextResponse.json({ success: true });
+    return NextResponse.json({ success: true, received: points.length, stored });
   } catch (error) {
     console.error('POST /api/locations error:', error);
     return NextResponse.json(

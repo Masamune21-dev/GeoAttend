@@ -138,6 +138,46 @@ export const liveLocations = pgTable('live_locations', {
 });
 
 /**
+ * Jejak lokasi (histori) selama sesi kerja — sumber data dialog "Riwayat
+ * Lokasi" di rekap bulanan. Beda dari {@link liveLocations} yang hanya
+ * menyimpan SATU posisi terkini per user: tabel ini append-only, satu baris
+ * per titik GPS yang lolos saringan anti-jitter (lihat POST /api/locations).
+ *
+ * Data OPERASIONAL, bukan data absensi resmi: sengaja TIDAK ikut backup, dan
+ * dibersihkan otomatis setelah TRAIL_RETENTION_DAYS hari lewat
+ * scripts/cleanup-trails.ts.
+ */
+export const locationTrails = pgTable(
+  'location_trails',
+  {
+    id: uuid('id').defaultRandom().primaryKey(),
+    userId: text('user_id')
+      .references(() => user.id, { onDelete: 'cascade' })
+      .notNull(),
+    /** Waktu fix GPS DI PERANGKAT (bukan waktu terima server) */
+    recordedAt: timestamp('recorded_at').notNull(),
+    latitude: numeric('latitude', { precision: 10, scale: 7 }).notNull(),
+    longitude: numeric('longitude', { precision: 10, scale: 7 }).notNull(),
+    accuracyMeters: numeric('accuracy_meters', { precision: 6, scale: 2 }),
+    /** true bila perangkat melaporkan lokasi palsu (Android: LocationObject.mocked) */
+    isMocked: boolean('is_mocked').default(false).notNull(),
+    /** Waktu terima server — pembanding audit bila jam perangkat dimanipulasi */
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    // Kueri utama (jejak satu user dalam rentang sesi) SEKALIGUS kunci dedup:
+    // batch yang dikirim ulang setelah gagal jaringan diabaikan lewat
+    // onConflictDoNothing, jadi pengiriman ulang aman.
+    userRecordedIdx: uniqueIndex('location_trails_user_recorded_idx').on(
+      table.userId,
+      table.recordedAt
+    ),
+    // Dipakai pembersih retensi (DELETE ... WHERE recorded_at < cutoff)
+    recordedIdx: index('location_trails_recorded_idx').on(table.recordedAt),
+  })
+);
+
+/**
  * Pengajuan izin (sakit/izin/cuti — perlu persetujuan administrator)
  * dan penanda libur (self-service dari halaman absensi, langsung approved).
  * Tanggal disimpan sebagai string "yyyy-MM-dd" (tanggal lokal, konsisten

@@ -109,16 +109,29 @@ Jenis: **Sakit**, **Izin**, **Cuti** (perlu persetujuan), dan **Libur** (self-se
 
 ## Pelacakan Posisi Live
 
-- Aktif **hanya** selama status hadir (clock-in tanpa clock-out) — server menolak kiriman di luar itu (`NOT_CLOCKED_IN`)
-- Client mengirim posisi tiap **20 detik**; peta admin polling tiap **10 detik**
-- Posisi dianggap **LIVE** bila update terakhir < **90 detik** (marker hijau berdenyut); lebih dari itu marker kembali biru di posisi terakhir yang diketahui
-- Saat clock-out, baris posisi **dihapus** — karyawan tidak terlacak di luar jam kerja
+- Aktif **hanya** selama status hadir (clock-in tanpa clock-out) — server menolak kiriman di luar itu (`NOT_CLOCKED_IN`). Pengecekannya memakai jendela bergulir **18 jam**, bukan "sejak tengah malam", sehingga shift lintas tengah malam tetap terlacak setelah pukul 00:00
+- Web mengirim posisi tiap **20 detik**; app mobile mengirim per batch ~**5 menit** (termasuk saat karyawan diam — heartbeat); peta admin polling tiap **10 detik**
+- Posisi dianggap **LIVE** bila update terakhir < **6 menit** (marker hijau berdenyut)
+- Bila kedaluwarsa, marker **tetap di posisi terakhir yang diketahui** (abu-abu, "terakhir terlihat HH:mm") — **tidak** kembali ke titik absen. Titik absen hanya dipakai bila karyawan belum pernah mengirim posisi sama sekali (app belum terpasang / izin ditolak)
+- Status "dalam/luar area" dihitung dari posisi yang sedang ditampilkan, bukan dari titik absen — karyawan yang absen di kantor lalu pergi ke lapangan terhitung "luar area"
+- Saat clock-out, baris posisi live **dihapus** — karyawan tidak terlacak di luar jam kerja
 - **Batasan web**: browser hanya mengirim GPS saat tab/app terbuka dan layar aktif. Pelacakan background penuh memerlukan aplikasi mobile native (lihat [07 — Integrasi Mobile](07-mobile-integration.md))
+
+## Riwayat Lokasi (Jejak Perjalanan)
+
+- Setiap titik yang dikirim selama sesi kerja disimpan sebagai **jejak** (`location_trails`), berbeda dari posisi live yang hanya menyimpan satu titik terakhir
+- Titik disimpan bila bergerak ≥ **25 m** (atau ≥ setengah radius akurasi GPS) **atau** sudah ≥ **60 detik** sejak titik sebelumnya; fix dengan akurasi > 150 m dibuang
+- Dilihat administrator dari **Rekap Bulanan → Detail Harian → tombol Riwayat**: rute perjalanan, titik berhenti, jarak tempuh, serta foto absen masuk & pulang dalam satu dialog
+- Rentang jejak mengikuti **sesi kerja** (clock-in → clock-out), sehingga shift lintas tengah malam tampil utuh sebagai satu perjalanan
+- **Titik berhenti** dideteksi otomatis: rentetan titik dalam radius **100 m** yang berlangsung ≥ **10 menit**
+- Titik yang ditandai `is_mocked` (aplikasi fake GPS terdeteksi di Android) diberi peringatan di dialog
+- **Retensi 90 hari**, lalu dihapus otomatis. Jejak tidak ikut backup dan tidak pernah muncul di ekspor CSV/PDF rekap
 
 ## Privasi & Keamanan Data
 
 - Foto absensi/avatar hanya bisa diakses pengguna login (endpoint terautentikasi)
 - Posisi live hanya bisa dilihat administrator dan terhapus setelah pulang
+- Riwayat jejak lokasi juga **administrator saja** (endpoint menolak karyawan dengan 403), terhapus otomatis setelah 90 hari, dan tidak ikut file backup
 - Password di-hash scrypt (Better Auth); tidak pernah tercatat di log
 - Karyawan hanya bisa membaca record miliknya sendiri (dipaksa server-side)
 - Saran kebijakan: informasikan karyawan bahwa posisi dilacak selama jam kerja (persetujuan tertulis), dan terapkan retensi foto (mis. hapus > 90 hari) sesuai kebutuhan payroll

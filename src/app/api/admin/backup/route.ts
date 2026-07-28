@@ -22,7 +22,10 @@ export const dynamic = 'force-dynamic';
 /**
  * GET /api/admin/backup — ekspor seluruh data aplikasi sebagai JSON.
  * Catatan: file foto (uploads/) TIDAK termasuk — backup folder tersebut terpisah.
- * Session & verifikasi sengaja tidak diekspor (ephemeral).
+ * Session & verifikasi sengaja tidak diekspor (ephemeral). Jejak lokasi
+ * (location_trails) juga sengaja tidak diekspor: data operasional berumur 90
+ * hari, bukan data absensi resmi — membesarkan file backup tanpa manfaat
+ * pemulihan.
  */
 export async function GET(req: NextRequest) {
   try {

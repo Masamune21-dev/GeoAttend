@@ -1,7 +1,13 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { ne } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { attendanceRecords, leaveRequests, liveLocations, user } from '@/lib/db/schema';
+import {
+  attendanceRecords,
+  leaveRequests,
+  liveLocations,
+  locationTrails,
+  user,
+} from '@/lib/db/schema';
 import {
   getApiSession,
   isAdmin,
@@ -15,7 +21,8 @@ export const dynamic = 'force-dynamic';
 
 /**
  * POST /api/admin/reset — reset data (administrator saja, wajib konfirmasi "RESET").
- * scope "attendance": hapus semua record absensi + posisi live + file foto.
+ * scope "attendance": hapus semua record absensi + posisi live + jejak lokasi
+ * + file foto.
  * scope "users": hapus semua pengguna KECUALI administrator (cascade ke datanya).
  */
 export async function POST(req: NextRequest) {
@@ -40,13 +47,16 @@ export async function POST(req: NextRequest) {
     if (parsed.data.scope === 'attendance') {
       await db.transaction(async (tx) => {
         await tx.delete(liveLocations);
+        // Jejak lokasi ikut dihapus — tanpa ini riwayat perjalanan tetap ada
+        // sementara absensinya sudah hilang (data yatim yang tak bisa dibuka).
+        await tx.delete(locationTrails);
         await tx.delete(leaveRequests);
         await tx.delete(attendanceRecords);
       });
       await clearAttendancePhotos();
       return NextResponse.json({
         success: true,
-        message: 'Semua data absensi, izin, dan foto berhasil dihapus',
+        message: 'Semua data absensi, izin, jejak lokasi, dan foto berhasil dihapus',
       });
     }
 
