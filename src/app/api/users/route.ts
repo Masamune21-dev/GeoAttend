@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
         email: user.email,
         role: user.role,
         image: user.image,
+        technicianTeam: user.technicianTeam,
         createdAt: user.createdAt,
       })
       .from(user)

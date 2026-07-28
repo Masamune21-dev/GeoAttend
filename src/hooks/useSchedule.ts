@@ -7,8 +7,11 @@ import type {
   PiketResponse,
   ReviewSwapInput,
   ScheduleResponse,
+  ScheduleUser,
   SwapCandidate,
   SwapRequestResponse,
+  TechnicianTeam,
+  UpdateScheduleParticipantsInput,
   UpsertPiketInput,
   UpsertScheduleInput,
 } from '@/types/api';
@@ -50,6 +53,59 @@ export function useSaveSchedule() {
         body: JSON.stringify(input),
       }),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['schedules'] }),
+  });
+}
+
+export interface ScheduleParticipantsResponse {
+  candidates: ScheduleUser[];
+  participantIds: string[];
+  configured: boolean;
+}
+
+/** Kandidat & daftar peserta grid jadwal (administrator). */
+export function useScheduleParticipants(enabled = true) {
+  return useQuery({
+    queryKey: ['schedule-participants'],
+    queryFn: () =>
+      fetchJson<ScheduleParticipantsResponse>('/api/schedules/participants'),
+    enabled,
+    staleTime: 60_000,
+  });
+}
+
+/** Simpan daftar peserta grid jadwal (administrator). */
+export function useSaveScheduleParticipants() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (input: UpdateScheduleParticipantsInput) =>
+      fetchJson<{ data: { saved: number } }>('/api/schedules/participants', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schedule-participants'] });
+      queryClient.invalidateQueries({ queryKey: ['schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['piket'] });
+    },
+  });
+}
+
+/** Tetapkan tim jaga lembur (ganjil/genap) seorang teknisi. */
+export function useSetTechnicianTeam() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ userId, team }: { userId: string; team: TechnicianTeam | null }) =>
+      fetchJson<{ data: unknown }>(`/api/users/${userId}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ technicianTeam: team }),
+      }),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['schedules'] });
+      queryClient.invalidateQueries({ queryKey: ['schedule-participants'] });
+      queryClient.invalidateQueries({ queryKey: ['users'] });
+    },
   });
 }
 

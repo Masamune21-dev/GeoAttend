@@ -76,6 +76,11 @@ export const auth = betterAuth({
         required: false,
         input: false, // di-set via endpoint /api/profile/cover
       },
+      technicianTeam: {
+        type: 'string',
+        required: false,
+        input: false, // di-set administrator dari halaman Jadwal
+      },
     },
   },
   session: {

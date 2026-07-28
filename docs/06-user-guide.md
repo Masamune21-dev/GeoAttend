@@ -34,6 +34,17 @@ Pilihan shift otomatis mengikuti shift absen masuk Anda hari itu.
 Menu **Riwayat**: kalender bulanan (hijau = hadir dalam area, merah = ada absen di
 luar area). Tap tanggal untuk memfilter, tap item untuk melihat foto & detail.
 
+### Jadwal Saya
+Menu **Jadwal**: grid shift bulan berjalan (S1 / S2 / Libur), pengajuan tukar shift,
+dan **Piket Kebersihan** — tandai "sudah piket" pada hari giliranmu.
+Tanggal piket yang jatuh **Sabtu** ditandai hijau dengan keterangan **ngepel**:
+hari itu petugas wajib mengepel lantai, bukan sekadar bersih-bersih rutin.
+
+Khusus **teknisi**, ada kartu **Tim Jaga Malam**: kamu masuk Tim Ganjil atau Tim
+Genap, dan kartu itu memberi tahu apakah malam ini giliranmu siaga lembur
+(Tim Ganjil = tanggal ganjil, Tim Genap = tanggal genap). Bila belum punya tim,
+hubungi administrator.
+
 ### Profil
 Menu **Profil**: ganti foto profil (tap ikon kamera di pojok avatar), ubah nama,
 dan ganti kata sandi (perlu kata sandi lama; sesi perangkat lain otomatis keluar).
@@ -63,6 +74,13 @@ Email login hanya bisa diubah oleh administrator.
 - **Overview**: ringkasan hadir hari ini + absensi terbaru
 - **Peta Live**: pantau posisi karyawan — hijau berdenyut = posisi terkini (live), **abu-abu = posisi terakhir yang diketahui** (karyawan berhenti bergerak atau sinyal hilang; marker tetap di tempat terakhir, tidak kembali ke titik absen), biru = belum pernah melapor sehingga dipakai posisi saat absen, merah = sedang di luar area. Klik marker untuk foto & jam. Data diperbarui otomatis (10–30 detik)
 - **Persetujuan Izin**: cek tab **Menunggu** — **Setujui** atau **Tolak** (bisa beri catatan alasan) pengajuan sakit/izin/cuti. Penanda libur karyawan tercatat otomatis tanpa persetujuan
+
+### Mengatur jadwal shift
+1. Menu **Jadwal** → **Kelola Peserta**: centang karyawan yang ikut jadwal (dikelompokkan per role), hilangkan centang untuk mengeluarkan. Pilihan ini tersimpan permanen dan juga menentukan kandidat piket. Karyawan yang dikeluarkan hilang dari grid, tapi jadwal yang sudah tersimpan tidak terhapus
+2. Klik sel untuk mengganti shift: kosong → S1 → S2 → Libur → kosong. **Teknisi hanya S1 → Libur** karena teknisi selalu masuk pagi — jadwalnya dipakai untuk menentukan hari libur
+3. **Generate Rotasi** mengisi otomatis (admin/NOC beroper shift tiap pekan; teknisi hanya hari liburnya), hasilnya tetap bisa disunting manual. Jangan lupa **Simpan**
+4. **Piket Kebersihan**: isi petugas per hari atau klik **Generate Piket**. Kolom **Sabtu berwarna hijau dengan keterangan "Harus ngepel"** — petugas Sabtu wajib mengepel
+5. **Tim Jaga Malam Teknisi**: tetapkan tiap teknisi ke **Tim Ganjil** atau **Tim Genap**. Saat ada gangguan malam, tim ganjil menangani tanggal ganjil dan tim genap tanggal genap. Perubahan langsung tersimpan dan terlihat oleh teknisi di halaman Jadwal mereka
 
 ### Bulanan (payroll)
 1. **Rekap Bulanan** → pilih bulan (dan karyawan tertentu bila perlu)

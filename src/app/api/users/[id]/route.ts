@@ -52,6 +52,12 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
     const { password, ...userFields } = parsed.data;
 
+    // Tim jaga hanya berlaku untuk teknisi: pindah role otomatis mengosongkannya
+    // agar tidak ada anggota tim "hantu" yang bukan teknisi lagi.
+    if (userFields.role !== undefined && userFields.role !== 'teknisi') {
+      userFields.technicianTeam = null;
+    }
+
     let updated;
     try {
       updated = await db
@@ -64,6 +70,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           email: user.email,
           role: user.role,
           image: user.image,
+          technicianTeam: user.technicianTeam,
         });
     } catch (error) {
       // Pelanggaran unique constraint email

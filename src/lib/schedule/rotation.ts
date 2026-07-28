@@ -69,6 +69,24 @@ export function generateRotation(
 }
 
 /**
+ * Isi jadwal sebulan untuk role yang hanya punya SATU shift (teknisi):
+ * semua hari kerja = Shift 1, sisanya libur. Jadwal teknisi memang hanya
+ * dipakai untuk menentukan hari libur, bukan pergantian shift.
+ */
+export function generateOffDaysOnly(
+  month: string,
+  offWeekdays: number[]
+): Record<string, ScheduleShift> {
+  const off = new Set(offWeekdays);
+  const result: Record<string, ScheduleShift> = {};
+  for (const dateStr of monthDates(month)) {
+    const d = new Date(`${dateStr}T00:00:00`);
+    result[dateStr] = off.has(d.getDay()) ? 'libur' : '1';
+  }
+  return result;
+}
+
+/**
  * Isi piket kebersihan sebulan secara round-robin: satu orang per hari,
  * bergiliran mengikuti urutan `userIds` (mulai dari `startIndex`).
  */

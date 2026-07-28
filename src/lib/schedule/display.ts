@@ -79,3 +79,13 @@ export function isWeekend(dateStr: string): boolean {
   const d = weekdayOf(dateStr);
   return d === 0 || d === 6;
 }
+
+/**
+ * Hari ngepel: setiap SABTU. Petugas piket hari itu tetap petugas biasa, tapi
+ * tugasnya naik dari bersih-bersih rutin menjadi wajib mengepel lantai.
+ */
+export function isMoppingDay(dateStr: string): boolean {
+  return weekdayOf(dateStr) === 6;
+}
+
+export const MOPPING_LABEL = 'Harus ngepel';

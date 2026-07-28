@@ -107,6 +107,34 @@ Jenis: **Sakit**, **Izin**, **Cuti** (perlu persetujuan), dan **Libur** (self-se
 - Bila karyawan **tetap absen** di tanggal izin/libur → baris kehadiran yang dipakai di rekap (izin/libur hari itu diabaikan)
 - Karyawan tidak bisa menandai libur bila sudah absen hari itu
 
+## Jadwal Shift
+
+- **Peserta jadwal** ditentukan administrator lewat tombol **Kelola Peserta** (tersimpan permanen di `schedule_participants`). Hanya peserta yang muncul di grid dan menjadi kandidat piket.
+  - Bila daftar peserta belum pernah diatur, sistem memakai perilaku lama: semua karyawan ber-role `admin`, `noc`, dan `teknisi`.
+  - Mengeluarkan karyawan hanya menghilangkannya dari grid — entri jadwal yang sudah tersimpan **tidak dihapus**, sehingga riwayat di halaman Jadwal Saya tetap utuh.
+  - Simpan jadwal (replace-bulan) hanya berlaku untuk peserta saat itu.
+- **Opsi shift mengikuti role** ([src/lib/schedule/roles.ts](../src/lib/schedule/roles.ts)) — satu sumber kebenaran yang dipakai UI maupun validasi server:
+
+  | Role | Pilihan sel grid |
+  | :--- | :--- |
+  | `admin`, `noc` | Shift 1 · Shift 2 · Libur |
+  | `teknisi` | **Shift 1 · Libur saja** — teknisi selalu masuk pagi, jadwalnya hanya menentukan hari libur |
+
+  Entri yang melanggar (mis. Shift 2 untuk teknisi) **diabaikan diam-diam** oleh `PUT /api/schedules`, bukan menggagalkan seluruh penyimpanan.
+- **Generate Rotasi**: admin/NOC beroper shift tiap pekan; teknisi hanya diisi hari liburnya (`generateOffDaysOnly`).
+
+## Piket Kebersihan
+
+- Satu petugas per hari, bergiliran (round-robin), ditandai selesai oleh petugas sendiri.
+- **Setiap Sabtu adalah hari ngepel**: sel Sabtu ditandai **hijau** dengan keterangan **"Harus ngepel"** di grid admin maupun halaman Jadwal Saya. Petugasnya tetap petugas piket hari itu — tidak ada petugas tambahan.
+
+## Tim Jaga Malam Teknisi
+
+- Teknisi dibagi menjadi **Tim Ganjil** dan **Tim Genap** (`users.technician_team`), ditetapkan administrator dari halaman Jadwal.
+- Tim yang siaga lembur saat ada gangguan malam ditentukan **paritas tanggal**: Tim Ganjil pada tanggal 1, 3, 5, … dan Tim Genap pada tanggal 2, 4, 6, …
+- Teknisi melihat statusnya di halaman Jadwal Saya ("Kamu siaga lembur malam ini" / giliran tim lain).
+- Mengubah role karyawan ke selain `teknisi` otomatis mengosongkan timnya.
+
 ## Pelacakan Posisi Live
 
 - Aktif **hanya** selama status hadir (clock-in tanpa clock-out) — server menolak kiriman di luar itu (`NOT_CLOCKED_IN`). Pengecekannya memakai jendela bergulir **18 jam**, bukan "sejak tengah malam", sehingga shift lintas tengah malam tetap terlacak setelah pukul 00:00

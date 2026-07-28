@@ -14,6 +14,7 @@ users 1───* attendance_records *───1 geofences (nullable)
 users 1───* leave_requests     (reviewed_by → users, nullable)
 users 1───1 live_locations
 users 1───* location_trails      (jejak perjalanan, retensi 90 hari)
+users 1───1 schedule_participants (peserta grid jadwal shift)
 shift_settings                 (berdiri sendiri, key: role+shift_number)
 app_settings                   (key-value: app_name, app_logo, registration_code)
 verifications                  (token verifikasi Better Auth)
@@ -30,7 +31,18 @@ verifications                  (token verifikasi Better Auth)
 | email_verified | boolean | default false |
 | image | text null | URL foto profil (`/api/uploads/avatars/...`) |
 | role | varchar(20) | `administrator` \| `admin` \| `noc` \| `teknisi` \| `employee` (default) |
+| technician_team | varchar(10) null | `ganjil` \| `genap` — tim jaga lembur malam teknisi |
 | created_at / updated_at | timestamp | |
+
+### schedule_participants
+| Kolom | Tipe | Keterangan |
+| :--- | :--- | :--- |
+| user_id | text PK, FK→users (cascade) | Karyawan yang muncul di grid jadwal & kandidat piket |
+| created_at | timestamp | |
+
+Tabel **kosong = perilaku lama**: grid memakai semua karyawan ber-role
+`admin`/`noc`/`teknisi`. Mengeluarkan peserta tidak menghapus `schedule_entries`
+miliknya (riwayat jadwal tetap utuh).
 
 ### sessions / accounts / verifications
 Tabel standar Better Auth. `sessions.token` unique + index (validasi tiap request).

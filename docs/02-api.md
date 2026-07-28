@@ -184,13 +184,42 @@ Urutan: administrator → admin → noc → teknisi → employee, lalu nama A-Z.
 Body: `{name, email, password(min 8), role}`. Respons 201: profil user. 409 bila email terdaftar.
 
 ### PATCH `/api/users/[id]` — edit user
-Body (semua opsional): `{name, email, password, role}`.
+Body (semua opsional): `{name, email, password, role, technicianTeam}`.
 - `password` → di-hash Better Auth (reset oleh administrator, tanpa perlu password lama)
+- `technicianTeam`: `"ganjil" | "genap" | null` — tim jaga lembur malam teknisi. Mengubah `role` ke selain `teknisi` otomatis mengosongkannya
 - Menurunkan role akun sendiri ditolak (`SELF_DEMOTION`)
 - Email duplikat → 409 `EMAIL_TAKEN`
 
 ### DELETE `/api/users/[id]`
 Hapus user + seluruh riwayatnya (cascade). Akun sendiri ditolak (`SELF_DELETION`).
+
+## Jadwal Shift & Piket
+
+### GET `/api/schedules?month=YYYY-MM&userId=self|<id>`
+**Auth:** login. Administrator tanpa `userId` → grid penuh; karyawan selalu dipaksa ke dirinya sendiri.
+
+```json
+{ "users": [{ "id", "name", "role", "image", "technicianTeam" }],
+  "entries": [{ "userId", "date", "shift": "1|2|libur" }],
+  "participantsConfigured": true }
+```
+
+`users` berisi **peserta jadwal**; bila daftar peserta belum pernah diatur (`participantsConfigured: false`) dipakai semua karyawan ber-role `admin`/`noc`/`teknisi`.
+
+### PUT `/api/schedules` — simpan jadwal sebulan
+**Auth:** administrator. Body `{month, entries[]}`. Semantik **replace-bulan**, hanya untuk peserta jadwal saat ini.
+Entri diabaikan bila: tanggal di luar bulan, user bukan peserta, atau **shift tidak berlaku bagi role** (teknisi hanya `1`/`libur`). Respons `{data:{month, saved}}` — `saved` = jumlah yang benar-benar tersimpan.
+
+### GET `/api/schedules/participants` — kandidat & peserta jadwal
+**Auth:** administrator. `candidates` = seluruh karyawan non-administrator (dikelompokkan role), `participantIds` = peserta aktif.
+
+### PUT `/api/schedules/participants` — tetapkan peserta
+**Auth:** administrator. Body `{userIds: string[]}` (replace seluruhnya). Id yang tidak ada diabaikan.
+Mengeluarkan karyawan **tidak menghapus** entri jadwalnya yang sudah tersimpan.
+
+### GET/PUT/PATCH `/api/piket`
+Jadwal piket kebersihan sebulan. Kandidat petugas = peserta jadwal. `PATCH` menandai piket selesai (petugas hari itu atau administrator).
+Setiap **Sabtu** adalah hari ngepel — ditandai hijau di UI; tidak ada perbedaan struktur data.
 
 ## Pelacakan Posisi Live
 

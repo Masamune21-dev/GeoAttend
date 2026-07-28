@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { and, asc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, lte } from 'drizzle-orm';
 import { db } from '@/lib/db';
-import { scheduleEntries, user } from '@/lib/db/schema';
+import { scheduleEntries } from '@/lib/db/schema';
 import {
   getApiSession,
   isAdmin,
@@ -10,15 +10,14 @@ import {
 } from '@/lib/auth/utils';
 import { UpsertScheduleSchema, type ScheduleShift } from '@/types/api';
 import { monthDates, toLocalMonth } from '@/lib/schedule/rotation';
+import { isShiftAllowedForRole } from '@/lib/schedule/roles';
+import { listScheduleParticipants } from '@/lib/schedule/participants';
 
 export const dynamic = 'force-dynamic';
 
-/** Role yang dijadwalkan shift (punya 2 shift). */
-const SCHEDULABLE_ROLES = ['admin', 'noc'];
-
 /**
  * GET /api/schedules?month=YYYY-MM&userId=self|<id>
- * - Administrator tanpa userId → grid penuh: daftar user admin/noc + entri bulan.
+ * - Administrator tanpa userId → grid penuh: daftar PESERTA jadwal + entri bulan.
  * - Karyawan / userId=self → hanya entri jadwal miliknya.
  */
 export async function GET(req: NextRequest) {
@@ -57,21 +56,15 @@ export async function GET(req: NextRequest) {
       .where(and(...entryConds));
 
     // Daftar user hanya untuk tampilan grid administrator
-    const users =
+    const participants =
       admin && !targetUserId
-        ? await db
-            .select({ id: user.id, name: user.name, role: user.role, image: user.image })
-            .from(user)
-            .where(inArray(user.role, SCHEDULABLE_ROLES))
-            .orderBy(
-              sql`CASE ${user.role} WHEN 'admin' THEN 0 WHEN 'noc' THEN 1 ELSE 2 END`,
-              asc(user.name)
-            )
-        : [];
+        ? await listScheduleParticipants()
+        : { users: [], configured: false };
 
     return NextResponse.json({
-      users,
+      users: participants.users,
       entries: entries.map((e) => ({ ...e, shift: e.shift as ScheduleShift })),
+      participantsConfigured: participants.configured,
     });
   } catch (error) {
     console.error('GET /api/schedules error:', error);
@@ -112,23 +105,30 @@ export async function PUT(req: NextRequest) {
     const end = dates[dates.length - 1];
     const validDates = new Set(dates);
 
-    // Hanya user admin/noc yang boleh dijadwalkan
-    const schedulable = await db
-      .select({ id: user.id })
-      .from(user)
-      .where(inArray(user.role, SCHEDULABLE_ROLES));
-    const schedulableIds = new Set(schedulable.map((u) => u.id));
+    // Hanya peserta jadwal yang boleh disimpan
+    const participants = await listScheduleParticipants();
+    const roleByUser = new Map(participants.users.map((u) => [u.id, u.role]));
 
-    // Dedupe (userId|date) — sel terakhir menang; abaikan tanggal luar bulan / user non-jadwal
+    // Dedupe (userId|date) — sel terakhir menang. Abaikan tanggal luar bulan,
+    // bukan peserta jadwal, dan shift yang tidak berlaku bagi role tersebut
+    // (mis. teknisi tidak punya Shift 2).
     const dedup = new Map<string, { userId: string; date: string; shift: ScheduleShift }>();
     for (const e of entries) {
-      if (!validDates.has(e.date) || !schedulableIds.has(e.userId)) continue;
+      const role = roleByUser.get(e.userId);
+      if (!validDates.has(e.date) || role === undefined) continue;
+      if (!isShiftAllowedForRole(role, e.shift)) continue;
       dedup.set(`${e.userId}|${e.date}`, e);
     }
     const rows = Array.from(dedup.values());
-    const schedulableIdList = Array.from(schedulableIds);
+    const schedulableIdList = participants.users.map((u) => u.id);
+    if (schedulableIdList.length === 0) {
+      return NextResponse.json({ data: { month, saved: 0 } });
+    }
 
     await db.transaction(async (tx) => {
+      // Replace-bulan hanya untuk peserta jadwal: entri karyawan yang sudah
+      // dikeluarkan dari daftar peserta tidak ikut terhapus (tetap jadi
+      // catatan riwayat pada halaman Jadwal Saya mereka).
       await tx
         .delete(scheduleEntries)
         .where(

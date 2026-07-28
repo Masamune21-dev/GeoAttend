@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { and, asc, eq, gte, inArray, lte, sql } from 'drizzle-orm';
+import { and, eq, gte, inArray, lte } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { piketAssignments, user } from '@/lib/db/schema';
 import {
@@ -10,10 +10,9 @@ import {
 } from '@/lib/auth/utils';
 import { UpsertPiketSchema, MarkPiketDoneSchema, type PiketAssignment } from '@/types/api';
 import { monthDates, toLocalMonth } from '@/lib/schedule/rotation';
+import { listScheduleParticipants } from '@/lib/schedule/participants';
 
 export const dynamic = 'force-dynamic';
-
-const SCHEDULABLE_ROLES = ['admin', 'noc'];
 
 /**
  * GET /api/piket?month=YYYY-MM — jadwal piket sebulan (semua user login boleh baca).
@@ -54,16 +53,8 @@ export async function GET(req: NextRequest) {
       done: r.done,
     }));
 
-    const users = isAdmin(session)
-      ? await db
-          .select({ id: user.id, name: user.name, role: user.role, image: user.image })
-          .from(user)
-          .where(inArray(user.role, SCHEDULABLE_ROLES))
-          .orderBy(
-            sql`CASE ${user.role} WHEN 'admin' THEN 0 WHEN 'noc' THEN 1 ELSE 2 END`,
-            asc(user.name)
-          )
-      : [];
+    // Kandidat piket = peserta jadwal shift (dikelola administrator)
+    const users = isAdmin(session) ? (await listScheduleParticipants()).users : [];
 
     return NextResponse.json({ users, assignments });
   } catch (error) {
@@ -98,11 +89,9 @@ export async function PUT(req: NextRequest) {
     const dates = monthDates(month);
     const validDates = new Set(dates);
 
-    const schedulable = await db
-      .select({ id: user.id })
-      .from(user)
-      .where(inArray(user.role, SCHEDULABLE_ROLES));
-    const schedulableIds = new Set(schedulable.map((u) => u.id));
+    const schedulableIds = new Set(
+      (await listScheduleParticipants()).users.map((u) => u.id)
+    );
 
     // Dedupe per tanggal; abaikan tanggal luar bulan / user non-jadwal
     const dedup = new Map<string, string>();

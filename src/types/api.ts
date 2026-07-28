@@ -26,6 +26,8 @@ export const UpdateUserSchema = z.object({
   name: z.string().min(1).max(255).optional(),
   email: z.string().email('Format email tidak valid').optional(),
   password: z.string().min(8, 'Kata sandi minimal 8 karakter').optional(),
+  /** Tim jaga lembur teknisi; null untuk mengosongkan */
+  technicianTeam: z.enum(['ganjil', 'genap']).nullable().optional(),
 });
 export type UpdateUserInput = z.infer<typeof UpdateUserSchema>;
 
@@ -195,6 +197,8 @@ export interface UserProfile {
   email: string;
   role: 'administrator' | 'admin' | 'noc' | 'teknisi' | 'employee' | 'gudang';
   image?: string | null;
+  /** Tim jaga lembur malam (khusus teknisi) */
+  technicianTeam?: TechnicianTeam | null;
   createdAt?: string;
 }
 
@@ -323,12 +327,31 @@ export interface ScheduleUser {
   name: string;
   role: string;
   image: string | null;
+  /** Tim jaga lembur malam (khusus teknisi); null bila belum ditetapkan */
+  technicianTeam: TechnicianTeam | null;
 }
 
 export interface ScheduleResponse {
   users: ScheduleUser[];
   entries: ScheduleEntry[];
+  /**
+   * false bila daftar peserta belum pernah diatur — grid memakai perilaku
+   * lama (semua karyawan ber-role terjadwal).
+   */
+  participantsConfigured: boolean;
 }
+
+// --- Tim jaga lembur teknisi (ganjil/genap) ---
+
+export const TECHNICIAN_TEAMS = ['ganjil', 'genap'] as const;
+export type TechnicianTeam = (typeof TECHNICIAN_TEAMS)[number];
+
+export const UpdateScheduleParticipantsSchema = z.object({
+  userIds: z.array(z.string().min(1)).max(200),
+});
+export type UpdateScheduleParticipantsInput = z.infer<
+  typeof UpdateScheduleParticipantsSchema
+>;
 
 export type SwapStatus =
   | 'pending_peer'

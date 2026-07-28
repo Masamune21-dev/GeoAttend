@@ -26,6 +26,12 @@ export const user = pgTable('users', {
   image: text('image'),
   coverImage: text('cover_image'), // foto sampul profil (opsional)
   role: varchar('role', { length: 20 }).default('employee').notNull(), // 'admin' | 'employee'
+  /**
+   * Tim jaga lembur malam untuk role teknisi: 'ganjil' | 'genap' (null = belum
+   * ditetapkan / bukan teknisi). Tim ganjil siaga pada tanggal ganjil, tim
+   * genap pada tanggal genap.
+   */
+  technicianTeam: varchar('technician_team', { length: 10 }),
   createdAt: timestamp('created_at').defaultNow().notNull(),
   updatedAt: timestamp('updated_at').defaultNow().notNull(),
 });
@@ -229,6 +235,21 @@ export const scheduleEntries = pgTable(
     dateIdx: index('schedule_entries_date_idx').on(table.date),
   })
 );
+
+/**
+ * Peserta jadwal shift: karyawan mana saja yang muncul di grid jadwal.
+ *
+ * Sebelumnya grid selalu menampilkan SEMUA karyawan ber-role terjadwal, jadi
+ * karyawan yang tidak ikut rotasi tetap muncul dan tidak bisa dikeluarkan.
+ * Bila tabel ini KOSONG, sistem kembali ke perilaku lama (semua role
+ * terjadwal) supaya instalasi lama tetap jalan tanpa perlu setup.
+ */
+export const scheduleParticipants = pgTable('schedule_participants', {
+  userId: text('user_id')
+    .primaryKey()
+    .references(() => user.id, { onDelete: 'cascade' }),
+  createdAt: timestamp('created_at').defaultNow().notNull(),
+});
 
 /**
  * Pengajuan tukar shift antar karyawan (satu role, beda shift, tanggal ke depan).

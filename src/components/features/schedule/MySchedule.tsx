@@ -24,10 +24,13 @@ import {
   addMonth,
   weekdayOf,
   isWeekend,
+  isMoppingDay,
+  MOPPING_LABEL,
   SWAP_STATUS_LABEL,
   SWAP_STATUS_VARIANT,
 } from '@/lib/schedule/display';
-import type { ScheduleShift } from '@/types/api';
+import { TEAM_LABEL, isTeamOnDuty, teamOnDuty } from '@/lib/schedule/teams';
+import type { ScheduleShift, TechnicianTeam } from '@/types/api';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -83,6 +86,13 @@ export function MySchedule() {
 
   const today = toLocalDateString(new Date());
   const hasSchedule = (data?.entries ?? []).length > 0;
+
+  const sessionUser = session?.user as
+    | { role?: string; technicianTeam?: string | null }
+    | undefined;
+  const myTeam = (sessionUser?.technicianTeam as TechnicianTeam | null | undefined) ?? null;
+  const isTechnician = sessionUser?.role === 'teknisi';
+  const onDutyTonight = isTeamOnDuty(myTeam, today);
 
   const piketList = piketData?.assignments ?? [];
   const todayPiket = piketList.find((a) => a.date === today);
@@ -246,12 +256,56 @@ export function MySchedule() {
         </CardContent>
       </Card>
 
+      {/* Tim jaga malam teknisi */}
+      {isTechnician && (
+        <Card>
+          <CardHeader>
+            <CardTitle className="text-base">Tim Jaga Malam</CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-2">
+            {myTeam ? (
+              <>
+                <div className="flex flex-wrap items-center gap-2 text-sm">
+                  <span>Kamu anggota</span>
+                  <Badge variant={onDutyTonight ? 'success' : 'secondary'}>
+                    {TEAM_LABEL[myTeam]}
+                  </Badge>
+                </div>
+                <Alert variant={onDutyTonight ? 'warning' : 'info'}>
+                  {onDutyTonight ? (
+                    <>
+                      <strong>Kamu siaga lembur malam ini.</strong> Hari ini tanggal{' '}
+                      {Number(today.slice(-2))} — giliran {TEAM_LABEL[myTeam]} menangani gangguan
+                      malam.
+                    </>
+                  ) : (
+                    <>
+                      Malam ini giliran <strong>{TEAM_LABEL[teamOnDuty(today)]}</strong>. Kamu
+                      siaga pada tanggal {myTeam === 'ganjil' ? 'ganjil' : 'genap'}.
+                    </>
+                  )}
+                </Alert>
+              </>
+            ) : (
+              <p className="text-sm text-text-secondary">
+                Kamu belum dimasukkan ke tim jaga malam. Hubungi administrator.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Piket kebersihan */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Piket Kebersihan</CardTitle>
         </CardHeader>
         <CardContent className="flex flex-col gap-3">
+          {isMoppingDay(today) && (
+            <Alert variant="success">
+              Hari ini <strong>Sabtu</strong> — petugas piket <strong>{MOPPING_LABEL}</strong>.
+            </Alert>
+          )}
           <div className="flex flex-wrap items-center gap-2 text-sm">
             <span>Petugas piket hari ini:</span>
             {todayPiket ? (
@@ -274,11 +328,13 @@ export function MySchedule() {
           {myPiket.length > 0 ? (
             <div>
               <p className="mb-1.5 text-xs font-medium text-text-secondary">
-                Jadwal piket kamu bulan ini
+                Jadwal piket kamu bulan ini —{' '}
+                <span className="text-green-700">hijau = Sabtu, {MOPPING_LABEL.toLowerCase()}</span>
               </p>
               <div className="flex flex-wrap gap-1.5">
                 {myPiket.map((a) => {
                   const editable = a.date <= today;
+                  const mopping = isMoppingDay(a.date);
                   return (
                     <button
                       key={a.date}
@@ -286,17 +342,24 @@ export function MySchedule() {
                       disabled={!editable || markPiketDone.isPending}
                       onClick={() => editable && togglePiket(a.date, !a.done)}
                       title={
-                        editable
-                          ? a.done
-                            ? 'Sudah piket (klik untuk batal)'
-                            : 'Klik jika sudah piket'
-                          : 'Belum waktunya'
+                        mopping
+                          ? `${MOPPING_LABEL} — ${editable ? (a.done ? 'sudah piket (klik untuk batal)' : 'klik jika sudah piket') : 'belum waktunya'}`
+                          : editable
+                            ? a.done
+                              ? 'Sudah piket (klik untuk batal)'
+                              : 'Klik jika sudah piket'
+                            : 'Belum waktunya'
                       }
                       className={`rounded-full px-2.5 py-1 text-xs font-medium ${
-                        a.done ? 'bg-success-subtle text-green-700' : 'bg-secondary text-text-secondary'
+                        a.done
+                          ? 'bg-success-subtle text-green-700'
+                          : mopping
+                            ? 'border border-green-300 bg-green-50 text-green-700'
+                            : 'bg-secondary text-text-secondary'
                       } ${editable ? 'cursor-pointer hover:opacity-80' : 'cursor-default opacity-70'}`}
                     >
                       {formatDate(a.date)}
+                      {mopping ? ' • ngepel' : ''}
                       {a.done ? ' ✓' : ''}
                     </button>
                   );
