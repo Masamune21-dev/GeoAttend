@@ -4,6 +4,8 @@ Aplikasi absensi berbasis web & native mobile dengan **verifikasi geofence GPS**
 
 📚 **Dokumentasi lengkap: [docs/](docs/01-overview.md)** — gambaran umum, referensi API, database, aturan bisnis, deployment (Proxmox VM/LXC), panduan pengguna, dan [dokumentasi aplikasi mobile native](docs/08-mobile-app.md).
 
+📖 **Panduan pengguna siap cetak: [Panduan Lengkap GeoAttend v1.6 (PDF)](docs/Panduan-Lengkap-GeoAttend.pdf)** — untuk karyawan sekaligus administrator.
+
 ---
 
 ## 🚀 Fitur Utama

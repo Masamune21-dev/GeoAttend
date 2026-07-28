@@ -1,0 +1,826 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8" />
+<title>Panduan Lengkap GeoAttend v1.6</title>
+<style>
+  :root {
+    --primary: #2563EB;
+    --primary-hover: #1D4ED8;
+    --sky: #0EA5E9;
+    --ink: #0F172A;
+    --muted: #64748B;
+    --line: #E2E8F0;
+    --bg-soft: #F6F8FB;
+    --success: #16A34A;
+    --success-bg: #ECFDF5;
+    --warning: #B45309;
+    --warning-bg: #FFFBEB;
+    --danger: #B91C1C;
+    --danger-bg: #FEF2F2;
+  }
+
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+  @page { size: A4; margin: 16mm 15mm 18mm 15mm; }
+
+  html, body {
+    margin: 0; padding: 0;
+    font-family: "Segoe UI", "Inter", system-ui, sans-serif;
+    color: var(--ink);
+    font-size: 10.6pt;
+    line-height: 1.55;
+  }
+
+  h1, h2, h3 { margin: 0; letter-spacing: -0.01em; }
+  p { margin: 0 0 8px; }
+  strong { color: var(--ink); font-weight: 600; }
+  .muted { color: var(--muted); }
+  code {
+    font-family: "Consolas", "SF Mono", monospace;
+    font-size: 9.2pt;
+    background: var(--bg-soft);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 0 4px;
+  }
+
+  /* ---------- Cover ---------- */
+  .cover {
+    min-height: 250mm;
+    background: linear-gradient(150deg, #1D4ED8 0%, var(--primary) 45%, var(--sky) 100%);
+    border-radius: 20px;
+    color: #fff;
+    padding: 26mm 20mm;
+    display: flex; flex-direction: column; justify-content: space-between;
+    position: relative; overflow: hidden;
+    page-break-after: always;
+  }
+  .cover::after {
+    content: ""; position: absolute; right: -60mm; top: -60mm;
+    width: 140mm; height: 140mm;
+    background: rgba(255,255,255,0.10); border-radius: 50%;
+  }
+  .cover-mark { display: inline-flex; align-items: center; gap: 12px; position: relative; z-index: 1; }
+  .cover-logo {
+    width: 46px; height: 46px; border-radius: 12px;
+    background: rgba(255,255,255,0.15); border: 1px solid rgba(255,255,255,0.30);
+    display: flex; align-items: center; justify-content: center;
+  }
+  .cover-logo svg { width: 26px; height: 26px; }
+  .cover-brand { font-size: 15pt; font-weight: 700; }
+  .cover-center { position: relative; z-index: 1; }
+  .cover-kicker {
+    text-transform: uppercase; letter-spacing: 0.18em;
+    font-size: 9pt; font-weight: 600;
+    color: rgba(255,255,255,0.85); margin-bottom: 10px;
+  }
+  .cover h1 { font-size: 30pt; font-weight: 800; line-height: 1.12; }
+  .cover-sub { font-size: 12.5pt; color: rgba(255,255,255,0.92); margin-top: 12px; max-width: 130mm; }
+  .cover-meta {
+    position: relative; z-index: 1;
+    display: flex; gap: 26px; font-size: 9.5pt; color: rgba(255,255,255,0.9);
+    border-top: 1px solid rgba(255,255,255,0.25); padding-top: 14px;
+  }
+  .cover-meta b { color: #fff; font-weight: 700; }
+
+  /* ---------- Headings ---------- */
+  .section { break-inside: avoid-page; margin-bottom: 14px; }
+  .h-num { display: flex; align-items: center; gap: 10px; margin: 20px 0 10px; break-after: avoid; }
+  .h-num .badge {
+    flex: none; width: 26px; height: 26px; border-radius: 8px;
+    background: var(--primary); color: #fff;
+    font-weight: 700; font-size: 11pt;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .h-num h2 { font-size: 15pt; font-weight: 700; }
+  h3.sub { font-size: 11.5pt; font-weight: 700; margin: 12px 0 6px; color: var(--primary-hover); }
+
+  .part {
+    page-break-before: always;
+    background: var(--bg-soft);
+    border-left: 5px solid var(--primary);
+    border-radius: 0 12px 12px 0;
+    padding: 14px 18px; margin: 0 0 18px;
+  }
+  .part .k { text-transform: uppercase; letter-spacing: 0.16em; font-size: 8.5pt; font-weight: 700; color: var(--primary); }
+  .part h2 { font-size: 19pt; font-weight: 800; margin-top: 2px; }
+  .part p { margin: 6px 0 0; color: var(--muted); font-size: 10.2pt; }
+
+  /* ---------- Steps ---------- */
+  ol.steps { list-style: none; margin: 6px 0 10px; padding: 0; counter-reset: step; }
+  ol.steps > li { position: relative; padding: 2px 0 10px 30px; break-inside: avoid; }
+  ol.steps > li::before {
+    counter-increment: step; content: counter(step);
+    position: absolute; left: 0; top: 0;
+    width: 21px; height: 21px; border-radius: 50%;
+    background: var(--primary); color: #fff;
+    font-size: 8.5pt; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  ol.steps > li:not(:last-child)::after {
+    content: ""; position: absolute; left: 10px; top: 21px; bottom: 0;
+    width: 1.5px; background: var(--line);
+  }
+  ul.bullets { margin: 4px 0 10px; padding-left: 18px; }
+  ul.bullets li { margin-bottom: 4px; }
+
+  /* ---------- Callouts ---------- */
+  .callout {
+    border-radius: 10px; padding: 10px 13px; margin: 10px 0;
+    font-size: 10pt; break-inside: avoid; border: 1px solid transparent;
+  }
+  .callout .t { font-weight: 700; display: block; margin-bottom: 2px; }
+  .callout.tip { background: var(--success-bg); border-color: #BBF7D0; color: #166534; }
+  .callout.warn { background: var(--warning-bg); border-color: #FDE68A; color: var(--warning); }
+  .callout.info { background: #EFF6FF; border-color: #BFDBFE; color: var(--primary-hover); }
+  .callout.danger { background: var(--danger-bg); border-color: #FECACA; color: var(--danger); }
+  .callout.new { background: #F5F3FF; border-color: #DDD6FE; color: #5B21B6; }
+
+  /* ---------- Cards / tables ---------- */
+  .card {
+    border: 1px solid var(--line); border-radius: 12px;
+    padding: 12px 14px; background: #fff; margin: 8px 0; break-inside: avoid;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 8px 0; font-size: 9.8pt; break-inside: avoid; }
+  th, td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--bg-soft); font-weight: 700; color: var(--ink); }
+  td:first-child { font-weight: 600; }
+  table.nowrap td:first-child { white-space: nowrap; }
+
+  .pill { display: inline-block; padding: 1px 9px; border-radius: 999px; font-size: 8.5pt; font-weight: 700; }
+  .pill.g { background: var(--success-bg); color: var(--success); }
+  .pill.r { background: var(--danger-bg); color: var(--danger); }
+  .pill.a { background: var(--warning-bg); color: var(--warning); }
+  .pill.b { background: #EFF6FF; color: var(--primary-hover); }
+  .pill.s { background: #F1F5F9; color: var(--muted); }
+  .pill.new { background: #F5F3FF; color: #6D28D9; }
+
+  .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; vertical-align: middle; margin-right: 5px; }
+
+  /* ---------- TOC ---------- */
+  .toc { columns: 2; column-gap: 24px; font-size: 10pt; margin-top: 6px; }
+  .toc div { break-inside: avoid; margin-bottom: 5px; }
+  .toc .n { display: inline-block; width: 22px; color: var(--primary); font-weight: 700; }
+  .toc .grp {
+    column-span: all; font-weight: 800; font-size: 10.5pt;
+    margin: 10px 0 6px; color: var(--ink);
+    border-bottom: 1px solid var(--line); padding-bottom: 3px;
+  }
+
+  .lead {
+    font-size: 11pt; color: var(--muted);
+    border-left: 3px solid var(--primary); padding-left: 12px; margin: 4px 0 14px;
+  }
+  .divider { height: 1px; background: var(--line); margin: 18px 0; border: 0; }
+  .footer-note {
+    margin-top: 22px; padding-top: 12px; border-top: 1px solid var(--line);
+    font-size: 9pt; color: var(--muted); text-align: center;
+  }
+  .page-break { page-break-before: always; }
+</style>
+</head>
+<body>
+
+<!-- ============ COVER ============ -->
+<section class="cover">
+  <div class="cover-mark">
+    <span class="cover-logo">
+      <svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M20 10c0 4.4-8 12-8 12s-8-7.6-8-12a8 8 0 0 1 16 0Z"/><circle cx="12" cy="10" r="3"/></svg>
+    </span>
+    <span class="cover-brand">GeoAttend</span>
+  </div>
+
+  <div class="cover-center">
+    <div class="cover-kicker">Panduan Lengkap · Karyawan &amp; Administrator</div>
+    <h1>Absensi, Jadwal,<br/>&amp; Pemantauan<br/>Lapangan</h1>
+    <p class="cover-sub">Satu buku panduan untuk semua: absen berfoto dengan validasi lokasi, jadwal shift &amp; piket, izin, pemantauan posisi tim, sampai rekap bulanan dan riwayat perjalanan.</p>
+  </div>
+
+  <div class="cover-meta">
+    <span><b>Aplikasi</b><br/>Android v1.6.0 &amp; Web</span>
+    <span><b>Untuk</b><br/>KusumaVision</span>
+    <span><b>Diterbitkan</b><br/>Juli 2026</span>
+  </div>
+</section>
+
+<!-- ============ TOC ============ -->
+<h2 style="font-size:16pt;font-weight:800;margin-bottom:4px;">Daftar Isi</h2>
+<p class="lead">Bagian A untuk semua karyawan. Bagian B khusus administrator. Cari bab yang Anda butuhkan — tiap bab berdiri sendiri.</p>
+<div class="toc">
+  <div class="grp">Bagian A — Untuk Karyawan</div>
+  <div><span class="n">1</span> Persiapan &amp; pemasangan</div>
+  <div><span class="n">2</span> Daftar akun &amp; masuk</div>
+  <div><span class="n">3</span> Absen masuk</div>
+  <div><span class="n">4</span> Selama jam kerja</div>
+  <div><span class="n">5</span> Absen pulang</div>
+  <div><span class="n">6</span> Jadwal shift &amp; tukar shift</div>
+  <div><span class="n">7</span> Piket kebersihan</div>
+  <div><span class="n">8</span> Tim jaga malam (teknisi)</div>
+  <div><span class="n">9</span> Izin &amp; libur</div>
+  <div><span class="n">10</span> Riwayat absensi</div>
+  <div><span class="n">11</span> Profil &amp; keluar</div>
+  <div><span class="n">12</span> Masalah umum &amp; solusi</div>
+
+  <div class="grp">Bagian B — Untuk Administrator</div>
+  <div><span class="n">13</span> Setup awal sistem</div>
+  <div><span class="n">14</span> Pemantauan harian &amp; Peta Live</div>
+  <div><span class="n">15</span> Mengatur jadwal shift</div>
+  <div><span class="n">16</span> Piket &amp; tim jaga malam</div>
+  <div><span class="n">17</span> Izin, libur &amp; tukar shift</div>
+  <div><span class="n">18</span> Rekap bulanan &amp; ekspor</div>
+  <div><span class="n">19</span> Riwayat lokasi harian</div>
+  <div><span class="n">20</span> Kelola pengguna &amp; role</div>
+  <div><span class="n">21</span> Stok gudang</div>
+  <div><span class="n">22</span> Pemeliharaan &amp; keamanan data</div>
+</div>
+
+<div class="callout new" style="margin-top:16px;">
+  <span class="t">Yang baru di versi 1.6</span>
+  <ul class="bullets" style="margin-bottom:0;">
+    <li><strong>Riwayat lokasi harian</strong> — administrator bisa melihat rute perjalanan karyawan per hari, lengkap dengan titik berhenti dan foto absen (bab 19).</li>
+    <li><strong>Marker peta tidak lagi "lompat balik"</strong> — posisi terakhir yang diketahui dipertahankan saat karyawan berhenti bergerak (bab 14).</li>
+    <li><strong>Kelola peserta jadwal</strong> — administrator menentukan siapa saja yang muncul di grid jadwal (bab 15).</li>
+    <li><strong>Jadwal teknisi</strong> — teknisi kini punya jadwal untuk menentukan hari libur (bab 15).</li>
+    <li><strong>Tim jaga malam teknisi</strong> — pembagian Tim Ganjil &amp; Tim Genap (bab 8 &amp; 16).</li>
+    <li><strong>Hari ngepel</strong> — setiap Sabtu ditandai hijau di jadwal piket (bab 7 &amp; 16).</li>
+  </ul>
+</div>
+
+<div class="callout info">
+  <span class="t">Alamat yang dipakai</span>
+  Absensi &amp; jadwal: <code>absensi.kusumavision.net</code> · Stok gudang: <code>stok.kusumavision.net</code> · Aplikasi Android: file APK yang dibagikan administrator.
+</div>
+
+<!-- ==================================================================== -->
+<!-- BAGIAN A                                                             -->
+<!-- ==================================================================== -->
+<div class="part">
+  <div class="k">Bagian A</div>
+  <h2>Untuk Karyawan</h2>
+  <p>Ikuti bab 1 dan 2 sekali saja di awal. Setelah itu, absen harian hanya butuh beberapa detik.</p>
+</div>
+
+<div class="section">
+  <div class="h-num"><span class="badge">1</span><h2>Persiapan &amp; Pemasangan</h2></div>
+
+  <h3 class="sub">Memasang aplikasi</h3>
+  <ol class="steps">
+    <li>Minta file <strong>APK GeoAttend v1.6.0</strong> ke administrator (dikirim via WhatsApp/email atau tautan unduhan).</li>
+    <li>Buka file APK. Bila muncul peringatan "instal aplikasi tidak dikenal", pilih <strong>Setelan</strong> → izinkan sumber ini → kembali dan lanjutkan.</li>
+    <li>Tunggu proses pemasangan selesai, lalu buka aplikasi <strong>GeoAttend</strong>.</li>
+  </ol>
+
+  <div class="callout tip">
+    <span class="t">Sudah pakai versi lama?</span>
+    Pasang langsung di atasnya — data dan sesi login Anda tidak hilang, tidak perlu menghapus aplikasi lama. Setelah update ke 1.6.0, pelacakan posisi jadi lebih andal saat Anda berhenti bergerak.
+  </div>
+
+  <h3 class="sub">Izin yang akan diminta</h3>
+  <table>
+    <tr><th style="width:32%">Izin</th><th>Untuk apa</th></tr>
+    <tr><td>Kamera</td><td>Foto bukti absen masuk &amp; pulang.</td></tr>
+    <tr><td>Lokasi (saat dipakai)</td><td>Memastikan Anda berada di area kantor ketika absen.</td></tr>
+    <tr><td>Lokasi (selalu / latar belakang)</td><td>Memantau posisi <strong>hanya selama jam kerja</strong>, sejak absen masuk sampai absen pulang.</td></tr>
+    <tr><td>Notifikasi</td><td>Menampilkan status "pelacakan aktif" di panel notifikasi.</td></tr>
+  </table>
+
+  <div class="callout warn">
+    <span class="t">Penting soal izin lokasi</span>
+    Saat Android bertanya, pilih <strong>"Izinkan sepanjang waktu"</strong>. Bila hanya memilih "Saat aplikasi dibuka", pelacakan berhenti begitu layar terkunci dan posisi Anda tidak terkirim ke kantor.
+  </div>
+</div>
+
+<div class="section">
+  <div class="h-num"><span class="badge">2</span><h2>Daftar Akun &amp; Masuk</h2></div>
+
+  <h3 class="sub">Belum punya akun</h3>
+  <ol class="steps">
+    <li>Minta <strong>kode pendaftaran</strong> ke administrator.</li>
+    <li>Di layar masuk, ketuk <strong>Daftar</strong>.</li>
+    <li>Isi nama lengkap, email, kata sandi (minimal 8 karakter), dan kode pendaftaran.</li>
+    <li>Ketuk <strong>Daftar</strong>. Anda langsung masuk.</li>
+  </ol>
+
+  <div class="callout info">
+    <span class="t">Role Anda ditentukan administrator</span>
+    Akun baru berstatus <em>Karyawan</em> dan belum punya jam kerja SOP. Administrator akan mengubah role Anda menjadi Admin, NOC, atau Teknisi. Sebelum itu, perhitungan telat/lembur belum berjalan.
+  </div>
+
+  <h3 class="sub">Sudah punya akun</h3>
+  <ol class="steps">
+    <li>Isi email dan kata sandi, ketuk <strong>Masuk</strong>.</li>
+    <li>Sesi berlaku 7 hari dan diperpanjang otomatis selama Anda aktif memakai aplikasi.</li>
+  </ol>
+
+  <div class="callout info">
+    <span class="t">Alamat server (jarang diperlukan)</span>
+    Aplikasi sudah diarahkan ke <code>absensi.kusumavision.net</code>. Ubah hanya bila administrator meminta.
+  </div>
+</div>
+
+<div class="section page-break">
+  <div class="h-num"><span class="badge">3</span><h2>Absen Masuk</h2></div>
+  <p class="lead">Tab <strong>Absen</strong> adalah layar utama. Tombol kirim baru aktif setelah lokasi valid dan foto diambil.</p>
+
+  <ol class="steps">
+    <li>
+      Buka tab <strong>Absen</strong> dan tunggu status lokasi muncul:
+      <ul class="bullets">
+        <li><span class="pill g">Dalam area</span> hijau — Anda siap absen.</li>
+        <li><span class="pill r">Luar area</span> merah — dekati kantor dulu; jarak Anda ditampilkan.</li>
+      </ul>
+    </li>
+    <li>Bila role Anda punya dua shift, pilih <strong>Shift 1</strong> atau <strong>Shift 2</strong>.</li>
+    <li>Ketuk area kamera, ambil <strong>swafoto</strong>. Ulangi bila hasilnya kurang jelas.</li>
+    <li>Isi catatan bila perlu (opsional), lalu ketuk <strong>Absen Masuk</strong>.</li>
+    <li>Kartu status berubah menjadi <strong>Sedang bekerja</strong> beserta jam masuk Anda.</li>
+  </ol>
+
+  <div class="callout warn">
+    <span class="t">Kenapa "Luar area" padahal saya di kantor?</span>
+    Sinyal GPS lemah di dalam ruangan. Keluar sebentar ke area terbuka, tunggu 10–30 detik sampai angka akurasi mengecil, lalu coba lagi. Sistem memberi toleransi akurasi GPS sampai 50 meter, tetapi tidak lebih dari itu.
+  </div>
+
+  <h3 class="sub">Mengaktifkan pelacakan posisi</h3>
+  <p>Setelah absen masuk pertama kali, aplikasi meminta izin lokasi latar belakang. Setujui agar posisi Anda terlihat di peta kantor selama jam kerja.</p>
+  <ul class="bullets">
+    <li>Muncul notifikasi tetap <strong>"Pelacakan posisi aktif selama jam kerja"</strong> — biarkan, jangan ditutup paksa.</li>
+    <li>Pelacakan berhenti <strong>otomatis</strong> saat Anda absen pulang atau keluar akun.</li>
+  </ul>
+
+  <div class="callout tip">
+    <span class="t">Aman untuk baterai</span>
+    Aplikasi memakai akurasi hemat dan mengirim posisi secara berkelompok sekitar 5 menit sekali, bukan terus-menerus. Konsumsi baterai tambahan sangat kecil untuk satu shift penuh.
+  </div>
+</div>
+
+<div class="section">
+  <div class="h-num"><span class="badge">4</span><h2>Selama Jam Kerja</h2></div>
+  <ul class="bullets">
+    <li>Aplikasi boleh ditutup atau layar dikunci — pelacakan tetap berjalan lewat notifikasi tetap.</li>
+    <li>Bila Anda <strong>berhenti di satu tempat</strong>, aplikasi tetap melapor "masih di sini" secara berkala sehingga posisi Anda di peta kantor tidak hilang dan tidak melompat kembali ke titik absen.</li>
+    <li>Sinyal hilang atau HP mati? Posisi terakhir Anda tetap tersimpan; pengiriman dilanjutkan otomatis saat sinyal kembali.</li>
+    <li>Perjalanan Anda selama jam kerja tercatat sebagai <strong>riwayat lokasi</strong> yang bisa dilihat administrator (lihat bab 22 soal privasi).</li>
+  </ul>
+</div>
+
+<div class="section">
+  <div class="h-num"><span class="badge">5</span><h2>Absen Pulang</h2></div>
+  <ol class="steps">
+    <li>Buka tab <strong>Absen</strong>. Tombol kini bertuliskan <strong>Absen Pulang</strong>.</li>
+    <li>Ambil swafoto sekali lagi, lalu kirim.</li>
+    <li>Pelacakan posisi berhenti otomatis dan notifikasi tetap hilang.</li>
+  </ol>
+
+  <div class="callout tip">
+    <span class="t">Absen pulang boleh di luar area</span>
+    Bila Anda selesai kerja di lokasi pelanggan, tetap absen pulang dari sana. Posisi Anda dicatat apa adanya untuk laporan.
+  </div>
+
+  <div class="callout info">
+    <span class="t">Shift malam yang melewati tengah malam</span>
+    Masuk pukul 22:00 lalu pulang 02:00 dini hari tetap terhitung <strong>satu sesi kerja pada tanggal Anda masuk</strong> — bukan dua hari terpisah. Tombol Anda tetap "Absen Pulang" walau sudah lewat tengah malam.
+  </div>
+</div>
+
+<div class="section page-break">
+  <div class="h-num"><span class="badge">6</span><h2>Jadwal Shift &amp; Tukar Shift</h2></div>
+  <p class="lead">Tab <strong>Jadwal</strong> menampilkan grid shift bulan berjalan beserta pengajuan tukar.</p>
+
+  <table class="nowrap">
+    <tr><th style="width:22%">Tanda</th><th>Arti</th></tr>
+    <tr><td><span class="pill a">S1</span></td><td>Shift 1 (masuk pagi)</td></tr>
+    <tr><td><span class="pill b">S2</span></td><td>Shift 2 (masuk siang/sore)</td></tr>
+    <tr><td><span class="pill r">L</span></td><td>Libur</td></tr>
+    <tr><td><span class="pill s">–</span></td><td>Belum dijadwalkan administrator</td></tr>
+  </table>
+
+  <div class="callout info">
+    <span class="t">Khusus teknisi</span>
+    Teknisi selalu masuk pagi, jadi jadwal teknisi hanya berisi <strong>S1</strong> dan <strong>Libur</strong> — gunanya untuk menentukan hari libur Anda, bukan pergantian shift.
+  </div>
+
+  <h3 class="sub">Mengajukan tukar shift</h3>
+  <ol class="steps">
+    <li>Ketuk <strong>Ajukan Tukar</strong>.</li>
+    <li>Pilih tanggal (minimal besok) — Anda harus punya shift di tanggal itu.</li>
+    <li>Pilih rekan satu role yang shiftnya berbeda, isi alasan bila perlu.</li>
+    <li>Ketuk <strong>Kirim Pengajuan</strong>.</li>
+  </ol>
+  <p class="muted">Alurnya: rekan menyetujui dulu → administrator menyetujui → jadwal otomatis tertukar. Status pengajuan terlihat di bagian "Pengajuan tukar saya", dan bisa dibatalkan selama belum disetujui.</p>
+
+  <h3 class="sub">Permintaan tukar dari rekan</h3>
+  <p>Bila rekan mengajukan tukar dengan Anda, permintaannya muncul di bagian atas halaman Jadwal. Ketuk <strong>Terima</strong> atau <strong>Tolak</strong>.</p>
+</div>
+
+<div class="section">
+  <div class="h-num"><span class="badge">7</span><h2>Piket Kebersihan</h2></div>
+  <p>Di halaman <strong>Jadwal</strong>, kartu <strong>Piket Kebersihan</strong> menunjukkan siapa yang bertugas hari ini dan seluruh jadwal piket Anda bulan ini.</p>
+
+  <ol class="steps">
+    <li>Bila hari ini giliran Anda, tombol <strong>Tandai sudah piket</strong> muncul — ketuk setelah selesai.</li>
+    <li>Tanggal piket Anda tampil sebagai deretan tombol; yang sudah selesai bertanda ✓.</li>
+    <li>Salah tandai? Ketuk sekali lagi untuk membatalkan.</li>
+  </ol>
+
+  <div class="callout tip">
+    <span class="t">Setiap Sabtu adalah hari ngepel</span>
+    Tanggal piket yang jatuh pada hari <strong>Sabtu</strong> ditandai <span class="dot" style="background:#16A34A;"></span><strong>hijau</strong> dengan keterangan <strong>"ngepel"</strong>. Pada hari itu petugas piket wajib <strong>mengepel lantai</strong>, tidak cukup bersih-bersih rutin. Petugasnya tetap petugas piket hari itu — tidak ada tugas tambahan untuk orang lain.
+  </div>
+</div>
+
+<div class="section">
+  <div class="h-num"><span class="badge">8</span><h2>Tim Jaga Malam <span class="pill new" style="vertical-align:middle;">khusus teknisi</span></h2></div>
+  <p class="lead">Agar gangguan malam hari selalu ada yang menangani, teknisi dibagi menjadi dua tim bergiliran mengikuti tanggal.</p>
+
+  <table>
+    <tr><th style="width:28%">Tim</th><th>Siaga pada tanggal</th></tr>
+    <tr><td>Tim Ganjil</td><td>1, 3, 5, 7, … (tanggal ganjil)</td></tr>
+    <tr><td>Tim Genap</td><td>2, 4, 6, 8, … (tanggal genap)</td></tr>
+  </table>
+
+  <p>Di halaman <strong>Jadwal</strong>, teknisi melihat kartu <strong>Tim Jaga Malam</strong> yang menampilkan:</p>
+  <ul class="bullets">
+    <li>Tim Anda (Tim Ganjil atau Tim Genap).</li>
+    <li>Status malam ini — <strong>"Kamu siaga lembur malam ini"</strong> bila tanggal hari ini cocok dengan tim Anda, atau keterangan tim mana yang sedang bertugas.</li>
+  </ul>
+
+  <div class="callout warn">
+    <span class="t">Belum punya tim?</span>
+    Bila kartu bertuliskan "belum dimasukkan ke tim jaga malam", hubungi administrator agar Anda ditetapkan ke Tim Ganjil atau Tim Genap.
+  </div>
+
+  <div class="callout info">
+    <span class="t">Siaga bukan berarti otomatis lembur</span>
+    Tim yang siaga adalah tim yang <strong>siap dipanggil</strong> bila ada gangguan. Lembur yang benar-benar terjadi tetap tercatat dari jam absen Anda seperti biasa.
+  </div>
+</div>
+
+<div class="section page-break">
+  <div class="h-num"><span class="badge">9</span><h2>Izin &amp; Libur</h2></div>
+  <p>Kartu <strong>Izin &amp; Libur</strong> ada di halaman Absen.</p>
+
+  <table>
+    <tr><th style="width:26%">Jenis</th><th>Persetujuan</th><th>Keterangan</th></tr>
+    <tr><td>Sakit</td><td>Administrator</td><td>Boleh rentang tanggal</td></tr>
+    <tr><td>Izin</td><td>Administrator</td><td>Boleh rentang tanggal</td></tr>
+    <tr><td>Cuti</td><td>Administrator</td><td>Boleh rentang tanggal</td></tr>
+    <tr><td>Berangkat Telat</td><td>Administrator</td><td>Pemberitahuan datang terlambat</td></tr>
+    <tr><td>Masuk Siang</td><td>Administrator</td><td>Masuk pada paruh kedua hari</td></tr>
+    <tr><td>Remote</td><td>Administrator</td><td>Bekerja dari luar kantor</td></tr>
+    <tr><td>Libur</td><td>Tidak perlu</td><td>Ditandai sendiri, <strong>hanya untuk hari ini</strong></td></tr>
+  </table>
+
+  <ol class="steps">
+    <li>Ketuk <strong>Ajukan Izin</strong>, pilih jenis, isi tanggal mulai &amp; selesai, tambahkan alasan.</li>
+    <li>Kirim. Status awal <span class="pill a">Menunggu</span> sampai administrator memutuskan.</li>
+    <li>Selama masih menunggu, pengajuan bisa Anda batalkan sendiri.</li>
+  </ol>
+
+  <ul class="bullets">
+    <li>Rentang tanggal yang <strong>bertabrakan</strong> dengan pengajuan aktif Anda akan ditolak sistem.</li>
+    <li>Hanya pengajuan <strong>disetujui</strong> yang masuk rekap bulanan.</li>
+    <li>Bila Anda tetap absen pada tanggal izin, <strong>kehadiran yang dipakai</strong> di rekap.</li>
+    <li>Tidak bisa menandai libur bila hari itu Anda sudah absen.</li>
+  </ul>
+</div>
+
+<div class="section">
+  <div class="h-num"><span class="badge">10</span><h2>Riwayat Absensi</h2></div>
+  <p>Tab <strong>Riwayat</strong> menampilkan kalender bulanan absensi Anda.</p>
+  <ul class="bullets">
+    <li><span class="dot" style="background:#16A34A;"></span><strong>Hijau</strong> — semua absen hari itu di dalam area.</li>
+    <li><span class="dot" style="background:#B91C1C;"></span><strong>Merah</strong> — ada absen di luar area.</li>
+    <li>Ketuk tanggal untuk memfilter, ketuk item untuk melihat foto, jam, koordinat, dan jarak dari kantor.</li>
+  </ul>
+</div>
+
+<div class="section">
+  <div class="h-num"><span class="badge">11</span><h2>Profil &amp; Keluar</h2></div>
+  <ul class="bullets">
+    <li><strong>Foto profil &amp; sampul</strong> — ketuk ikon kamera pada avatar.</li>
+    <li><strong>Ubah nama</strong> — bisa dilakukan sendiri.</li>
+    <li><strong>Ganti kata sandi</strong> — perlu kata sandi lama; sesi di perangkat lain otomatis keluar.</li>
+    <li><strong>Email login</strong> — hanya bisa diubah administrator.</li>
+    <li><strong>Keluar</strong> — pelacakan posisi ikut berhenti.</li>
+  </ul>
+</div>
+
+<div class="section">
+  <div class="h-num"><span class="badge">12</span><h2>Masalah Umum &amp; Solusi</h2></div>
+  <table>
+    <tr><th style="width:38%">Gejala</th><th>Solusi</th></tr>
+    <tr><td>"Izin lokasi ditolak"</td><td>Setelan HP → Aplikasi → GeoAttend → Izin → Lokasi → <strong>Izinkan sepanjang waktu</strong>.</td></tr>
+    <tr><td>"Kamera diperlukan"</td><td>Setelan HP → Aplikasi → GeoAttend → Izin → Kamera → Izinkan.</td></tr>
+    <tr><td>Selalu "Luar area"</td><td>Keluar ruangan, aktifkan GPS akurasi tinggi, tunggu 10–30 detik.</td></tr>
+    <tr><td>"Anda sudah absen masuk"</td><td>Anda belum absen pulang dari sesi sebelumnya.</td></tr>
+    <tr><td>Posisi tidak terlihat di kantor</td><td>Pastikan izin lokasi "sepanjang waktu", notifikasi pelacakan masih ada, dan aplikasi tidak dibatasi hemat baterai.</td></tr>
+    <tr><td>Notifikasi pelacakan hilang</td><td>Absen pulang lalu masuk lagi tidak perlu — cukup buka aplikasi; bila tetap hilang, laporkan ke administrator.</td></tr>
+    <tr><td>"Kode pendaftaran salah"</td><td>Minta kode terbaru — kode bisa diganti sewaktu-waktu.</td></tr>
+    <tr><td>"Pendaftaran ditutup"</td><td>Administrator belum membuat kode pendaftaran.</td></tr>
+    <tr><td>Sesi berakhir</td><td>Login ulang. Sesi berlaku 7 hari.</td></tr>
+  </table>
+</div>
+
+<!-- ==================================================================== -->
+<!-- BAGIAN B                                                             -->
+<!-- ==================================================================== -->
+<div class="part">
+  <div class="k">Bagian B</div>
+  <h2>Untuk Administrator</h2>
+  <p>Semua pengelolaan dilakukan lewat dasbor web di <code>absensi.kusumavision.net</code>. Bab 13 dikerjakan sekali di awal; sisanya rutin harian dan bulanan.</p>
+</div>
+
+<div class="section">
+  <div class="h-num"><span class="badge">13</span><h2>Setup Awal Sistem</h2></div>
+  <ol class="steps">
+    <li>Masuk dengan akun administrator, buka menu <strong>Pengaturan</strong>.</li>
+    <li><strong>Area Absensi</strong> — seret pin ke lokasi kantor (atau klik peta), atur radius (disarankan 100–200 m), lalu <strong>Simpan</strong>.</li>
+    <li><strong>Jam Kerja SOP</strong> — sesuaikan jam masuk &amp; pulang tiap role, lalu <strong>Simpan</strong>.</li>
+    <li><strong>General → Kode Pendaftaran</strong> — klik <strong>Generate</strong> → <strong>Simpan Kode</strong> → bagikan ke karyawan baru. Kosongkan lalu simpan untuk menutup pendaftaran mandiri.</li>
+    <li><strong>Pengguna</strong> — atur role tiap karyawan. Role menentukan jam kerja SOP dan hak akses.</li>
+    <li><strong>Jadwal → Kelola Peserta</strong> — pilih karyawan yang ikut jadwal shift (lihat bab 15).</li>
+  </ol>
+
+  <h3 class="sub">Daftar role</h3>
+  <table>
+    <tr><th style="width:24%">Role</th><th>Hak akses &amp; jam kerja</th></tr>
+    <tr><td>Administrator</td><td>Akses penuh: pengaturan, pengguna, rekap, peta, riwayat lokasi. Tidak punya jadwal shift.</td></tr>
+    <tr><td>Admin</td><td>Staf administrasi. 2 shift.</td></tr>
+    <tr><td>NOC</td><td>2 shift.</td></tr>
+    <tr><td>Teknisi</td><td>1 shift (pagi). Punya jadwal libur dan tim jaga malam.</td></tr>
+    <tr><td>Karyawan</td><td>Role awal akun baru; belum punya jam kerja SOP.</td></tr>
+    <tr><td>Admin Gudang</td><td>Hanya modul stok lewat web, tanpa absensi.</td></tr>
+  </table>
+
+  <div class="callout warn">
+    <span class="t">Wajib diganti sebelum dipakai produksi</span>
+    Kata sandi akun seed bawaan dan kode pendaftaran default harus diganti. Jangan bagikan akun administrator ke lebih dari satu orang.
+  </div>
+</div>
+
+<div class="section page-break">
+  <div class="h-num"><span class="badge">14</span><h2>Pemantauan Harian &amp; Peta Live</h2></div>
+
+  <h3 class="sub">Overview</h3>
+  <p>Ringkasan jumlah hadir hari ini dan daftar absensi terbaru beserta fotonya.</p>
+
+  <h3 class="sub">Peta Live</h3>
+  <p>Menampilkan posisi seluruh karyawan yang <strong>sedang bekerja</strong> (sudah absen masuk, belum pulang). Data diperbarui otomatis tiap 10–30 detik.</p>
+
+  <table>
+    <tr><th style="width:30%">Warna marker</th><th>Arti</th></tr>
+    <tr><td><span class="dot" style="background:#16A34A;"></span>Hijau berdenyut</td><td><strong>Live</strong> — posisi terkini, dilaporkan kurang dari 6 menit lalu.</td></tr>
+    <tr><td><span class="dot" style="background:#94A3B8;"></span>Abu-abu</td><td><strong>Posisi terakhir diketahui</strong> — karyawan berhenti bergerak, sinyal hilang, atau aplikasi tertutup. Marker <strong>tetap di tempat terakhir</strong>.</td></tr>
+    <tr><td><span class="dot" style="background:#2563EB;"></span>Biru</td><td>Belum pernah melapor sama sekali — yang dipakai adalah posisi saat absen.</td></tr>
+    <tr><td><span class="dot" style="background:#B91C1C;"></span>Merah</td><td>Sedang berada <strong>di luar area kantor</strong>.</td></tr>
+  </table>
+
+  <div class="callout new">
+    <span class="t">Perubahan penting di v1.6</span>
+    Sebelumnya, karyawan yang berhenti bergerak membuat markernya <strong>lompat kembali ke titik absen</strong> seolah-olah dia kembali ke kantor. Sekarang marker bertahan di posisi terakhir yang benar-benar dilaporkan dan hanya berubah warna menjadi abu-abu dengan keterangan "Terakhir terlihat 14:32". Status dalam/luar area juga dihitung dari posisi yang sedang ditampilkan, bukan dari titik absen.
+  </div>
+
+  <ul class="bullets">
+    <li>Klik marker untuk melihat foto absen, jam masuk, dan jarak dari pusat area.</li>
+    <li>Badge di atas peta merangkum: jumlah hadir, live, terakhir diketahui, dalam area, dan luar area.</li>
+    <li>Tombol <strong>Sembunyikan Geofence</strong> menyembunyikan lingkaran area bila mengganggu.</li>
+  </ul>
+</div>
+
+<div class="section">
+  <div class="h-num"><span class="badge">15</span><h2>Mengatur Jadwal Shift</h2></div>
+  <p class="lead">Menu <strong>Jadwal</strong>. Grid menampilkan satu baris per karyawan dan satu kolom per tanggal.</p>
+
+  <h3 class="sub">Langkah 1 — Kelola Peserta</h3>
+  <ol class="steps">
+    <li>Klik <strong>Kelola Peserta</strong>.</li>
+    <li>Centang karyawan yang ikut jadwal shift. Daftar dikelompokkan menurut role (Admin &amp; CS, NOC, Teknisi).</li>
+    <li>Hilangkan centang untuk mengeluarkan karyawan dari grid.</li>
+    <li>Klik <strong>Simpan Peserta</strong>.</li>
+  </ol>
+
+  <div class="callout info">
+    <span class="t">Yang perlu diketahui soal peserta</span>
+    <ul class="bullets" style="margin-bottom:0;">
+      <li>Daftar peserta juga menentukan <strong>kandidat petugas piket</strong>.</li>
+      <li>Selama daftar belum pernah diatur, grid otomatis menampilkan semua karyawan Admin, NOC, dan Teknisi — jadi sistem tetap jalan tanpa setup.</li>
+      <li>Mengeluarkan karyawan <strong>tidak menghapus</strong> jadwal yang sudah tersimpan; dia hanya hilang dari grid. Bila ingin jadwalnya benar-benar kosong, kosongkan dulu selnya lalu simpan, baru keluarkan.</li>
+    </ul>
+  </div>
+
+  <h3 class="sub">Langkah 2 — Mengisi jadwal</h3>
+  <p>Klik sel untuk berganti nilai:</p>
+  <table>
+    <tr><th style="width:32%">Role</th><th>Urutan klik</th></tr>
+    <tr><td>Admin &amp; NOC</td><td>kosong → <span class="pill a">S1</span> → <span class="pill b">S2</span> → <span class="pill r">Libur</span> → kosong</td></tr>
+    <tr><td>Teknisi</td><td>kosong → <span class="pill a">S1</span> → <span class="pill r">Libur</span> → kosong</td></tr>
+  </table>
+
+  <div class="callout new">
+    <span class="t">Jadwal teknisi</span>
+    Teknisi selalu masuk pagi sehingga <strong>tidak punya Shift 2</strong>. Jadwal teknisi gunanya menentukan <strong>hari libur</strong>. Sistem menolak Shift 2 untuk teknisi walaupun dikirim langsung lewat API.
+  </div>
+
+  <h3 class="sub">Langkah 3 — Generate Rotasi (opsional)</h3>
+  <ol class="steps">
+    <li>Klik <strong>Generate Rotasi</strong>.</li>
+    <li>Untuk tiap karyawan tetapkan <strong>shift awal</strong> (pekan pertama) dan <strong>hari libur</strong> mingguannya. Untuk teknisi kolom shift awal terkunci di S1 — hanya hari libur yang diisi.</li>
+    <li>Klik <strong>Terapkan</strong>. Hasilnya masih bisa disunting manual per sel.</li>
+    <li>Klik <strong>Simpan</strong>. Tanpa ini perubahan tidak tersimpan.</li>
+  </ol>
+  <p class="muted">Rotasi membuat karyawan Admin/NOC berganti shift tiap pekan (oper shift setiap Senin).</p>
+
+  <div class="callout warn">
+    <span class="t">Menyimpan mengganti seluruh bulan</span>
+    Tombol Simpan menulis ulang jadwal bulan tersebut untuk semua peserta. Pastikan grid sudah benar sebelum menyimpan.
+  </div>
+</div>
+
+<div class="section page-break">
+  <div class="h-num"><span class="badge">16</span><h2>Piket &amp; Tim Jaga Malam</h2></div>
+
+  <h3 class="sub">Jadwal piket kebersihan</h3>
+  <ol class="steps">
+    <li>Di halaman Jadwal, gulir ke kartu <strong>Piket Kebersihan</strong>.</li>
+    <li>Pilih petugas per tanggal lewat dropdown, atau klik <strong>Generate Piket</strong> untuk mengisi bergiliran otomatis.</li>
+    <li>Klik <strong>Simpan Piket</strong>.</li>
+  </ol>
+
+  <div class="callout tip">
+    <span class="t">Hari ngepel</span>
+    Setiap kolom <strong>Sabtu</strong> berwarna <span class="dot" style="background:#16A34A;"></span><strong>hijau</strong> dengan keterangan <strong>"Harus ngepel"</strong>. Petugas Sabtu wajib mengepel lantai. Ini hanya penandaan — tidak ada petugas tambahan dan tidak mengubah cara pengisian.
+  </div>
+  <p class="muted">Tanda ✓ pada sebuah tanggal berarti petugas sudah menandai piketnya selesai dari aplikasi. Mengganti petugas akan mengulang tanda tersebut.</p>
+
+  <h3 class="sub">Tim jaga malam teknisi</h3>
+  <ol class="steps">
+    <li>Gulir ke kartu <strong>Tim Jaga Malam Teknisi</strong> (muncul bila ada teknisi di daftar peserta).</li>
+    <li>Untuk tiap teknisi, pilih <strong>Tim Ganjil</strong> atau <strong>Tim Genap</strong>. Perubahan langsung tersimpan.</li>
+    <li>Ringkasan anggota tiap tim tampil di bawah daftar.</li>
+  </ol>
+
+  <table>
+    <tr><th style="width:28%">Tim</th><th>Menangani gangguan malam pada</th></tr>
+    <tr><td>Tim Ganjil</td><td>Tanggal ganjil (1, 3, 5, …)</td></tr>
+    <tr><td>Tim Genap</td><td>Tanggal genap (2, 4, 6, …)</td></tr>
+  </table>
+
+  <ul class="bullets">
+    <li>Teknisi melihat status timnya sendiri di halaman Jadwal aplikasi.</li>
+    <li>Mengubah role seseorang menjadi selain Teknisi otomatis mengeluarkannya dari tim.</li>
+  </ul>
+</div>
+
+<div class="section">
+  <div class="h-num"><span class="badge">17</span><h2>Izin, Libur &amp; Tukar Shift</h2></div>
+
+  <h3 class="sub">Persetujuan izin</h3>
+  <ol class="steps">
+    <li>Buka menu <strong>Persetujuan Izin</strong> → tab <strong>Menunggu</strong>.</li>
+    <li>Periksa jenis, rentang tanggal, dan alasan.</li>
+    <li>Klik <strong>Setujui</strong> atau <strong>Tolak</strong>, tambahkan catatan bila perlu.</li>
+  </ol>
+  <p class="muted">Penanda "Libur" yang dibuat karyawan sendiri langsung tercatat tanpa persetujuan. Hanya pengajuan berstatus disetujui yang masuk rekap bulanan.</p>
+
+  <h3 class="sub">Persetujuan tukar shift</h3>
+  <p>Pengajuan tukar masuk ke administrator <strong>setelah</strong> rekan yang dituju menyetujui. Saat Anda menyetujui, jadwal kedua karyawan langsung tertukar pada tanggal tersebut.</p>
+</div>
+
+<div class="section">
+  <div class="h-num"><span class="badge">18</span><h2>Rekap Bulanan &amp; Ekspor</h2></div>
+  <ol class="steps">
+    <li>Buka <strong>Rekap Bulanan</strong>, pilih bulan (dan karyawan tertentu bila perlu).</li>
+    <li>Periksa <strong>Ringkasan per Karyawan</strong>: hari hadir, sakit/izin/cuti/libur, total telat, lembur, dan pulang cepat.</li>
+    <li>Periksa <strong>Detail Harian</strong>: satu baris per shift per hari, dengan kolom Keterangan yang membedakan Hadir/Sakit/Izin/Cuti/Libur.</li>
+    <li>Unduh <strong>PDF</strong> untuk arsip &amp; tanda tangan, atau <strong>CSV</strong> untuk diolah di Excel.</li>
+  </ol>
+
+  <h3 class="sub">Cara perhitungan</h3>
+  <table>
+    <tr><th style="width:30%">Istilah</th><th>Cara hitung</th></tr>
+    <tr><td>Telat</td><td>Absen masuk lebih lambat dari jam masuk shift.</td></tr>
+    <tr><td>Lembur</td><td>Datang lebih awal dari jam masuk, atau pulang setelah jam pulang shift.</td></tr>
+    <tr><td>Pulang cepat</td><td>Absen pulang sebelum jam pulang shift.</td></tr>
+    <tr><td>Hari hadir</td><td>Jumlah <strong>tanggal unik</strong> — dua shift dalam sehari tetap dihitung satu hari.</td></tr>
+  </table>
+
+  <div class="callout warn">
+    <span class="t">Lembur tidak menutup pulang cepat</span>
+    Datang lebih awal <strong>tidak</strong> mengurangi catatan pulang cepat. Keduanya ditampilkan terpisah agar kebijakan kompensasi bisa Anda putuskan sesuai aturan perusahaan.
+  </div>
+
+  <div class="callout info">
+    <span class="t">Shift malam</span>
+    Sesi yang masuk pukul 22:00 dan pulang 02:00 dihitung sebagai satu baris pada <strong>tanggal masuk</strong>, bukan dua hari terpisah.
+  </div>
+</div>
+
+<div class="section page-break">
+  <div class="h-num"><span class="badge">19</span><h2>Riwayat Lokasi Harian <span class="pill new" style="vertical-align:middle;">baru</span></h2></div>
+  <p class="lead">Melihat ke mana saja seorang karyawan pergi selama satu sesi kerja — mirip Google Maps Timeline.</p>
+
+  <ol class="steps">
+    <li>Buka <strong>Rekap Bulanan</strong> → tabel <strong>Detail Harian</strong>.</li>
+    <li>Pada baris yang ingin diperiksa, klik tombol <strong>Riwayat</strong> di kolom Aksi.</li>
+    <li>Dialog terbuka berisi peta rute perjalanan hari itu.</li>
+  </ol>
+
+  <h3 class="sub">Isi dialog</h3>
+  <table>
+    <tr><th style="width:32%">Bagian</th><th>Keterangan</th></tr>
+    <tr><td>Ringkasan</td><td>Jam mulai–selesai sesi, total jarak tempuh, jumlah titik, jumlah perhentian.</td></tr>
+    <tr><td>Garis biru</td><td>Rute perjalanan karyawan selama sesi kerja.</td></tr>
+    <tr><td>Titik oranye</td><td><strong>Perhentian</strong> — berhenti di satu tempat minimal 10 menit. Klik untuk melihat jam dan lamanya.</td></tr>
+    <tr><td>Marker M &amp; P</td><td>Lokasi absen <strong>M</strong>asuk (hijau) dan <strong>P</strong>ulang (merah).</td></tr>
+    <tr><td>Dua foto</td><td>Foto absen masuk dan pulang berdampingan.</td></tr>
+  </table>
+
+  <ul class="bullets">
+    <li>Tombol hanya muncul pada baris <strong>kehadiran</strong> — baris izin/libur tidak punya jejak.</li>
+    <li>Rentang jejak mengikuti sesi kerja, sehingga shift malam yang melewati tengah malam tetap tampil utuh sebagai satu perjalanan.</li>
+    <li>Bila muncul peringatan <strong>"titik lokasi palsu"</strong>, perangkat karyawan terdeteksi memakai aplikasi fake GPS pada titik tersebut.</li>
+    <li>Jejak tersimpan <strong>90 hari</strong>, setelah itu terhapus otomatis setiap malam.</li>
+  </ul>
+
+  <div class="callout warn">
+    <span class="t">Bila jejak kosong</span>
+    Kemungkinan penyebabnya: karyawan belum memasang aplikasi mobile, izin lokasi latar belakang ditolak, atau aplikasinya masih versi lama. Aplikasi versi 1.6.0 ke atas merekam jejak paling lengkap, termasuk saat karyawan berhenti bergerak.
+  </div>
+</div>
+
+<div class="section">
+  <div class="h-num"><span class="badge">20</span><h2>Kelola Pengguna &amp; Role</h2></div>
+  <ul class="bullets">
+    <li><strong>Tambah Pengguna</strong> — buat akun langsung (nama, email, kata sandi awal, role) tanpa kode pendaftaran. Sampaikan kredensial ke karyawan dan minta ia mengganti kata sandi di menu Profil.</li>
+    <li><strong>Ubah role</strong> — lewat dropdown pada daftar pengguna. Role menentukan jam kerja SOP dan hak akses.</li>
+    <li><strong>Edit</strong> (ikon pensil) — ubah nama, email login, atau <strong>reset kata sandi</strong> (kosongkan bila tidak ingin diubah).</li>
+    <li><strong>Hapus</strong> (ikon tempat sampah) — menghapus pengguna beserta seluruh riwayat absensinya. <strong>Tidak bisa dibatalkan.</strong></li>
+  </ul>
+
+  <div class="callout danger">
+    <span class="t">Pengaman</span>
+    Anda tidak bisa menurunkan role akun Anda sendiri maupun menghapus akun Anda sendiri — mencegah sistem kehilangan administrator.
+  </div>
+</div>
+
+<div class="section">
+  <div class="h-num"><span class="badge">21</span><h2>Stok Gudang</h2></div>
+  <p>Modul terpisah di <code>stok.kusumavision.net</code>, juga bisa dibuka dari menu <strong>Stok</strong>.</p>
+  <table>
+    <tr><th style="width:28%">Menu</th><th>Fungsi</th></tr>
+    <tr><td>Ringkasan</td><td>Jumlah barang, nilai stok, dan barang yang menipis/habis.</td></tr>
+    <tr><td>Inventory</td><td>Kelola daftar barang: kode, nama, kategori, satuan, stok awal, stok minimum, foto. Khusus administrator.</td></tr>
+    <tr><td>Pergerakan</td><td>Catat barang <strong>masuk</strong>, <strong>keluar</strong>, atau <strong>penyesuaian</strong>, dengan foto dan catatan.</td></tr>
+    <tr><td>Riwayat</td><td>Seluruh pergerakan stok beserta pencatatnya.</td></tr>
+  </table>
+  <p class="muted">Status stok: <span class="pill g">Aman</span> di atas stok minimum · <span class="pill a">Menipis</span> mendekati batas · <span class="pill r">Habis</span> stok nol.</p>
+</div>
+
+<div class="section">
+  <div class="h-num"><span class="badge">22</span><h2>Pemeliharaan &amp; Keamanan Data</h2></div>
+
+  <h3 class="sub">Cadangan &amp; pemulihan</h3>
+  <ul class="bullets">
+    <li><strong>Pengaturan → Data</strong>: unduh cadangan seluruh data sebagai file JSON, atau pulihkan dari file cadangan.</li>
+    <li>Foto absensi <strong>tidak</strong> termasuk dalam file cadangan — folder foto dicadangkan terpisah oleh tim teknis.</li>
+    <li>Riwayat jejak lokasi juga tidak ikut dicadangkan; datanya bersifat operasional dan hanya bertahan 90 hari.</li>
+  </ul>
+
+  <h3 class="sub">Reset data</h3>
+  <div class="callout danger">
+    <span class="t">Tidak bisa dibatalkan</span>
+    <strong>Reset absensi</strong> menghapus seluruh record absensi, izin, jejak lokasi, dan file foto. <strong>Reset pengguna</strong> menghapus semua akun kecuali administrator. Selalu unduh cadangan lebih dulu.
+  </div>
+
+  <h3 class="sub">Privasi pelacakan</h3>
+  <ul class="bullets">
+    <li>Posisi hanya dilacak <strong>antara absen masuk dan absen pulang</strong>. Di luar itu server menolak kiriman posisi.</li>
+    <li>Posisi live terhapus begitu karyawan absen pulang.</li>
+    <li>Riwayat jejak dan peta live <strong>hanya bisa dilihat administrator</strong>; karyawan lain tidak bisa mengaksesnya.</li>
+    <li>Jejak lokasi terhapus otomatis setelah <strong>90 hari</strong>.</li>
+    <li>Notifikasi "pelacakan aktif" di HP karyawan sengaja selalu terlihat sebagai bentuk transparansi.</li>
+  </ul>
+
+  <div class="callout warn">
+    <span class="t">Saran kebijakan</span>
+    Beri tahu karyawan secara tertulis bahwa posisi dilacak selama jam kerja dan riwayat perjalanan tersimpan 90 hari, sebelum aplikasi disebarkan. Ini menjaga kepercayaan sekaligus memenuhi praktik perlindungan data yang baik.
+  </div>
+
+  <h3 class="sub">Pemeriksaan rutin yang disarankan</h3>
+  <table>
+    <tr><th style="width:26%">Frekuensi</th><th>Yang diperiksa</th></tr>
+    <tr><td>Harian</td><td>Peta Live saat jam kerja; persetujuan izin yang menunggu.</td></tr>
+    <tr><td>Mingguan</td><td>Jadwal shift &amp; piket bulan berjalan sudah terisi.</td></tr>
+    <tr><td>Bulanan</td><td>Rekap bulanan, ekspor PDF/CSV untuk payroll, unduh cadangan data.</td></tr>
+  </table>
+</div>
+
+<div class="footer-note">
+  GeoAttend v1.6 · Panduan Lengkap Karyawan &amp; Administrator · KusumaVision · Juli 2026<br/>
+  Pertanyaan atau kendala teknis: hubungi administrator sistem.
+</div>
+
+</body>
+</html>

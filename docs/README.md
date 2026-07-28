@@ -13,7 +13,14 @@ Dokumentasi lengkap aplikasi absensi GeoAttend (KusumaVision).
 | [07 — Integrasi Mobile](07-mobile-integration.md) | Kontrak API & rencana awal integrasi mobile | Developer mobile |
 | [08 — Aplikasi Mobile](08-mobile-app.md) | Dokumentasi teknis aplikasi mobile Android yang sudah dibangun | Developer mobile |
 
-**Panduan pengguna aplikasi mobile (PDF, untuk karyawan):**
-[Panduan-Mobile-GeoAttend.pdf](Panduan-Mobile-GeoAttend.pdf).
+## Panduan siap cetak (PDF)
+
+| Dokumen | Isi | Untuk Siapa |
+| :--- | :--- | :--- |
+| **[Panduan Lengkap GeoAttend v1.6](Panduan-Lengkap-GeoAttend.pdf)** ⭐ | Panduan menyeluruh & terbaru: karyawan (pemasangan, absen, jadwal, piket, tim jaga malam, izin) **dan** administrator (setup, peta live, kelola jadwal, rekap, riwayat lokasi, stok, pemeliharaan) | Karyawan & Administrator |
+| [Panduan Mobile](Panduan-Mobile-GeoAttend.pdf) | Panduan aplikasi mobile versi lama (v1.4) | Karyawan |
+| [Panduan Update](Panduan-Update-GeoAttend.pdf) | Instruksi pembaruan aplikasi ke v1.5 | Karyawan |
+
+Sumber HTML-nya ada di folder yang sama ([panduan-lengkap.html](panduan-lengkap.html)) dan bisa dicetak ulang ke PDF lewat browser (Ctrl+P → Simpan sebagai PDF, ukuran A4, margin default).
 
 **Mulai cepat (development):** lihat [README utama](../README.md).
