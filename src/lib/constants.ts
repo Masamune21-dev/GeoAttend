@@ -8,6 +8,12 @@ export const DEFAULT_MAP_CENTER: [number, number] = [
 
 export const DEFAULT_ZOOM_LEVEL = 16;
 
+/**
+ * Zoom minimal saat peta memusat ke satu karyawan dari daftar samping. Cukup
+ * dekat untuk memisahkan marker yang bertumpuk di satu titik (mis. satu kantor).
+ */
+export const FOCUS_ZOOM_LEVEL = 18;
+
 export const MIN_GEOFENCE_RADIUS = 10;
 export const MAX_GEOFENCE_RADIUS = 5000;
 

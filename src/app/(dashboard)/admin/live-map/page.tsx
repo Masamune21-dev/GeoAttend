@@ -1,12 +1,13 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useCallback, useMemo, useState } from 'react';
 import dynamic from 'next/dynamic';
 import { startOfDay } from 'date-fns';
 import { Eye, EyeOff, Radio, Users } from 'lucide-react';
 import { useAttendanceList, useGeofence, useLiveLocations } from '@/hooks/useAttendance';
 import type { AttendanceRecordResponse } from '@/types/api';
 import type { LiveMarkerData } from '@/components/features/map/LiveMap';
+import { LiveAttendeeList } from '@/components/features/map/LiveAttendeeList';
 import { haversineDistance } from '@/lib/geo/distance';
 import { LIVE_FRESHNESS_MS, LIVE_MAP_POLL_INTERVAL } from '@/lib/constants';
 import { Button } from '@/components/ui/button';
@@ -20,6 +21,14 @@ const LiveMap = dynamic(() => import('@/components/features/map/LiveMap'), {
 
 export default function LiveMapPage() {
   const [showGeofence, setShowGeofence] = useState(true);
+  const [selectedUserId, setSelectedUserId] = useState<string | null>(null);
+  // Naik tiap klik daftar — klik ulang pada orang yang sama tetap memusatkan peta.
+  const [focusNonce, setFocusNonce] = useState(0);
+
+  const focusUser = useCallback((userId: string) => {
+    setSelectedUserId(userId);
+    setFocusNonce((n) => n + 1);
+  }, []);
 
   const { data: geofence } = useGeofence();
   const { data, isLoading } = useAttendanceList(
@@ -121,19 +130,40 @@ export default function LiveMapPage() {
         </Button>
       </div>
 
-      <div className="min-h-0 flex-1 overflow-hidden rounded-lg border border-border">
+      <div className="flex min-h-0 flex-1 flex-col gap-3 lg:flex-row">
+        <div className="min-h-[240px] flex-1 overflow-hidden rounded-lg border border-border">
+          {isLoading ? (
+            <Skeleton className="h-full w-full" />
+          ) : presentRecords.length === 0 && !geofence ? (
+            <div className="flex h-full items-center justify-center bg-surface">
+              <p className="text-sm text-text-secondary">
+                {records.length > 0
+                  ? 'Semua karyawan sudah absen pulang'
+                  : 'Belum ada absensi hari ini'}
+              </p>
+            </div>
+          ) : (
+            <LiveMap
+              records={markers}
+              geofence={geofence ?? null}
+              showGeofence={showGeofence}
+              selectedUserId={selectedUserId}
+              focusNonce={focusNonce}
+              onSelectUser={setSelectedUserId}
+            />
+          )}
+        </div>
+
+        {/* Jalur akses ke karyawan yang marker-nya bertumpuk di satu titik. */}
         {isLoading ? (
-          <Skeleton className="h-full w-full" />
-        ) : presentRecords.length === 0 && !geofence ? (
-          <div className="flex h-full items-center justify-center bg-surface">
-            <p className="text-sm text-text-secondary">
-              {records.length > 0
-                ? 'Semua karyawan sudah absen pulang'
-                : 'Belum ada absensi hari ini'}
-            </p>
-          </div>
+          <Skeleton className="h-40 w-full lg:h-auto lg:w-80 lg:shrink-0" />
         ) : (
-          <LiveMap records={markers} geofence={geofence ?? null} showGeofence={showGeofence} />
+          <LiveAttendeeList
+            records={markers}
+            selectedUserId={selectedUserId}
+            onSelect={focusUser}
+            className="h-56 lg:h-auto lg:w-80 lg:shrink-0"
+          />
         )}
       </div>
 

@@ -91,6 +91,14 @@ body {
   background: var(--destructive);
 }
 
+/* Marker yang dipilih dari daftar samping. Diberi cincin & diperbesar agar
+   tetap kelihatan saat bertumpuk dengan marker lain di titik yang sama. */
+.geoattend-marker--selected {
+  outline: 3px solid var(--primary);
+  outline-offset: 2px;
+  transform: scale(1.15);
+}
+
 /* Marker titik absen masuk & pulang pada peta riwayat lokasi */
 .geoattend-marker--start {
   background: var(--success);

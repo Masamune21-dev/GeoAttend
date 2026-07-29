@@ -1,13 +1,17 @@
 'use client';
 
-import { useMemo } from 'react';
-import { MapContainer, TileLayer, Circle, Marker, Popup } from 'react-leaflet';
+import { useEffect, useMemo, useRef } from 'react';
+import { MapContainer, TileLayer, Circle, Marker, Popup, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 import type { AttendanceRecordResponse, GeofenceResponse } from '@/types/api';
 import { getInitials, formatTime } from '@/lib/utils';
 import { formatDistance } from '@/lib/geo/distance';
-import { DEFAULT_MAP_CENTER, DEFAULT_ZOOM_LEVEL } from '@/lib/constants';
+import {
+  DEFAULT_MAP_CENTER,
+  DEFAULT_ZOOM_LEVEL,
+  FOCUS_ZOOM_LEVEL,
+} from '@/lib/constants';
 
 /**
  * Asal koordinat marker — menentukan warna, isi popup, dan legenda.
@@ -31,13 +35,23 @@ interface LiveMapProps {
   records: LiveMarkerData[];
   geofence: GeofenceResponse | null;
   showGeofence?: boolean;
+  /** Karyawan yang sedang disorot dari daftar samping. */
+  selectedUserId?: string | null;
+  /**
+   * Naik setiap kali daftar samping minta peta memusat ulang. Dipakai (bukan
+   * `selectedUserId`) supaya klik berulang pada orang yang sama tetap memusatkan
+   * peta setelah admin menggeser petanya.
+   */
+  focusNonce?: number;
+  onSelectUser?: (userId: string) => void;
 }
 
 function createMarkerIcon(
   name: string,
   isWithinGeofence: boolean,
   source: LivePositionSource,
-  avatar?: string | null
+  avatar?: string | null,
+  isSelected = false
 ) {
   const modifiers = [
     source === 'live' ? ' geoattend-marker--live' : '',
@@ -45,6 +59,7 @@ function createMarkerIcon(
     // Berlaku untuk SEMUA sumber posisi: statusnya dihitung dari koordinat yang
     // benar-benar dipakai marker, bukan lagi dari titik absen.
     !isWithinGeofence ? ' geoattend-marker--outside' : '',
+    isSelected ? ' geoattend-marker--selected' : '',
   ].join('');
   // Foto profil sebagai isi marker bila ada; jika tidak, pakai inisial.
   const style = avatar
@@ -60,10 +75,43 @@ function createMarkerIcon(
 }
 
 /**
+ * Memusatkan peta ke karyawan terpilih saat `nonce` berubah.
+ *
+ * Sengaja TIDAK ikut bereaksi pada perubahan koordinat: posisi live di-poll
+ * berkala, dan memusatkan ulang tiap poll akan melawan admin yang sedang
+ * menggeser peta.
+ */
+function FocusOnSelected({ target, nonce }: { target?: LiveMarkerData; nonce: number }) {
+  const map = useMap();
+  const targetRef = useRef(target);
+
+  useEffect(() => {
+    targetRef.current = target;
+  }, [target]);
+
+  useEffect(() => {
+    const focus = targetRef.current;
+    if (!focus) return;
+    map.flyTo([focus.latitude, focus.longitude], Math.max(map.getZoom(), FOCUS_ZOOM_LEVEL), {
+      duration: 0.6,
+    });
+  }, [nonce, map]);
+
+  return null;
+}
+
+/**
  * Peta live absensi + pelacakan posisi karyawan di lapangan.
  * Harus di-load dengan next/dynamic { ssr: false }.
  */
-export default function LiveMap({ records, geofence, showGeofence = true }: LiveMapProps) {
+export default function LiveMap({
+  records,
+  geofence,
+  showGeofence = true,
+  selectedUserId = null,
+  focusNonce = 0,
+  onSelectUser,
+}: LiveMapProps) {
   const center = useMemo<[number, number]>(() => {
     if (geofence) return [geofence.latitude, geofence.longitude];
     if (records[0]) return [records[0].latitude, records[0].longitude];
@@ -90,6 +138,11 @@ export default function LiveMap({ records, geofence, showGeofence = true }: Live
         />
       )}
 
+      <FocusOnSelected
+        target={records.find((r) => r.userId === selectedUserId)}
+        nonce={focusNonce}
+      />
+
       {records.map((record) => (
         <Marker
           key={record.userId}
@@ -98,8 +151,13 @@ export default function LiveMap({ records, geofence, showGeofence = true }: Live
             record.userName,
             record.isWithinGeofence,
             record.positionSource,
-            record.userAvatar
+            record.userAvatar,
+            record.userId === selectedUserId
           )}
+          // Marker terpilih diangkat ke atas tumpukan supaya tetap bisa diklik
+          // saat beberapa karyawan berada di titik yang sama.
+          zIndexOffset={record.userId === selectedUserId ? 1000 : 0}
+          eventHandlers={{ click: () => onSelectUser?.(record.userId) }}
         >
           <Popup>
             <div style={{ minWidth: 160 }}>
