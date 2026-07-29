@@ -52,6 +52,17 @@ export async function setToken(value: string | null): Promise<void> {
   }
 }
 
+/** Ubah path relatif dari server jadi URL absolut (null bila kosong). */
+export function toAbsoluteUrl(path?: string | null): string | null {
+  if (!path) return null;
+  return path.startsWith('http') ? path : `${serverUrl}${path}`;
+}
+
+/** Header untuk <Image> — endpoint /api/uploads butuh bearer token. */
+export function authImageHeaders(): Record<string, string> {
+  return { Authorization: `Bearer ${token ?? ''}` };
+}
+
 export class ApiRequestError extends Error {
   code?: string;
   status: number;

@@ -1,8 +1,12 @@
 import type { ScheduleShift, SwapStatus } from '../api/types';
+import type { Tone } from '../components/ui';
 
 /** Helper jadwal shift untuk aplikasi mobile (murni, tanpa dependensi UI). */
 
 export const WEEKDAY_SHORT = ['Min', 'Sen', 'Sel', 'Rab', 'Kam', 'Jum', 'Sab'];
+
+/** Inisial hari untuk kepala kalender (Minggu → Sabtu). */
+export const WEEKDAY_INITIAL = ['M', 'S', 'S', 'R', 'K', 'J', 'S'];
 
 const MONTH_NAMES = [
   'Januari', 'Februari', 'Maret', 'April', 'Mei', 'Juni',
@@ -49,16 +53,26 @@ export function formatShortDate(dateStr: string): string {
   return `${WEEKDAY_SHORT[weekdayOf(dateStr)]}, ${day} ${MONTH_NAMES[mon - 1].slice(0, 3)}`;
 }
 
-export const SHIFT_BADGE: Record<ScheduleShift, { label: string; tone: 'primary' | 'warning' | 'destructive' }> = {
+export const SHIFT_BADGE: Record<ScheduleShift, { label: string; tone: Tone }> = {
   '1': { label: 'Shift 1', tone: 'primary' },
   '2': { label: 'Shift 2', tone: 'warning' },
-  libur: { label: 'Libur', tone: 'destructive' },
+  libur: { label: 'Libur', tone: 'neutral' },
 };
 
-export const SWAP_META: Record<SwapStatus, { label: string; tone: 'success' | 'destructive' | 'warning' | 'secondary' }> = {
+export const SWAP_META: Record<SwapStatus, { label: string; tone: Tone }> = {
   pending_peer: { label: 'Menunggu rekan', tone: 'warning' },
   pending_admin: { label: 'Menunggu admin', tone: 'warning' },
   approved: { label: 'Disetujui', tone: 'success' },
   rejected: { label: 'Ditolak', tone: 'destructive' },
-  cancelled: { label: 'Dibatalkan', tone: 'secondary' },
+  cancelled: { label: 'Dibatalkan', tone: 'neutral' },
 };
+
+/** Warna titik penanda di kalender jadwal. */
+export const SHIFT_DOT: Record<ScheduleShift, string> = {
+  '1': '#2563EB',
+  '2': '#0EA5E9',
+  libur: '#CBD5E1',
+};
+
+/** Titik kedua pada tanggal saat pengguna kebagian piket. */
+export const PIKET_DOT = '#F59E0B';

@@ -370,6 +370,21 @@ export interface ScheduleResponse {
   participantsConfigured: boolean;
 }
 
+/** Satu baris roster "siapa shift berapa hari ini". */
+export interface DayRosterMember {
+  userId: string;
+  name: string;
+  role: string;
+  image: string | null;
+  /** null bila peserta belum dijadwalkan pada tanggal itu. */
+  shift: ScheduleShift | null;
+}
+
+export interface DayRosterResponse {
+  date: string; // "yyyy-MM-dd"
+  members: DayRosterMember[];
+}
+
 // --- Tim jaga lembur teknisi (ganjil/genap) ---
 
 export const TECHNICIAN_TEAMS = ['ganjil', 'genap'] as const;

@@ -153,6 +153,15 @@ export async function startTracking(): Promise<boolean> {
   }
 }
 
+/** Apakah pelacakan background sedang berjalan. Tidak pernah melempar. */
+export async function isTracking(): Promise<boolean> {
+  try {
+    return await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK);
+  } catch {
+    return false;
+  }
+}
+
 /** Hentikan tracking (setelah clock-out / logout). Tidak pernah melempar. */
 export async function stopTracking(): Promise<void> {
   try {

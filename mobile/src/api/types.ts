@@ -106,6 +106,20 @@ export interface ScheduleResponse {
   entries: ScheduleEntry[];
 }
 
+/** Roster "siapa shift berapa" satu hari — GET /api/schedules/today. */
+export interface DayRosterMember {
+  userId: string;
+  name: string;
+  role: string;
+  image: string | null;
+  shift: ScheduleShift | null;
+}
+
+export interface DayRosterResponse {
+  date: string; // "yyyy-MM-dd"
+  members: DayRosterMember[];
+}
+
 export type SwapStatus =
   | 'pending_peer'
   | 'pending_admin'
