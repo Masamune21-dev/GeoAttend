@@ -230,6 +230,61 @@ describe('computeRecap — sesi lintas tengah malam', () => {
   });
 });
 
+describe('computeRecap — sesi lembur urgent', () => {
+  it('panggilan malam 23:00 → 01:30 = lembur 2j 30m, tanpa telat', () => {
+    // Regresi: tanpa cabang kind='lembur', durasi ini diukur ke jam masuk
+    // shift teknisi (08:00) dan tercatat "telat 15 jam" — sampah buat payroll.
+    const result = computeRecap(
+      { clockIn: at(23, 0), clockOut: atNextDay(1, 30), kind: 'lembur' },
+      TEKNISI_SHIFTS
+    );
+    expect(result.overtimeMinutes).toBe(150);
+    expect(result.lateMinutes).toBe(0);
+    expect(result.earlyLeaveMinutes).toBe(0);
+    expect(result.shift).toBeNull();
+  });
+
+  it('lembur siang di dalam rentang shift tetap dihitung penuh', () => {
+    // Lembur di hari libur: jamnya kebetulan bertabrakan dengan shift, tapi
+    // karena sesi lembur, seluruh durasinya tetap lembur.
+    const result = computeRecap(
+      { clockIn: at(9, 0), clockOut: at(12, 0), kind: 'lembur' },
+      TEKNISI_SHIFTS
+    );
+    expect(result.overtimeMinutes).toBe(180);
+    expect(result.lateMinutes).toBe(0);
+    expect(result.earlyLeaveMinutes).toBe(0);
+  });
+
+  it('sesi lembur yang belum ditutup belum menghasilkan menit lembur', () => {
+    const result = computeRecap(
+      { clockIn: at(23, 0), clockOut: null, kind: 'lembur' },
+      TEKNISI_SHIFTS
+    );
+    expect(result.overtimeMinutes).toBe(0);
+    expect(result.lateMinutes).toBe(0);
+  });
+
+  it('shiftNumber yang terlanjur ikut terkirim diabaikan pada sesi lembur', () => {
+    const result = computeRecap(
+      { clockIn: at(23, 0), clockOut: atNextDay(1, 0), shiftNumber: 1, kind: 'lembur' },
+      TEKNISI_SHIFTS
+    );
+    expect(result.overtimeMinutes).toBe(120);
+    expect(result.lateMinutes).toBe(0);
+  });
+
+  it('tanpa kind (data lama) perilaku shift tidak berubah', () => {
+    const result = computeRecap(
+      { clockIn: at(8, 0), clockOut: at(16, 0), shiftNumber: 1 },
+      TEKNISI_SHIFTS
+    );
+    expect(result.lateMinutes).toBe(0);
+    expect(result.overtimeMinutes).toBe(0);
+    expect(result.shift?.shiftNumber).toBe(1);
+  });
+});
+
 describe('formatMinutes', () => {
   it('format menit ke jam+menit', () => {
     expect(formatMinutes(0)).toBe('-');

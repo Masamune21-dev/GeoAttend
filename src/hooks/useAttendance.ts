@@ -12,6 +12,7 @@ import type {
   LocationTrailResponse,
   PaginatedResponse,
   ReviewLeaveInput,
+  ReviewOvertimeInput,
   ShiftSettingResponse,
   UserProfile,
 } from '@/types/api';
@@ -235,6 +236,23 @@ export function useDeleteLeave() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['leaves'] });
     },
+  });
+}
+
+/**
+ * Verifikasi sesi lembur urgent (administrator). `id` = record PEMBUKA sesi
+ * (clock_in bertipe lembur) — di situlah statusnya disimpan.
+ */
+export function useReviewOvertime() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, ...input }: ReviewOvertimeInput & { id: string }) =>
+      fetchJson<{ data: { id: string; overtimeStatus: string } }>(`/api/attendance/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['attendance'] }),
   });
 }
 

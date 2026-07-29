@@ -7,7 +7,7 @@ import {
   isAdmin,
   unauthorizedResponse,
 } from '@/lib/auth/utils';
-import { CreateAttendanceSchema } from '@/types/api';
+import { CreateAttendanceSchema, type AttendanceKind } from '@/types/api';
 import { checkGeofence } from '@/lib/geo/validation';
 import { pickShift } from '@/lib/shifts/calc';
 import { OPEN_SESSION_WINDOW_HOURS } from '@/lib/constants';
@@ -124,7 +124,11 @@ export async function POST(req: NextRequest) {
     // (INVALID_SEQUENCE) dan lemburnya hilang.
     const sessionWindowStart = new Date(Date.now() - OPEN_SESSION_WINDOW_HOURS * 60 * 60 * 1000);
     const recentRecords = await db
-      .select({ type: attendanceRecords.type, shiftNumber: attendanceRecords.shiftNumber })
+      .select({
+        type: attendanceRecords.type,
+        kind: attendanceRecords.kind,
+        shiftNumber: attendanceRecords.shiftNumber,
+      })
       .from(attendanceRecords)
       .where(
         and(
@@ -158,19 +162,43 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Jenis sesi ditentukan SERVER, bukan klien: absen pulang selalu mewarisi
+    // jenis sesi yang sedang terbuka. Jadi sesi lembur pasti ditutup sebagai
+    // lembur walau klien (mis. versi app lama) mengirim 'shift'.
+    const openKind =
+      lastType === 'clock_in' ? ((lastRecord.kind ?? 'shift') as AttendanceKind) : null;
+    const kind: AttendanceKind = input.type === 'clock_out' ? openKind ?? input.kind : input.kind;
+    const isOvertime = kind === 'lembur';
+
+    // Lembur urgent = di luar jam shift & sering di lokasi pelanggan. Alasan
+    // (gangguan/tiket) WAJIB karena lembur berujung ke perhitungan upah.
+    if (isOvertime && input.type === 'clock_in' && !input.notes?.trim()) {
+      return NextResponse.json(
+        {
+          code: 'OVERTIME_REASON_REQUIRED',
+          message: 'Wajib isi alasan/gangguan yang ditangani untuk memulai lembur urgent',
+          timestamp: new Date().toISOString(),
+        },
+        { status: 422 }
+      );
+    }
+
     // Tentukan shift yang dicatat:
     // - shiftNumber dari klien harus valid untuk role user
     // - clock_out tanpa shiftNumber mewarisi shift dari clock_in hari ini
     // - fallback: shift dengan jam masuk terdekat dari waktu sekarang
-    const roleShifts = await db
-      .select({
-        role: shiftSettings.role,
-        shiftNumber: shiftSettings.shiftNumber,
-        startTime: shiftSettings.startTime,
-        endTime: shiftSettings.endTime,
-      })
-      .from(shiftSettings)
-      .where(eq(shiftSettings.role, session.user.role ?? ''));
+    // Sesi LEMBUR tidak punya shift sama sekali — memang di luar jadwal.
+    const roleShifts = isOvertime
+      ? []
+      : await db
+          .select({
+            role: shiftSettings.role,
+            shiftNumber: shiftSettings.shiftNumber,
+            startTime: shiftSettings.startTime,
+            endTime: shiftSettings.endTime,
+          })
+          .from(shiftSettings)
+          .where(eq(shiftSettings.role, session.user.role ?? ''));
 
     let shiftNumber: number | null = null;
     if (roleShifts.length > 0) {
@@ -221,7 +249,9 @@ export async function POST(req: NextRequest) {
     // Absen MASUK & PULANG sama-sama boleh di luar area. Bila absen MASUK di luar
     // area (mis. teknisi langsung ke lapangan tanpa ke kantor), WAJIB isi alasan
     // (notes). Lokasi tetap dicatat (isWithinGeofence + jarak) untuk pelaporan.
-    if (input.type === 'clock_in' && geofence && !check.isInside && !input.notes?.trim()) {
+    // Sesi LEMBUR dikecualikan: di luar area itu wajar (lokasi pelanggan/ODP),
+    // dan alasannya sudah diwajibkan lebih dulu di atas.
+    if (!isOvertime && input.type === 'clock_in' && geofence && !check.isInside && !input.notes?.trim()) {
       return NextResponse.json(
         {
           code: 'GEOFENCE_REASON_REQUIRED',
@@ -241,6 +271,9 @@ export async function POST(req: NextRequest) {
       .values({
         userId: session.user.id,
         type: input.type,
+        kind,
+        // Status verifikasi menempel di record PEMBUKA — mewakili satu sesi utuh
+        overtimeStatus: isOvertime && input.type === 'clock_in' ? 'pending' : null,
         shiftNumber,
         latitude: String(input.latitude),
         longitude: String(input.longitude),

@@ -35,13 +35,22 @@ function formatDateRange(startDate: string, endDate: string): string {
   return startDate === endDate ? fmt(startDate) : `${fmt(startDate)} – ${fmt(endDate)}`;
 }
 
+export interface LeaveSectionProps {
+  /**
+   * Hari ini dijadwalkan libur di jadwal shift. Libur jadwal sudah otomatis
+   * masuk rekap, jadi tombol "Libur Hari Ini" (penanda manual) disembunyikan.
+   */
+  scheduledLibur?: boolean;
+}
+
 /**
  * Bagian izin & libur di halaman absensi:
- * - tombol "Libur Hari Ini" (self-service, langsung tercatat)
+ * - status libur hari ini (dari jadwal shift, otomatis) atau tombol
+ *   "Libur Hari Ini" (penanda manual untuk libur di luar jadwal)
  * - form "Ajukan Izin" (sakit/izin/cuti — menunggu persetujuan administrator)
  * - daftar pengajuan terbaru milik user + batalkan
  */
-export function LeaveSection() {
+export function LeaveSection({ scheduledLibur = false }: LeaveSectionProps) {
   const today = toLocalDateString(new Date());
   const { data: leavesData } = useLeaves({ userId: 'self' });
   const { data: todayData } = useTodayAttendance();
@@ -160,6 +169,19 @@ export function LeaveSection() {
           <Alert variant="warning" className="font-medium">
             Hari ini Anda tercatat {getLeaveTypeLabel(todayApprovedLeave.type)}
           </Alert>
+        ) : scheduledLibur ? (
+          // Libur menurut jadwal shift — sudah otomatis masuk rekap, jadi hanya
+          // "Ajukan Izin" yang tersisa (mis. mau menambah cuti di hari lain).
+          <div className="flex flex-col gap-2">
+            <div className="flex items-center gap-2 rounded-md bg-warning-subtle px-3 py-2.5 text-sm font-medium text-amber-700">
+              <Palmtree className="h-4 w-4 shrink-0" aria-hidden="true" />
+              Hari ini Libur sesuai jadwal — otomatis tercatat di rekap
+            </div>
+            <Button variant="outline" onClick={() => setDialogOpen(true)}>
+              <CalendarOff className="h-4 w-4" aria-hidden="true" />
+              Ajukan Izin
+            </Button>
+          </div>
         ) : (
           <div className="grid grid-cols-2 gap-2">
             <Button

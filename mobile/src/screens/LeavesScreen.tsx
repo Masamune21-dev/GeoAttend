@@ -12,9 +12,10 @@ import {
 } from 'react-native';
 import { CalendarPlus, TreePalm } from 'lucide-react-native';
 import { api, ApiRequestError } from '../api/client';
-import type { LeaveRequestResponse, LeaveType } from '../api/types';
+import type { LeaveRequestResponse, LeaveType, ScheduleResponse } from '../api/types';
 import { useSession } from '../auth/session';
 import { toLocalDateString } from '../lib/geo';
+import { toLocalMonth } from '../lib/schedule';
 import { Badge, Button, Card, Field } from '../components/ui';
 import { colors, spacing } from '../theme';
 
@@ -50,6 +51,7 @@ export function LeavesScreen() {
   ];
 
   const [leaves, setLeaves] = useState<LeaveRequestResponse[]>([]);
+  const [scheduledLibur, setScheduledLibur] = useState(false);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -61,9 +63,19 @@ export function LeavesScreen() {
   const [submitting, setSubmitting] = useState(false);
 
   const loadData = useCallback(async () => {
-    const res = await api<{ data: LeaveRequestResponse[] }>('/api/leaves?userId=self');
+    const [res, schedule] = await Promise.all([
+      api<{ data: LeaveRequestResponse[] }>('/api/leaves?userId=self'),
+      // Libur menurut jadwal shift sudah otomatis masuk rekap — tombol penanda
+      // manual disembunyikan agar tidak dobel.
+      api<ScheduleResponse>(
+        `/api/schedules?month=${toLocalMonth(new Date())}&userId=self`
+      ).catch(() => ({ users: [], entries: [], participantsConfigured: false })),
+    ]);
     setLeaves(res.data);
-  }, []);
+    setScheduledLibur(
+      schedule.entries.some((e) => e.date === today && e.shift === 'libur')
+    );
+  }, [today]);
 
   useEffect(() => {
     loadData()
@@ -201,6 +213,26 @@ export function LeavesScreen() {
                   Hari ini tercatat Libur
                 </Text>
               </View>
+            ) : scheduledLibur ? (
+              <>
+                <View style={[styles.liburBanner, { flexDirection: 'column', gap: 4 }]}>
+                  <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                    <TreePalm size={18} color="#B45309" />
+                    <Text style={{ color: '#B45309', fontWeight: '600' }}>
+                      Hari ini Libur sesuai jadwal
+                    </Text>
+                  </View>
+                  <Text style={{ color: '#B45309', fontSize: 13, textAlign: 'center' }}>
+                    Otomatis tercatat di rekap — tidak perlu menandai apa pun.
+                  </Text>
+                </View>
+                <Button
+                  title="Ajukan Izin"
+                  icon={CalendarPlus}
+                  variant="outline"
+                  onPress={() => setFormOpen(true)}
+                />
+              </>
             ) : (
               <View style={{ flexDirection: 'row', gap: spacing.md }}>
                 <Button

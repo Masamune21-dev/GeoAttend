@@ -24,6 +24,11 @@ export interface DailyAttendance {
   clockOut: Date | null;
   /** Shift yang dipilih saat absen (dari record); null/undefined utk data lama. */
   shiftNumber?: number | null;
+  /**
+   * Jenis sesi. 'lembur' = lembur urgent di luar shift — seluruh durasinya
+   * dihitung lembur, tanpa telat & pulang cepat (lihat {@link computeRecap}).
+   */
+  kind?: 'shift' | 'lembur';
 }
 
 export interface RecapResult {
@@ -78,6 +83,18 @@ export function computeRecap(day: DailyAttendance, roleShifts: ShiftTime[]): Rec
   const reference = day.clockIn ?? day.clockOut;
   if (!reference) {
     return { shift: null, lateMinutes: 0, overtimeMinutes: 0, earlyLeaveMinutes: 0 };
+  }
+
+  // Sesi LEMBUR URGENT tidak diukur terhadap shift mana pun — memang di luar
+  // jam kerja. Seluruh durasi masuk-pulang dihitung lembur; telat & pulang
+  // cepat selalu 0. Tanpa cabang ini, teknisi yang dipanggil 23:00 dan selesai
+  // 01:30 akan tercatat "telat 15 jam" karena diukur ke jam masuk shiftnya.
+  if (day.kind === 'lembur') {
+    const minutes =
+      day.clockIn && day.clockOut
+        ? Math.max(0, Math.round((day.clockOut.getTime() - day.clockIn.getTime()) / 60_000))
+        : 0;
+    return { shift: null, lateMinutes: 0, overtimeMinutes: minutes, earlyLeaveMinutes: 0 };
   }
 
   const recorded =

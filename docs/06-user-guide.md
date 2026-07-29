@@ -8,8 +8,10 @@
 3. (Disarankan) Install ke home screen: menu browser → *Add to Home Screen* — app terasa seperti aplikasi native
 
 ### Absen masuk
-1. Buka menu **Absen** (ikon kamera)
-2. Bila role Anda punya 2 shift (Admin/NOC): pilih **Shift** yang dijalani — otomatis terpilih shift terdekat dengan jam sekarang, ubah bila perlu
+1. Buka menu **Absen** (ikon kamera). Di paling atas ada **jadwal hari ini**:
+   *"Hari ini jadwal kamu Shift 1 · 07:00–15:00"*, *"Hari ini kamu Libur"*, atau
+   *"Hari ini kamu belum dijadwalkan shift"*
+2. Bila role Anda punya 2 shift (Admin/NOC): pilih **Shift** yang dijalani — otomatis terpilih sesuai **jadwal hari ini** (bila belum dijadwalkan: shift terdekat dengan jam sekarang), ubah bila perlu
 3. Tunggu indikator lokasi hijau: *"Anda berada di dalam area absensi"*
    - Merah = masih di luar area (tampil jaraknya) → mendekat ke lokasi kerja
    - Kuning = sinyal GPS lemah → pindah ke area terbuka
@@ -21,8 +23,25 @@
 Sama seperti absen masuk — tombol otomatis berubah menjadi **Kirim Absen Pulang**.
 Pilihan shift otomatis mengikuti shift absen masuk Anda hari itu.
 
+### Lembur Urgent (dipanggil di luar jam shift)
+Dipanggil mendadak — gangguan malam, panggilan di hari libur? **Jangan pakai tombol
+absen biasa**, karena jamnya akan diukur ke shift Anda dan tercatat telat belasan jam.
+
+1. Di halaman **Absen**, tap **“Dipanggil lembur? Mulai Lembur Urgent”**
+2. Ambil foto + **wajib isi alasan/gangguan** (mis. *“FO putus Jl. Merdeka — tiket #1234”*) → **Mulai Lembur Urgent**
+3. Selesai bekerja, buka lagi halaman Absen → tombolnya sudah jadi **Selesai Lembur**. Ambil **foto hasil perbaikan** sebagai bukti → kirim
+
+Yang perlu diketahui:
+- **Seluruh durasinya dihitung lembur** — tidak ada telat, tidak ada pulang cepat
+- **Boleh di lokasi pelanggan / di luar area kantor** — itu wajar untuk lembur, bukan pelanggaran
+- Tidak perlu pilih shift — memang di luar jadwal
+- Sesi Anda berstatus **Menunggu verifikasi** sampai administrator menyetujuinya di rekap
+- Dipanggil lembur di **hari libur** tidak menghapus jatah libur Anda — keduanya tercatat
+- Kalau Anda dipanggil saat **masih di dalam shift**, tidak perlu tombol ini: pulang lebih larut sudah otomatis terhitung lembur
+
 ### Izin & Libur (kartu di halaman Absen)
-- **Libur Hari Ini** — 1 klik, hari ini langsung tercatat libur (bisa dibatalkan; tidak bisa bila sudah absen)
+- **Libur sesuai jadwal** — bila jadwal hari ini Libur, hari itu **otomatis tercatat Libur di rekap**. Tidak perlu menekan tombol apa pun, dan tombol "Libur Hari Ini" memang disembunyikan. Kalau ternyata Anda diminta masuk, absen saja seperti biasa — baris kehadiran yang dipakai
+- **Libur Hari Ini** — untuk libur **dadakan yang tidak ada di jadwal**: 1 klik, hari ini langsung tercatat libur (bisa dibatalkan; tidak bisa bila sudah absen)
 - **Ajukan Izin** — pilih jenis (**Sakit / Izin / Cuti**), rentang tanggal, dan alasan → status **Menunggu** sampai administrator memutuskan; pantau statusnya di daftar bawah tombol (pengajuan Menunggu bisa dibatalkan)
 - Jika ditolak, alasan penolakan tampil di daftar pengajuan
 
@@ -84,9 +103,10 @@ Email login hanya bisa diubah oleh administrator.
 
 ### Bulanan (payroll)
 1. **Rekap Bulanan** → pilih bulan (dan karyawan tertentu bila perlu)
-2. Periksa tabel ringkasan (hari hadir, sakit/izin/cuti/libur, total telat, total lembur, total pulang cepat) dan detail harian — satu baris per shift; kolom **Keterangan** membedakan Hadir/Sakit/Izin/Cuti/Libur
-3. **Riwayat lokasi**: pada tabel Detail Harian, klik tombol **Riwayat** di kolom Aksi untuk melihat ke mana saja karyawan pergi hari itu — rute perjalanan di peta, titik berhenti beserta lamanya, total jarak tempuh, dan foto absen masuk & pulang berdampingan. Tersedia untuk baris kehadiran (bukan izin/libur) dan tersimpan sampai 90 hari ke belakang
-4. **PDF** untuk arsip/tanda tangan, **CSV** untuk olah di Excel (kolom Aksi tidak ikut terekspor)
+2. Periksa tabel ringkasan (hari hadir, sakit/izin/cuti/libur, total telat, total lembur, total pulang cepat) dan detail harian — satu baris per shift; kolom **Keterangan** membedakan Hadir/Sakit/Izin/Cuti/Libur. **Hari bershift "libur" di jadwal ikut terhitung Libur otomatis** — karyawan tidak perlu menandainya sendiri, jadi kolom Libur mencerminkan jadwal yang Anda susun (libur di masa depan belum dihitung)
+3. **Verifikasi lembur urgent**: baris berbadge **Lembur** + **Belum diverifikasi** adalah panggilan lembur di luar shift. Klik **Setujui** (masuk kolom Lembur Urgent) atau **Tolak** (tidak dihitung sama sekali) di kolom Aksi. Kolom **Lembur Urgent** sengaja dipisah dari **Total Lembur** — yang pertama karena dipanggil, yang kedua karena kelebihan jam kerja, dan basis bayarnya berbeda
+4. **Riwayat lokasi**: pada tabel Detail Harian, klik tombol **Riwayat** di kolom Aksi untuk melihat ke mana saja karyawan pergi hari itu — rute perjalanan di peta, titik berhenti beserta lamanya, total jarak tempuh, dan foto absen masuk & pulang berdampingan. Tersedia untuk baris kehadiran (bukan izin/libur) dan tersimpan sampai 90 hari ke belakang
+5. **PDF** untuk arsip/tanda tangan, **CSV** untuk olah di Excel (kolom Aksi tidak ikut terekspor; ada kolom **Status Lembur** untuk membedakan sesi yang disetujui/ditolak)
 
 > **Catatan pulang cepat:** lembur karena datang lebih awal TIDAK menutupi
 > kekurangan jam karena pulang lebih cepat — keduanya tampil terpisah agar

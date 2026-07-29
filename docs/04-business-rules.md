@@ -93,19 +93,87 @@ Role tanpa SOP (`administrator`, `employee`): telat/lembur/pulang cepat tidak di
 
 ## Izin & Libur
 
-Jenis: **Sakit**, **Izin**, **Cuti** (perlu persetujuan), dan **Libur** (self-service).
+Jenis: **Sakit**, **Izin**, **Cuti** (perlu persetujuan), dan **Libur** — libur datang dari
+**jadwal shift** (otomatis) atau ditandai sendiri (self-service, untuk libur di luar jadwal).
 
-| Aturan | Sakit / Izin / Cuti | Libur |
-| :--- | :--- | :--- |
-| Siapa yang mencatat | Karyawan mengajukan (rentang tanggal + alasan) | Karyawan menandai sendiri (1 klik) |
-| Persetujuan | Administrator (setujui/tolak + catatan) | Tidak perlu — langsung tercatat |
-| Tanggal | Mulai hari ini atau ke depan, boleh rentang | **Hanya hari ini** |
-| Batal | Oleh pengaju selama masih `pending`; administrator kapan saja | Oleh pemilik (hari berjalan) atau administrator |
+| Aturan | Sakit / Izin / Cuti | Libur (jadwal) | Libur (penanda manual) |
+| :--- | :--- | :--- | :--- |
+| Siapa yang mencatat | Karyawan mengajukan (rentang tanggal + alasan) | Administrator, lewat grid jadwal shift | Karyawan menandai sendiri (1 klik) |
+| Persetujuan | Administrator (setujui/tolak + catatan) | Tidak perlu — ikut jadwal | Tidak perlu — langsung tercatat |
+| Tanggal | Mulai hari ini atau ke depan, boleh rentang | Semua sel bershift `libur` di jadwal | **Hanya hari ini** |
+| Batal | Oleh pengaju selama masih `pending`; administrator kapan saja | Ubah jadwalnya | Oleh pemilik (hari berjalan) atau administrator |
 
 - Rentang yang **tumpang-tindih** dengan pengajuan aktif (pending/approved) milik user yang sama ditolak
 - Hanya pengajuan **approved** yang masuk rekap bulanan (kolom Keterangan + hitungan hari Sakit/Izin/Cuti/Libur per karyawan)
 - Bila karyawan **tetap absen** di tanggal izin/libur → baris kehadiran yang dipakai di rekap (izin/libur hari itu diabaikan)
 - Karyawan tidak bisa menandai libur bila sudah absen hari itu
+
+### Libur otomatis dari jadwal
+
+Hari yang dijadwalkan `libur` **langsung terhitung Libur di rekap** — karyawan tidak
+perlu menekan "Libur Hari Ini". Turunannya dihitung saat rekap dirender
+([src\lib\schedule\libur.ts](..\src\lib\schedule\libur.ts)), bukan disimpan sebagai
+`leave_requests`, sehingga selalu ikut jadwal terbaru bila admin mengubahnya.
+
+Baris Libur otomatis **dilewati** bila:
+
+| Kondisi | Alasan |
+| :--- | :--- |
+| Tanggalnya belum tiba (setelah hari ini) | Libur yang belum terjadi tidak dihitung |
+| Karyawan tetap absen di tanggal itu | Baris kehadiran yang menang (mis. dipanggil masuk) |
+| Sudah ada izin/libur tercatat di tanggal itu | Supaya tidak terhitung dua kali |
+
+Tombol **"Libur Hari Ini"** tetap ada untuk libur dadakan yang **tidak** ada di
+jadwal; tombol itu disembunyikan ketika jadwal hari itu sudah `libur`.
+
+## Lembur Urgent
+
+Panggilan mendadak di **luar jam shift** (mis. teknisi dipanggil gangguan malam)
+dicatat sebagai **sesi lembur** — jenis sesi kedua di samping sesi shift, dibedakan
+oleh kolom `attendance_records.kind` (`'shift'` \| `'lembur'`).
+
+Kenapa harus terpisah: sesi lembur diukur terhadap durasinya sendiri, bukan
+terhadap shift. Bila dipaksa lewat absen biasa, teknisi yang dipanggil 23:00 dan
+selesai 01:30 (nyata 2j 30m) tercatat **telat 15 jam & lembur 9j 30m** karena
+diukur ke jam masuk shiftnya (08:00–16:00).
+
+| Aturan | Sesi Shift | Sesi Lembur |
+| :--- | :--- | :--- |
+| Nomor shift | Wajib/otomatis | **Selalu `null`** — di luar jadwal |
+| Telat & pulang cepat | Dihitung | **Selalu 0** |
+| Lembur | Datang awal / pulang telat | **100% durasi masuk→pulang** |
+| Alasan (`notes`) | Wajib hanya bila masuk di luar area | **Selalu wajib** saat membuka sesi |
+| Di luar geofence | Perlu alasan | Wajar — tidak diperlakukan sebagai pelanggaran |
+| Foto | Selfie masuk & pulang | Sama; foto penutup = **bukti hasil perbaikan** |
+| Masuk rekap | Langsung | Setelah **diverifikasi administrator** |
+
+**Aturan penting:**
+
+- Sesi lembur & sesi shift **tidak pernah terbuka bersamaan** — tombol lembur hanya
+  muncul saat tidak ada sesi berjalan. Lembur saat masih di dalam shift sudah
+  otomatis terhitung sebagai pulang telat, jadi tidak perlu sesi terpisah.
+- Jenis sesi saat menutup ditentukan **server**, mewarisi sesi yang terbuka. Klien
+  (mis. versi app lama) tidak bisa membuka lembur lalu menutupnya sebagai shift.
+- Dipanggil lembur di hari libur **tidak menghapus hari liburnya** — hanya sesi
+  `kind='shift'` yang dianggap "masuk kerja". Rekap menampilkan dua baris:
+  **Libur** dan **Lembur**.
+
+### Verifikasi (post-approval)
+
+Lembur urgent tidak bisa menunggu persetujuan — gangguan jam 2 pagi tidak boleh
+tertahan. Karyawan mulai sendiri, administrator memverifikasi belakangan di rekap.
+
+Status disimpan di record **PEMBUKA** sesi (`overtime_status`), mewakili satu sesi utuh:
+
+| Status | Arti | Masuk total jam? |
+| :--- | :--- | :---: |
+| `pending` | Baru dibuat, menunggu administrator | ❌ (dihitung sebagai "belum diverifikasi") |
+| `approved` | Disetujui administrator | ✅ |
+| `rejected` | Ditolak | ❌ |
+
+Di ringkasan rekap, **Lembur Urgent** adalah kolom terpisah dari **Total Lembur**
+(datang awal / pulang telat) karena basis pembayarannya berbeda; kolomnya juga
+menampilkan berapa kali dipanggil.
 
 ## Jadwal Shift
 

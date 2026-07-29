@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { CheckCircle2, Clock, LogIn, LogOut } from 'lucide-react';
+import { CalendarCheck, CheckCircle2, Clock, LogIn, LogOut, Palmtree, Zap } from 'lucide-react';
 import { useSession } from '@/lib/auth/client';
 import { useGeolocation } from '@/hooks/useGeolocation';
 import {
@@ -11,11 +11,16 @@ import {
   useOpenSession,
   useShifts,
 } from '@/hooks/useAttendance';
+import { useSchedule } from '@/hooks/useSchedule';
 import { haversineDistance } from '@/lib/geo/distance';
+import { toLocalDateString } from '@/lib/leaves';
+import { toLocalMonth } from '@/lib/schedule/rotation';
+import { shiftOnDate, shiftToNumber } from '@/lib/schedule/libur';
 import { pickShift, type ShiftTime } from '@/lib/shifts/calc';
 import { CameraCapture } from './CameraCapture';
 import { LeaveSection } from './LeaveSection';
 import { LocationStatus } from './LocationStatus';
+import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
@@ -29,16 +34,28 @@ export function CheckInForm() {
   const { data: geofence, isLoading: geofenceLoading } = useGeofence();
   const { data: sessionData, isLoading: sessionLoading } = useOpenSession();
   const { data: shiftsData, isLoading: shiftsLoading } = useShifts();
+  const today = toLocalDateString(new Date());
+  const { data: scheduleData } = useSchedule(toLocalMonth(new Date()), 'self');
   const createAttendance = useCreateAttendance();
 
   const [photo, setPhoto] = useState<string | null>(null);
   const [notes, setNotes] = useState('');
-  const [justSubmitted, setJustSubmitted] = useState(false);
+  /** Judul layar konfirmasi setelah kirim (null = belum kirim apa pun). */
+  const [submittedTitle, setSubmittedTitle] = useState<string | null>(null);
   const [manualShift, setManualShift] = useState<number | null>(null);
+  /** Karyawan menekan "Mulai Lembur Urgent" (hanya relevan saat belum ada sesi). */
+  const [overtimeMode, setOvertimeMode] = useState(false);
 
   const lastRecord = sessionData?.lastRecord ?? undefined;
   const nextType: 'clock_in' | 'clock_out' =
     sessionData?.isOpen ? 'clock_out' : 'clock_in';
+
+  // Jenis sesi yang sedang dikerjakan. Saat menutup sesi, jenisnya WAJIB
+  // mengikuti sesi yang terbuka — tidak bisa membuka lembur lalu menutupnya
+  // sebagai absen shift (server juga menegakkan aturan ini).
+  const kind: 'shift' | 'lembur' =
+    nextType === 'clock_out' ? lastRecord?.kind ?? 'shift' : overtimeMode ? 'lembur' : 'shift';
+  const isOvertime = kind === 'lembur';
 
   // Shift milik role user login (untuk pilihan shift saat absen)
   const roleShifts: ShiftTime[] = useMemo(() => {
@@ -55,9 +72,22 @@ export function CheckInForm() {
       .sort((a, b) => a.shiftNumber - b.shiftNumber);
   }, [session?.user.role, shiftsData]);
 
+  // Jadwal shift HARI INI milik user login ('1' | '2' | 'libur' | null bila belum
+  // dijadwalkan). Dipakai untuk banner "hari ini jadwal kamu …" dan default shift.
+  const todayShift = useMemo(
+    () => shiftOnDate(scheduleData?.entries ?? [], session?.user.id, today),
+    [scheduleData, session?.user.id, today]
+  );
+  const scheduledShiftNumber = shiftToNumber(todayShift);
+  const scheduledShift = useMemo(
+    () => roleShifts.find((s) => s.shiftNumber === scheduledShiftNumber) ?? null,
+    [roleShifts, scheduledShiftNumber]
+  );
+
   // Default shift: absen pulang mengikuti shift absen masuk sesi berjalan (record
-  // terakhir saat sesi terbuka = clock-in-nya); absen masuk memakai shift dengan
-  // jam masuk terdekat dari sekarang.
+  // terakhir saat sesi terbuka = clock-in-nya); absen masuk memakai shift dari
+  // JADWAL hari ini, dan bila tidak terjadwal baru jatuh ke shift dengan jam
+  // masuk terdekat dari sekarang.
   const defaultShift = useMemo(() => {
     if (roleShifts.length === 0) return null;
     if (
@@ -67,8 +97,9 @@ export function CheckInForm() {
     ) {
       return lastRecord.shiftNumber;
     }
+    if (scheduledShift) return scheduledShift.shiftNumber;
     return pickShift(new Date(), roleShifts)?.shiftNumber ?? null;
-  }, [roleShifts, nextType, lastRecord]);
+  }, [roleShifts, nextType, lastRecord, scheduledShift]);
 
   const selectedShift =
     manualShift != null && roleShifts.some((s) => s.shiftNumber === manualShift)
@@ -93,9 +124,13 @@ export function CheckInForm() {
   }, [coords, geofence]);
 
   // Absen masuk & pulang sama-sama boleh di luar area. Absen MASUK di luar area
-  // (mis. teknisi langsung ke lapangan) wajib disertai alasan.
+  // (mis. teknisi langsung ke lapangan) wajib disertai alasan. Untuk LEMBUR
+  // URGENT, di luar area itu wajar (lokasi pelanggan) — tapi alasan/gangguan
+  // selalu wajib karena lembur berujung ke perhitungan upah.
   const isOutside = Boolean(coords && geofence && !isInside);
-  const needReason = nextType === 'clock_in' && isOutside;
+  const needReason = isOvertime
+    ? nextType === 'clock_in'
+    : nextType === 'clock_in' && isOutside;
   const canSubmit =
     Boolean(coords && photo) &&
     (!needReason || notes.trim().length > 0) &&
@@ -107,7 +142,8 @@ export function CheckInForm() {
     createAttendance.mutate(
       {
         type: nextType,
-        shiftNumber: selectedShift ?? undefined,
+        kind,
+        shiftNumber: isOvertime ? undefined : selectedShift ?? undefined,
         latitude: coords.latitude,
         longitude: coords.longitude,
         accuracyMeters: coords.accuracy,
@@ -117,17 +153,31 @@ export function CheckInForm() {
       {
         onSuccess: () => {
           toast.success(
-            nextType === 'clock_in' ? 'Absen masuk berhasil dicatat' : 'Absen pulang berhasil dicatat'
+            isOvertime
+              ? nextType === 'clock_in'
+                ? 'Lembur urgent dimulai — menunggu verifikasi admin'
+                : 'Lembur selesai & tercatat'
+              : nextType === 'clock_in'
+                ? 'Absen masuk berhasil dicatat'
+                : 'Absen pulang berhasil dicatat'
           );
           setPhoto(null);
           setNotes('');
           setManualShift(null);
-          setJustSubmitted(true);
+          setOvertimeMode(false);
+          setSubmittedTitle(
+            isOvertime
+              ? nextType === 'clock_in'
+                ? 'Lembur Dimulai!'
+                : 'Lembur Selesai!'
+              : 'Absensi Tercatat!'
+          );
         },
         onError: (err: Error & { code?: string }) => {
           switch (err.code) {
             case 'GEOFENCE_VIOLATION':
             case 'GEOFENCE_REASON_REQUIRED':
+            case 'OVERTIME_REASON_REQUIRED':
               toast.error(err.message);
               break;
             case 'DUPLICATE_CHECKIN':
@@ -157,7 +207,7 @@ export function CheckInForm() {
     );
   }
 
-  if (justSubmitted) {
+  if (submittedTitle) {
     return (
       <Card className="animate-scale-in">
         <CardContent className="flex flex-col items-center gap-4 py-12 text-center">
@@ -166,13 +216,13 @@ export function CheckInForm() {
           </span>
           <div>
             <p className="text-xl font-semibold tracking-tight text-text-primary">
-              Absensi Tercatat!
+              {submittedTitle}
             </p>
             <p className="mt-1 text-sm text-text-secondary tabular-nums">
               {formatTime(new Date())} — data Anda sudah tersimpan.
             </p>
           </div>
-          <Button variant="outline" onClick={() => setJustSubmitted(false)}>
+          <Button variant="outline" onClick={() => setSubmittedTitle(null)}>
             Kembali
           </Button>
         </CardContent>
@@ -186,7 +236,12 @@ export function CheckInForm() {
         <Card>
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
-              {nextType === 'clock_in' ? (
+              {isOvertime ? (
+                <>
+                  <Zap className="h-5 w-5 text-warning" aria-hidden="true" />
+                  {nextType === 'clock_in' ? 'Mulai Lembur Urgent' : 'Selesai Lembur'}
+                </>
+              ) : nextType === 'clock_in' ? (
                 <>
                   <LogIn className="h-5 w-5 text-primary" aria-hidden="true" />
                   Absen Masuk
@@ -201,14 +256,76 @@ export function CheckInForm() {
             {lastRecord && (
               <CardDescription className="flex items-center gap-1">
                 <Clock className="h-3.5 w-3.5" aria-hidden="true" />
-                Terakhir: {lastRecord.type === 'clock_in' ? 'masuk' : 'pulang'}
-                {lastRecord.shiftNumber != null && ` (Shift ${lastRecord.shiftNumber})`} pukul{' '}
-                {formatTime(lastRecord.timestamp)}
+                {isOvertime && nextType === 'clock_out' ? (
+                  <>Lembur berjalan sejak pukul {formatTime(lastRecord.timestamp)}</>
+                ) : (
+                  <>
+                    Terakhir: {lastRecord.type === 'clock_in' ? 'masuk' : 'pulang'}
+                    {lastRecord.shiftNumber != null && ` (Shift ${lastRecord.shiftNumber})`} pukul{' '}
+                    {formatTime(lastRecord.timestamp)}
+                  </>
+                )}
               </CardDescription>
             )}
           </CardHeader>
           <CardContent className="flex flex-col gap-4">
-            {roleShifts.length >= 2 && (
+            {/* Sesi lembur urgent — jadwal shift tidak relevan, jadi diganti penjelasan */}
+            {isOvertime ? (
+              <Alert variant="warning" hideIcon>
+                <span className="flex items-start gap-2.5">
+                  <Zap className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>
+                    {nextType === 'clock_in' ? (
+                      <>
+                        <strong>Lembur di luar jam shift.</strong> Seluruh durasinya dihitung
+                        lembur — tidak ada telat atau pulang cepat. Boleh di lokasi pelanggan,
+                        di luar area kantor.
+                      </>
+                    ) : (
+                      <>
+                        <strong>Tutup sesi lembur.</strong> Ambil <strong>foto hasil
+                        perbaikan</strong> sebagai bukti pekerjaan selesai.
+                      </>
+                    )}
+                  </span>
+                </span>
+              </Alert>
+            ) : /* Jadwal hari ini — supaya karyawan tahu shift-nya tanpa buka halaman Jadwal */
+            todayShift === 'libur' ? (
+              <Alert variant="warning" hideIcon>
+                <span className="flex items-start gap-2.5">
+                  <Palmtree className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>
+                    <strong>Hari ini kamu Libur.</strong> Sudah otomatis tercatat di rekap —
+                    tidak perlu menandai apa pun. Tetap bisa absen bila diminta masuk.
+                  </span>
+                </span>
+              </Alert>
+            ) : todayShift ? (
+              <Alert variant="info" hideIcon>
+                <span className="flex items-start gap-2.5">
+                  <CalendarCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>
+                    Hari ini jadwal kamu <strong>Shift {todayShift}</strong>
+                    {scheduledShift && (
+                      <span className="tabular-nums">
+                        {' '}
+                        · {scheduledShift.startTime}–{scheduledShift.endTime}
+                      </span>
+                    )}
+                  </span>
+                </span>
+              </Alert>
+            ) : (
+              <Alert variant="info" hideIcon>
+                <span className="flex items-start gap-2.5">
+                  <CalendarCheck className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+                  <span>Hari ini kamu belum dijadwalkan shift.</span>
+                </span>
+              </Alert>
+            )}
+
+            {!isOvertime && roleShifts.length >= 2 && (
               <fieldset>
                 <legend className="mb-1.5 text-sm font-medium text-text-primary">
                   Pilih Shift
@@ -242,11 +359,15 @@ export function CheckInForm() {
                     );
                   })}
                 </div>
-                {nextType === 'clock_out' && (
+                {nextType === 'clock_out' ? (
                   <p className="mt-1.5 text-xs text-text-secondary">
                     Otomatis mengikuti shift absen masuk hari ini — ubah bila perlu.
                   </p>
-                )}
+                ) : scheduledShift ? (
+                  <p className="mt-1.5 text-xs text-text-secondary">
+                    Otomatis mengikuti jadwal hari ini — ubah bila perlu.
+                  </p>
+                ) : null}
               </fieldset>
             )}
             <LocationStatus
@@ -259,7 +380,7 @@ export function CheckInForm() {
           </CardContent>
         </Card>
 
-        <LeaveSection />
+        <LeaveSection scheduledLibur={todayShift === 'libur'} />
       </div>
 
       <div className="flex flex-col gap-4">
@@ -272,7 +393,11 @@ export function CheckInForm() {
         {photo && (
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="notes">
-              {needReason ? 'Alasan absen di luar area (wajib)' : 'Catatan (opsional)'}
+              {isOvertime && nextType === 'clock_in'
+                ? 'Alasan / gangguan yang ditangani (wajib)'
+                : needReason
+                  ? 'Alasan absen di luar area (wajib)'
+                  : 'Catatan (opsional)'}
             </Label>
             <Textarea
               id="notes"
@@ -281,9 +406,11 @@ export function CheckInForm() {
               maxLength={500}
               rows={2}
               placeholder={
-                needReason
-                  ? 'Contoh: Langsung ke lapangan / lokasi pelanggan'
-                  : 'Contoh: Datang tepat waktu'
+                isOvertime && nextType === 'clock_in'
+                  ? 'Contoh: FO putus Jl. Merdeka — tiket #1234'
+                  : needReason
+                    ? 'Contoh: Langsung ke lapangan / lokasi pelanggan'
+                    : 'Contoh: Datang tepat waktu'
               }
             />
           </div>
@@ -297,17 +424,35 @@ export function CheckInForm() {
         >
           {createAttendance.isPending
             ? 'Mengirim...'
-            : nextType === 'clock_in'
-              ? 'Kirim Absen Masuk'
-              : 'Kirim Absen Pulang'}
+            : isOvertime
+              ? nextType === 'clock_in'
+                ? 'Mulai Lembur Urgent'
+                : 'Selesai Lembur'
+              : nextType === 'clock_in'
+                ? 'Kirim Absen Masuk'
+                : 'Kirim Absen Pulang'}
         </Button>
+
+        {/* Pintu masuk lembur urgent — hanya saat tidak ada sesi berjalan, supaya
+            sesi shift & sesi lembur tidak pernah terbuka bersamaan. */}
+        {nextType === 'clock_in' &&
+          (overtimeMode ? (
+            <Button variant="ghost" onClick={() => setOvertimeMode(false)}>
+              Batal, kembali ke absen biasa
+            </Button>
+          ) : (
+            <Button variant="outline" onClick={() => setOvertimeMode(true)}>
+              <Zap className="h-4 w-4 text-warning" aria-hidden="true" />
+              Dipanggil lembur? Mulai Lembur Urgent
+            </Button>
+          ))}
 
         {!photo && (
           <p className="text-center text-xs text-text-secondary">
             Ambil foto terlebih dahulu untuk mengaktifkan tombol kirim
           </p>
         )}
-        {isOutside && (
+        {isOutside && !isOvertime && (
           <p className="text-center text-xs text-text-secondary">
             {nextType === 'clock_out'
               ? 'Anda di luar area — absen pulang tetap bisa dan tercatat sebagai “luar area”.'

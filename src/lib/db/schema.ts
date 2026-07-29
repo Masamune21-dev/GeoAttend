@@ -315,6 +315,20 @@ export const attendanceRecords = pgTable(
       .references(() => user.id, { onDelete: 'cascade' })
       .notNull(),
     type: varchar('type', { length: 20 }).notNull(), // 'clock_in' | 'clock_out'
+    /**
+     * Jenis sesi: 'shift' (absen kerja biasa) | 'lembur' (lembur urgent di luar
+     * shift, mis. teknisi dipanggil gangguan malam). Sesi lembur dihitung 100%
+     * lembur — tanpa telat & pulang cepat, karena memang di luar jam shift.
+     */
+    kind: varchar('kind', { length: 10 }).default('shift').notNull(),
+    /**
+     * Status verifikasi admin untuk SESI lembur, disimpan di record PEMBUKA
+     * (clock_in) dan mewakili satu sesi utuh. null untuk sesi shift biasa.
+     * 'pending' | 'approved' | 'rejected' — hanya 'approved' yang masuk total jam.
+     */
+    overtimeStatus: varchar('overtime_status', { length: 10 }),
+    reviewedBy: text('reviewed_by').references(() => user.id, { onDelete: 'set null' }),
+    reviewNote: text('review_note'),
     shiftNumber: integer('shift_number'), // shift yang dipilih saat absen (null utk data lama / role tanpa shift)
     timestamp: timestamp('timestamp').defaultNow().notNull(),
     latitude: numeric('latitude', { precision: 10, scale: 7 }).notNull(),

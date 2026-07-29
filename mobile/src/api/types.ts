@@ -12,11 +12,18 @@ export interface SessionUser {
   coverImage?: string | null;
 }
 
+/** 'lembur' = lembur urgent di luar shift (dihitung 100% lembur di rekap). */
+export type AttendanceKind = 'shift' | 'lembur';
+export type OvertimeStatus = 'pending' | 'approved' | 'rejected';
+
 export interface AttendanceRecordResponse {
   id: string;
   userId: string;
   userName: string;
   type: 'clock_in' | 'clock_out';
+  kind: AttendanceKind;
+  /** Status verifikasi sesi lembur (hanya di record pembuka sesi lembur) */
+  overtimeStatus: OvertimeStatus | null;
   shiftNumber: number | null;
   timestamp: string; // ISO 8601
   latitude: number;

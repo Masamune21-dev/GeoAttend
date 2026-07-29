@@ -59,6 +59,7 @@ Password: minimal 8 karakter, hash scrypt (di-handle Better Auth). Session: 7 ha
 ```json
 {
   "type": "clock_in",              // "clock_in" | "clock_out"
+  "kind": "shift",                 // opsional, default "shift" | "lembur"
   "shiftNumber": 1,                // opsional (1–3); shift yang dipilih user
   "latitude": -6.6001234,
   "longitude": 111.0501234,
@@ -68,23 +69,32 @@ Password: minimal 8 karakter, hash scrypt (di-handle Better Auth). Session: 7 ha
 }
 ```
 
-**Alur server:** validasi Zod → cek urutan (tidak boleh dobel clock-in / clock-out tanpa clock-in) → **tentukan shift**: `shiftNumber` divalidasi terhadap SOP role user (`INVALID_SHIFT` bila tidak ada); bila tidak dikirim, clock-out mewarisi shift dari clock-in hari itu, sisanya fallback ke shift dengan jam masuk terdekat → hitung jarak Haversine ke geofence aktif (toleransi = akurasi GPS, maks 50m) → tolak bila di luar → simpan foto ke `uploads/attendance/<uuid>.jpg` → insert record → **clock-in**: upsert posisi live; **clock-out**: hapus posisi live.
+**Alur server:** validasi Zod → cek urutan (tidak boleh dobel clock-in / clock-out tanpa clock-in) → **tentukan jenis sesi** (lihat di bawah) → **tentukan shift**: `shiftNumber` divalidasi terhadap SOP role user (`INVALID_SHIFT` bila tidak ada); bila tidak dikirim, clock-out mewarisi shift dari clock-in hari itu, sisanya fallback ke shift dengan jam masuk terdekat → hitung jarak Haversine ke geofence aktif (toleransi = akurasi GPS, maks 50m) → simpan foto ke `uploads/attendance/<uuid>.jpg` → insert record → **clock-in**: upsert posisi live; **clock-out**: hapus posisi live.
+
+**Jenis sesi (`kind`)** — lihat [04-business-rules.md](04-business-rules.md#lembur-urgent):
+
+- `kind` pada **clock_out DIABAIKAN**; server memakai jenis sesi yang sedang terbuka. Klien tidak bisa membuka lembur lalu menutupnya sebagai shift.
+- `kind: "lembur"` + `clock_in` **wajib** `notes` → `422 OVERTIME_REASON_REQUIRED` bila kosong.
+- Sesi lembur: `shiftNumber` dipaksa `null`, `overtimeStatus` diisi `"pending"`, dan berada di luar geofence **tidak** memicu `GEOFENCE_REASON_REQUIRED`.
 
 **Respons 201:**
 
 ```json
 {
   "id": "uuid", "userId": "...", "userName": "Budi",
-  "type": "clock_in", "shiftNumber": 1,
+  "type": "clock_in", "kind": "shift", "overtimeStatus": null,
+  "shiftNumber": 1,
   "timestamp": "2026-07-22T01:00:00.000Z",
   "latitude": -6.6, "longitude": 111.05, "accuracyMeters": 12.5,
   "photoUrl": "/api/uploads/attendance/xxx.jpg",
   "isWithinGeofence": true, "distanceFromCenter": 45.2,
-  "geofenceName": "Kantor Pusat", "notes": null
+  "geofenceName": "Kantor Pusat", "notes": null,
+  "reviewedByName": null, "reviewNote": null
 }
 ```
 
-`shiftNumber` bernilai `null` untuk record lama (sebelum fitur shift) atau role tanpa SOP.
+`shiftNumber` bernilai `null` untuk record lama (sebelum fitur shift), role tanpa SOP, atau sesi lembur.
+`kind` bernilai `"shift"` untuk seluruh record lama (default kolom saat migrasi).
 
 ### GET `/api/attendance` — daftar record
 
@@ -98,6 +108,21 @@ Query: `?page=1&limit=20&userId=<id|self>&from=<ISO>&to=<ISO>&today=true`
 ### GET `/api/attendance/[id]` — detail satu record
 
 **Auth:** login; pemilik record atau administrator.
+
+### PATCH `/api/attendance/[id]` — verifikasi sesi lembur
+
+**Auth:** administrator. `id` harus record **PEMBUKA** sesi lembur
+(`type=clock_in`, `kind=lembur`) — di situlah status satu sesi disimpan.
+
+**Body:** `{ "action": "approve" | "reject", "reviewNote": "opsional, maks 500 char" }`
+
+**Respons 200:** `{ "data": { "id", "overtimeStatus" } }`
+
+| Kode | Status | Sebab |
+| :--- | :---: | :--- |
+| `FORBIDDEN` | 403 | Bukan administrator |
+| `NOT_FOUND` | 404 | Record tidak ada |
+| `NOT_OVERTIME_SESSION` | 422 | Record bukan awal sesi lembur (mis. record penutup) |
 
 ## Geofence
 

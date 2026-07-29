@@ -167,9 +167,9 @@ dibatalkan) — hanya diperlukan bila server bukan default.
 
 | Layar | Fungsi utama | Endpoint |
 | :--- | :--- | :--- |
-| **Absen** ([CheckInScreen](../mobile/src/screens/CheckInScreen.tsx)) | Status lokasi (jarak ke area), foto bukti, pilih shift, kirim absen; mulai tracking saat masuk | `GET /api/geofence`, `GET /api/attendance?today=true&userId=self`, `GET /api/shifts`, `POST /api/attendance` |
+| **Absen** ([CheckInScreen](../mobile/src/screens/CheckInScreen.tsx)) | **Jadwal hari ini** (Shift 1/2 atau Libur), status lokasi (jarak ke area), foto bukti, pilih shift (default ikut jadwal), kirim absen; mulai tracking saat masuk. Juga **Mulai/Selesai Lembur Urgent** untuk panggilan di luar shift | `GET /api/geofence`, `GET /api/attendance?today=true&userId=self`, `GET /api/shifts`, `GET /api/schedules?userId=self`, `POST /api/attendance` |
 | **Jadwal** ([ScheduleScreen](../mobile/src/screens/ScheduleScreen.tsx)) | Lihat jadwal shift bulanan, ajukan/terima/tolak/batal tukar shift, tandai piket | `GET /api/schedules`, `GET /api/swaps`, `GET /api/swaps/candidates`, `POST/PATCH/DELETE /api/swaps`, `GET/PATCH /api/piket` |
-| **Izin** ([LeavesScreen](../mobile/src/screens/LeavesScreen.tsx)) | Tandai libur hari ini, ajukan sakit/izin/cuti, batalkan pengajuan | `GET /api/leaves?userId=self`, `POST /api/leaves`, `DELETE /api/leaves/:id` |
+| **Izin** ([LeavesScreen](../mobile/src/screens/LeavesScreen.tsx)) | Tandai libur hari ini (disembunyikan bila jadwal hari itu sudah Libur — otomatis masuk rekap), ajukan sakit/izin/cuti, batalkan pengajuan | `GET /api/leaves?userId=self`, `GET /api/schedules?userId=self`, `POST /api/leaves`, `DELETE /api/leaves/:id` |
 | **Riwayat** ([HistoryScreen](../mobile/src/screens/HistoryScreen.tsx)) | Daftar absensi (masuk/pulang, jarak, dalam/luar area, catatan) | `GET /api/attendance?userId=self&limit=100` |
 | **Profil** ([ProfileScreen](../mobile/src/screens/ProfileScreen.tsx)) | Foto avatar & sampul, **ubah nama**, **ganti kata sandi**, info server/versi, keluar | `POST /api/profile/avatar`, `POST /api/profile/cover`, `POST /api/auth/update-user`, `POST /api/auth/change-password`, `POST /api/auth/sign-out` |
 

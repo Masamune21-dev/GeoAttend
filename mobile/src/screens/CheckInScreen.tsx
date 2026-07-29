@@ -16,23 +16,30 @@ import { CameraView, useCameraPermissions } from 'expo-camera';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
 import {
   Camera,
+  CalendarCheck,
   CircleCheck,
   LogIn,
   LogOut,
   Satellite,
   SwitchCamera,
+  TreePalm,
   TriangleAlert,
   X,
+  Zap,
 } from 'lucide-react-native';
 import { api, ApiRequestError } from '../api/client';
 import type {
+  AttendanceKind,
   AttendanceRecordResponse,
   GeofenceResponse,
   PaginatedResponse,
+  ScheduleEntry,
+  ScheduleResponse,
   ShiftSettingResponse,
 } from '../api/types';
 import { useSession } from '../auth/session';
-import { haversineDistance, formatDistance, formatTime } from '../lib/geo';
+import { haversineDistance, formatDistance, formatTime, toLocalDateString } from '../lib/geo';
+import { toLocalMonth } from '../lib/schedule';
 import { pickShift } from '../lib/shifts';
 import { startTracking, stopTracking } from '../tracking/locationTask';
 import { Badge, Button, Card, Field } from '../components/ui';
@@ -57,10 +64,13 @@ export function CheckInScreen() {
   const [geofence, setGeofence] = useState<GeofenceResponse | null>(null);
   const [recentRecords, setRecentRecords] = useState<AttendanceRecordResponse[]>([]);
   const [shifts, setShifts] = useState<ShiftSettingResponse[]>([]);
+  const [scheduleEntries, setScheduleEntries] = useState<ScheduleEntry[]>([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
 
   const [manualShift, setManualShift] = useState<number | null>(null);
+  /** Karyawan menekan "Mulai Lembur Urgent" (hanya relevan saat belum ada sesi). */
+  const [overtimeMode, setOvertimeMode] = useState(false);
   const [photo, setPhoto] = useState<string | null>(null); // data URI JPEG
   const [notes, setNotes] = useState('');
   const [submitting, setSubmitting] = useState(false);
@@ -115,7 +125,7 @@ export function CheckInScreen() {
     const sessionFrom = new Date(
       Date.now() - OPEN_SESSION_WINDOW_HOURS * 60 * 60 * 1000
     ).toISOString();
-    const [geofenceRes, recentRes, shiftsRes] = await Promise.all([
+    const [geofenceRes, recentRes, shiftsRes, scheduleRes] = await Promise.all([
       api<GeofenceResponse>('/api/geofence').catch((err) =>
         err instanceof ApiRequestError && err.status === 404 ? null : Promise.reject(err)
       ),
@@ -123,10 +133,16 @@ export function CheckInScreen() {
         `/api/attendance?userId=self&from=${encodeURIComponent(sessionFrom)}&limit=10`
       ),
       api<{ data: ShiftSettingResponse[] }>('/api/shifts'),
+      // Jadwal bulan berjalan milik sendiri. Gagal ambil jadwal tidak boleh
+      // menghalangi absensi — cukup banner jadwalnya yang kosong.
+      api<ScheduleResponse>(
+        `/api/schedules?month=${toLocalMonth(new Date())}&userId=self`
+      ).catch(() => ({ users: [], entries: [], participantsConfigured: false })),
     ]);
     setGeofence(geofenceRes);
     setRecentRecords(recentRes.data);
     setShifts(shiftsRes.data);
+    setScheduleEntries(scheduleRes.entries);
   }, []);
 
   useEffect(() => {
@@ -147,6 +163,12 @@ export function CheckInScreen() {
   const nextType: 'clock_in' | 'clock_out' =
     lastRecord?.type === 'clock_in' ? 'clock_out' : 'clock_in';
 
+  // Jenis sesi yang sedang dikerjakan. Saat menutup sesi, jenisnya WAJIB
+  // mengikuti sesi yang terbuka (server juga menegakkan aturan yang sama).
+  const kind: AttendanceKind =
+    nextType === 'clock_out' ? lastRecord?.kind ?? 'shift' : overtimeMode ? 'lembur' : 'shift';
+  const isOvertime = kind === 'lembur';
+
   const roleShifts = useMemo(
     () =>
       shifts
@@ -155,6 +177,22 @@ export function CheckInScreen() {
     [shifts, user?.role]
   );
 
+  // Jadwal shift HARI INI ('1' | '2' | 'libur' | null bila belum dijadwalkan)
+  const today = toLocalDateString(new Date());
+  const todayShift = useMemo(
+    () => scheduleEntries.find((e) => e.date === today)?.shift ?? null,
+    [scheduleEntries, today]
+  );
+  const scheduledShift = useMemo(
+    () =>
+      todayShift === '1' || todayShift === '2'
+        ? roleShifts.find((s) => s.shiftNumber === Number(todayShift)) ?? null
+        : null,
+    [roleShifts, todayShift]
+  );
+
+  // Absen pulang mengikuti shift absen masuk sesi berjalan; absen masuk memakai
+  // shift dari JADWAL hari ini, baru jatuh ke shift dengan jam masuk terdekat.
   const defaultShift = useMemo(() => {
     if (roleShifts.length === 0) return null;
     if (nextType === 'clock_out') {
@@ -167,8 +205,9 @@ export function CheckInScreen() {
         return lastClockIn.shiftNumber;
       }
     }
+    if (scheduledShift) return scheduledShift.shiftNumber;
     return pickShift(new Date(), roleShifts)?.shiftNumber ?? null;
-  }, [roleShifts, nextType, recentRecords]);
+  }, [roleShifts, nextType, recentRecords, scheduledShift]);
 
   const selectedShift =
     manualShift != null && roleShifts.some((s) => s.shiftNumber === manualShift)
@@ -225,8 +264,10 @@ export function CheckInScreen() {
   // --- Kirim absensi ---
   // Absen masuk & pulang boleh di luar area. Absen MASUK di luar area (mis. teknisi
   // langsung ke lapangan) wajib disertai alasan.
+  // Untuk LEMBUR URGENT, di luar area itu wajar (lokasi pelanggan) — tapi
+  // alasan/gangguan selalu wajib karena lembur berujung ke perhitungan upah.
   const isOutside = Boolean(coords && geofence && !isInside);
-  const needReason = nextType === 'clock_in' && isOutside;
+  const needReason = isOvertime ? nextType === 'clock_in' : nextType === 'clock_in' && isOutside;
   const canSubmit =
     Boolean(coords && photo) && (!needReason || notes.trim().length > 0) && !submitting;
 
@@ -238,7 +279,8 @@ export function CheckInScreen() {
         method: 'POST',
         body: JSON.stringify({
           type: nextType,
-          shiftNumber: selectedShift ?? undefined,
+          kind,
+          shiftNumber: isOvertime ? undefined : selectedShift ?? undefined,
           latitude: coords.latitude,
           longitude: coords.longitude,
           accuracyMeters:
@@ -251,19 +293,26 @@ export function CheckInScreen() {
       setPhoto(null);
       setNotes('');
       setManualShift(null);
+      setOvertimeMode(false);
       await loadData().catch(() => undefined);
 
       if (nextType === 'clock_in') {
         // Izin "sepanjang waktu" sudah ada → langsung mulai tracking.
         // Belum ada → jelaskan dulu bahwa Android akan MEMBUKA PENGATURAN
         // (bukan keluar aplikasi), lalu biarkan user memilih.
+        const title = isOvertime ? 'Lembur urgent dimulai ✓' : 'Absen masuk tercatat ✓';
         const bg = await Location.getBackgroundPermissionsAsync();
         if (bg.granted) {
           await startTracking();
-          Alert.alert('Absen masuk tercatat ✓', 'Posisi Anda terpantau selama jam kerja.');
+          Alert.alert(
+            title,
+            isOvertime
+              ? 'Posisi Anda terpantau selama lembur. Jangan lupa tekan "Selesai Lembur" setelah pekerjaan beres — sesi menunggu verifikasi admin.'
+              : 'Posisi Anda terpantau selama jam kerja.'
+          );
         } else {
           Alert.alert(
-            'Absen masuk tercatat ✓',
+            title,
             'Agar posisi tetap terpantau saat aplikasi ditutup, izin lokasi perlu diubah ke "Izinkan sepanjang waktu".\n\nHP akan membuka halaman Pengaturan — setelah memilih, kembali ke aplikasi ini.',
             [
               { text: 'Nanti Saja', style: 'cancel' },
@@ -284,7 +333,12 @@ export function CheckInScreen() {
         }
       } else {
         await stopTracking();
-        Alert.alert('Absen pulang tercatat ✓', 'Pelacakan posisi dihentikan. Selamat beristirahat!');
+        Alert.alert(
+          isOvertime ? 'Lembur selesai ✓' : 'Absen pulang tercatat ✓',
+          isOvertime
+            ? 'Seluruh durasi lembur tercatat. Admin akan memverifikasinya di rekap.'
+            : 'Pelacakan posisi dihentikan. Selamat beristirahat!'
+        );
       }
     } catch (err) {
       const e = err as ApiRequestError;
@@ -292,6 +346,9 @@ export function CheckInScreen() {
         case 'GEOFENCE_VIOLATION':
         case 'GEOFENCE_REASON_REQUIRED':
           Alert.alert('Di luar area', e.message);
+          break;
+        case 'OVERTIME_REASON_REQUIRED':
+          Alert.alert('Alasan wajib diisi', e.message);
           break;
         case 'DUPLICATE_CHECKIN':
           Alert.alert('Sudah absen', 'Anda sudah absen masuk dan belum absen pulang');
@@ -327,25 +384,84 @@ export function CheckInScreen() {
       {/* Header status */}
       <Card>
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-          {nextType === 'clock_in' ? (
+          {isOvertime ? (
+            <Zap size={24} color={colors.warning} strokeWidth={2.4} />
+          ) : nextType === 'clock_in' ? (
             <LogIn size={24} color={colors.primary} strokeWidth={2.4} />
           ) : (
             <LogOut size={24} color={colors.warning} strokeWidth={2.4} />
           )}
           <Text style={styles.title}>
-            {nextType === 'clock_in' ? 'Absen Masuk' : 'Absen Pulang'}
+            {isOvertime
+              ? nextType === 'clock_in'
+                ? 'Mulai Lembur Urgent'
+                : 'Selesai Lembur'
+              : nextType === 'clock_in'
+                ? 'Absen Masuk'
+                : 'Absen Pulang'}
           </Text>
         </View>
-        {lastRecord && (
-          <Text style={styles.subtle}>
-            Terakhir: {lastRecord.type === 'clock_in' ? 'masuk' : 'pulang'}
-            {lastRecord.shiftNumber != null ? ` (Shift ${lastRecord.shiftNumber})` : ''} pukul{' '}
-            {formatTime(lastRecord.timestamp)}
-          </Text>
+        {lastRecord &&
+          (isOvertime && nextType === 'clock_out' ? (
+            <Text style={styles.subtle}>
+              Lembur berjalan sejak pukul {formatTime(lastRecord.timestamp)}
+            </Text>
+          ) : (
+            <Text style={styles.subtle}>
+              Terakhir: {lastRecord.type === 'clock_in' ? 'masuk' : 'pulang'}
+              {lastRecord.shiftNumber != null ? ` (Shift ${lastRecord.shiftNumber})` : ''} pukul{' '}
+              {formatTime(lastRecord.timestamp)}
+            </Text>
+          ))}
+
+        {/* Sesi lembur urgent — jadwal shift tidak relevan, diganti penjelasan */}
+        {isOvertime ? (
+          <View style={[styles.statusBox, { backgroundColor: colors.warningSubtle }]}>
+            <View style={styles.statusRow}>
+              <Zap size={18} color="#B45309" />
+              <Text style={{ flex: 1, color: '#B45309', fontWeight: '600' }}>
+                {nextType === 'clock_in' ? 'Lembur di luar jam shift' : 'Tutup sesi lembur'}
+              </Text>
+            </View>
+            <Text style={[styles.subtle, { color: '#B45309' }]}>
+              {nextType === 'clock_in'
+                ? 'Seluruh durasinya dihitung lembur — tidak ada telat atau pulang cepat. Boleh di lokasi pelanggan, di luar area kantor.'
+                : 'Ambil foto hasil perbaikan sebagai bukti pekerjaan selesai.'}
+            </Text>
+          </View>
+        ) : /* Jadwal hari ini — tahu shift tanpa membuka tab Jadwal */
+        todayShift === 'libur' ? (
+          <View style={[styles.statusBox, { backgroundColor: colors.warningSubtle }]}>
+            <View style={styles.statusRow}>
+              <TreePalm size={18} color="#B45309" />
+              <Text style={{ flex: 1, color: '#B45309', fontWeight: '600' }}>
+                Hari ini kamu Libur
+              </Text>
+            </View>
+            <Text style={[styles.subtle, { color: '#B45309' }]}>
+              Sudah otomatis tercatat di rekap — tidak perlu menandai apa pun. Tetap bisa
+              absen bila diminta masuk.
+            </Text>
+          </View>
+        ) : todayShift ? (
+          <View style={[styles.statusBox, styles.statusRow, { backgroundColor: colors.primarySubtle }]}>
+            <CalendarCheck size={18} color={colors.primary} />
+            <Text style={{ flex: 1, color: colors.primary, fontWeight: '600' }}>
+              Hari ini jadwal kamu Shift {todayShift}
+              {scheduledShift ? ` · ${scheduledShift.startTime}–${scheduledShift.endTime}` : ''}
+            </Text>
+          </View>
+        ) : (
+          <View style={[styles.statusBox, styles.statusRow, { backgroundColor: '#F1F5F9' }]}>
+            <CalendarCheck size={18} color={colors.textSecondary} />
+            <Text style={{ flex: 1, color: colors.textSecondary }}>
+              Hari ini kamu belum dijadwalkan shift
+            </Text>
+          </View>
         )}
 
         {/* Pilihan shift */}
-        {roleShifts.length >= 2 && (
+        {!isOvertime && roleShifts.length >= 2 && (
           <View style={{ gap: 8 }}>
             <Text style={styles.label}>Pilih Shift</Text>
             <View style={{ flexDirection: 'row', gap: 8 }}>
@@ -374,11 +490,15 @@ export function CheckInScreen() {
                 );
               })}
             </View>
-            {nextType === 'clock_out' && (
+            {nextType === 'clock_out' ? (
               <Text style={styles.subtle}>
                 Otomatis mengikuti shift absen masuk — ubah bila perlu
               </Text>
-            )}
+            ) : scheduledShift ? (
+              <Text style={styles.subtle}>
+                Otomatis mengikuti jadwal hari ini — ubah bila perlu
+              </Text>
+            ) : null}
           </View>
         )}
 
@@ -449,7 +569,11 @@ export function CheckInScreen() {
 
       {/* Foto */}
       <Card>
-        <Text style={styles.label}>Foto Bukti (wajib)</Text>
+        <Text style={styles.label}>
+          {isOvertime && nextType === 'clock_out'
+            ? 'Foto Hasil Perbaikan (wajib)'
+            : 'Foto Bukti (wajib)'}
+        </Text>
         {photo ? (
           <>
             <Image source={{ uri: photo }} style={styles.preview} resizeMode="cover" />
@@ -461,13 +585,23 @@ export function CheckInScreen() {
 
         {photo && (
           <Field
-            label={needReason ? 'Alasan absen di luar area (wajib)' : 'Catatan (opsional)'}
+            label={
+              isOvertime && nextType === 'clock_in'
+                ? 'Alasan / gangguan yang ditangani (wajib)'
+                : needReason
+                  ? 'Alasan absen di luar area (wajib)'
+                  : 'Catatan (opsional)'
+            }
             value={notes}
             onChangeText={setNotes}
             maxLength={500}
             multiline
             placeholder={
-              needReason ? 'Contoh: Langsung ke lapangan / lokasi pelanggan' : 'Contoh: Datang tepat waktu'
+              isOvertime && nextType === 'clock_in'
+                ? 'Contoh: FO putus Jl. Merdeka — tiket #1234'
+                : needReason
+                  ? 'Contoh: Langsung ke lapangan / lokasi pelanggan'
+                  : 'Contoh: Datang tepat waktu'
             }
           />
         )}
@@ -476,14 +610,35 @@ export function CheckInScreen() {
           title={
             submitting
               ? 'Mengirim...'
-              : nextType === 'clock_in'
-                ? 'Kirim Absen Masuk'
-                : 'Kirim Absen Pulang'
+              : isOvertime
+                ? nextType === 'clock_in'
+                  ? 'Mulai Lembur Urgent'
+                  : 'Selesai Lembur'
+                : nextType === 'clock_in'
+                  ? 'Kirim Absen Masuk'
+                  : 'Kirim Absen Pulang'
           }
           onPress={handleSubmit}
           disabled={!canSubmit}
           loading={submitting}
         />
+
+        {/* Pintu masuk lembur urgent — hanya saat tidak ada sesi berjalan, supaya
+            sesi shift & sesi lembur tidak pernah terbuka bersamaan. */}
+        {nextType === 'clock_in' && (
+          <Button
+            title={
+              overtimeMode ? 'Batal, kembali ke absen biasa' : 'Dipanggil lembur? Mulai Lembur Urgent'
+            }
+            icon={overtimeMode ? undefined : Zap}
+            variant="outline"
+            onPress={() => {
+              setOvertimeMode((v) => !v);
+              setNotes('');
+            }}
+          />
+        )}
+
         {!photo && (
           <Text style={[styles.subtle, { textAlign: 'center' }]}>
             Ambil foto terlebih dahulu untuk mengaktifkan tombol kirim

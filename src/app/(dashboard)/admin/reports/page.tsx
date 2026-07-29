@@ -10,19 +10,32 @@ import {
   startOfMonth,
 } from 'date-fns';
 import { id as localeId } from 'date-fns/locale';
-import { ChevronLeft, ChevronRight, Download, FileSpreadsheet, FileText, Route } from 'lucide-react';
+import {
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Download,
+  FileSpreadsheet,
+  FileText,
+  Route,
+  X,
+} from 'lucide-react';
 import { toast } from 'sonner';
 import {
   useAttendanceList,
   useLeaves,
+  useReviewOvertime,
   useShifts,
   useUsers,
   type TrailTarget,
 } from '@/hooks/useAttendance';
+import type { OvertimeStatus } from '@/types/api';
+import { useSchedule } from '@/hooks/useSchedule';
 import { LocationTrailDialog } from '@/components/features/attendance/LocationTrailDialog';
 import { computeRecap, formatMinutes, type ShiftTime } from '@/lib/shifts/calc';
 import { OPEN_SESSION_WINDOW_HOURS } from '@/lib/constants';
-import { expandDateRange, getLeaveTypeLabel } from '@/lib/leaves';
+import { expandDateRange, getLeaveTypeLabel, toLocalDateString } from '@/lib/leaves';
+import { deriveScheduledLibur } from '@/lib/schedule/libur';
 import { getRoleLabel } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
@@ -44,6 +57,12 @@ interface DailyRow {
   earlyLeaveMinutes: number;
   /** null = hadir; selain itu 'sakit' | 'izin' | 'cuti' | 'libur' */
   leaveType: string | null;
+  /** 'shift' = kehadiran biasa, 'lembur' = sesi lembur urgent di luar shift */
+  kind: 'shift' | 'lembur';
+  /** Status verifikasi sesi lembur (null utk baris non-lembur) */
+  overtimeStatus: OvertimeStatus | null;
+  /** id record pembuka sesi lembur — sasaran tombol Setujui/Tolak */
+  overtimeRecordId: string | null;
 }
 
 interface UserSummary {
@@ -58,7 +77,25 @@ interface UserSummary {
   totalLateMinutes: number;
   totalOvertimeMinutes: number;
   totalEarlyLeaveMinutes: number;
+  /** Menit lembur urgent yang SUDAH disetujui admin */
+  overtimeUrgentMinutes: number;
+  /** Berapa kali dipanggil lembur (sesi disetujui) */
+  overtimeUrgentCount: number;
+  /** Sesi lembur yang masih menunggu verifikasi — belum masuk total */
+  overtimeUrgentPending: number;
 }
+
+const OVERTIME_STATUS_LABEL: Record<OvertimeStatus, string> = {
+  pending: 'Belum diverifikasi',
+  approved: 'Disetujui',
+  rejected: 'Ditolak',
+};
+
+const OVERTIME_STATUS_VARIANT: Record<OvertimeStatus, 'warning' | 'success' | 'destructive'> = {
+  pending: 'warning',
+  approved: 'success',
+  rejected: 'destructive',
+};
 
 export default function ReportsPage() {
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
@@ -81,8 +118,31 @@ export default function ReportsPage() {
     to: monthEnd,
     status: 'approved',
   });
+  // Jadwal shift sebulan — hari bershift "libur" masuk rekap otomatis
+  const { data: scheduleData, isLoading: scheduleLoading } = useSchedule(
+    format(month, 'yyyy-MM')
+  );
 
-  const isLoading = attendanceLoading || usersLoading || shiftsLoading || leavesLoading;
+  const reviewOvertimeMutation = useReviewOvertime();
+
+  const isLoading =
+    attendanceLoading || usersLoading || shiftsLoading || leavesLoading || scheduleLoading;
+
+  const reviewOvertime = (row: DailyRow, action: 'approve' | 'reject') => {
+    if (!row.overtimeRecordId) return;
+    reviewOvertimeMutation.mutate(
+      { id: row.overtimeRecordId, action },
+      {
+        onSuccess: () =>
+          toast.success(
+            action === 'approve'
+              ? `Lembur ${row.userName} disetujui`
+              : `Lembur ${row.userName} ditolak`
+          ),
+        onError: (err: Error) => toast.error(err.message || 'Gagal memperbarui status lembur'),
+      }
+    );
+  };
 
   const { dailyRows, summaries } = useMemo(() => {
     const records = attendanceData?.data ?? [];
@@ -117,6 +177,9 @@ export default function ReportsPage() {
       shiftNumber: number | null;
       clockIn: Date | null;
       clockOut: Date | null;
+      kind: 'shift' | 'lembur';
+      overtimeStatus: OvertimeStatus | null;
+      overtimeRecordId: string | null;
     }[] = [];
 
     const recordsByUser = new Map<string, typeof records>();
@@ -134,6 +197,7 @@ export default function ReportsPage() {
       for (const record of sorted) {
         const ts = new Date(record.timestamp);
         const shiftNumber = record.shiftNumber ?? null;
+        const kind = record.kind ?? 'shift';
         if (record.type === 'clock_in') {
           // clock_in baru membuka sesi baru; sesi sebelumnya yang belum ditutup
           // dianggap lupa clock-out (jam pulang tetap kosong).
@@ -144,6 +208,10 @@ export default function ReportsPage() {
             shiftNumber,
             clockIn: ts,
             clockOut: null,
+            kind,
+            // Status & id verifikasi menempel di record PEMBUKA sesi lembur
+            overtimeStatus: kind === 'lembur' ? record.overtimeStatus ?? 'pending' : null,
+            overtimeRecordId: kind === 'lembur' ? record.id : null,
           };
           sessions.push(open);
         } else if (
@@ -161,6 +229,9 @@ export default function ReportsPage() {
             shiftNumber,
             clockIn: null,
             clockOut: ts,
+            kind,
+            overtimeStatus: null,
+            overtimeRecordId: null,
           });
           open = null;
         }
@@ -170,7 +241,12 @@ export default function ReportsPage() {
     const rows: DailyRow[] = sessions.map((entry, index) => {
       const role = roleByUser.get(entry.userId) ?? 'employee';
       const recap = computeRecap(
-        { clockIn: entry.clockIn, clockOut: entry.clockOut, shiftNumber: entry.shiftNumber },
+        {
+          clockIn: entry.clockIn,
+          clockOut: entry.clockOut,
+          shiftNumber: entry.shiftNumber,
+          kind: entry.kind,
+        },
         shiftsByRole.get(role) ?? []
       );
       return {
@@ -186,17 +262,26 @@ export default function ReportsPage() {
         overtimeMinutes: recap.overtimeMinutes,
         earlyLeaveMinutes: recap.earlyLeaveMinutes,
         leaveType: null,
+        kind: entry.kind,
+        overtimeStatus: entry.overtimeStatus,
+        overtimeRecordId: entry.overtimeRecordId,
       };
     });
 
     // Sisipkan baris izin/libur (yang disetujui) untuk tanggal tanpa absensi.
     // Bila karyawan tetap absen di tanggal tersebut, baris kehadiran yang dipakai.
-    const attendedDates = new Set(sessions.map((s) => `${s.userId}|${s.date}`));
+    // Hanya sesi SHIFT yang dianggap "masuk kerja": dipanggil lembur urgent di
+    // hari libur/izin tidak menghapus hari libur itu — keduanya tampil.
+    const attendedDates = new Set(
+      sessions.filter((s) => s.kind === 'shift').map((s) => `${s.userId}|${s.date}`)
+    );
+    const leaveDates = new Set<string>();
     for (const leave of leavesData?.data ?? []) {
       const from = leave.startDate < monthStart ? monthStart : leave.startDate;
       const to = leave.endDate > monthEnd ? monthEnd : leave.endDate;
       if (from > to) continue;
       for (const date of expandDateRange(from, to)) {
+        leaveDates.add(`${leave.userId}|${date}`);
         if (attendedDates.has(`${leave.userId}|${date}`)) continue;
         rows.push({
           key: `${leave.userId}|${date}|${leave.type}`,
@@ -211,8 +296,43 @@ export default function ReportsPage() {
           overtimeMinutes: 0,
           earlyLeaveMinutes: 0,
           leaveType: leave.type,
+          kind: 'shift',
+          overtimeStatus: null,
+          overtimeRecordId: null,
         });
       }
+    }
+
+    // Libur menurut JADWAL SHIFT — tercatat otomatis, karyawan tidak perlu
+    // menekan "Libur Hari Ini". Hanya sampai hari ini, dan kalah dari baris
+    // kehadiran maupun izin/libur yang sudah tercatat.
+    const nameByUser = new Map(users.map((u) => [u.id, u.name]));
+    const todayStr = toLocalDateString(new Date());
+    const scheduledLibur = deriveScheduledLibur(scheduleData?.entries ?? [], {
+      until: monthEnd < todayStr ? monthEnd : todayStr,
+      attendedKeys: attendedDates,
+      leaveKeys: leaveDates,
+    });
+    for (const { userId, date } of scheduledLibur) {
+      const userName = nameByUser.get(userId);
+      if (!userName) continue; // karyawan sudah dihapus — abaikan
+      rows.push({
+        key: `${userId}|${date}|jadwal-libur`,
+        date,
+        userId,
+        userName,
+        role: roleByUser.get(userId) ?? 'employee',
+        clockIn: null,
+        clockOut: null,
+        shiftNumber: null,
+        lateMinutes: 0,
+        overtimeMinutes: 0,
+        earlyLeaveMinutes: 0,
+        leaveType: 'libur',
+        kind: 'shift',
+        overtimeStatus: null,
+        overtimeRecordId: null,
+      });
     }
 
     rows.sort(
@@ -240,8 +360,22 @@ export default function ReportsPage() {
           totalLateMinutes: 0,
           totalOvertimeMinutes: 0,
           totalEarlyLeaveMinutes: 0,
+          overtimeUrgentMinutes: 0,
+          overtimeUrgentCount: 0,
+          overtimeUrgentPending: 0,
         };
-      if (row.leaveType === null) {
+      if (row.kind === 'lembur') {
+        // Lembur urgent dihitung TERPISAH dari lembur biasa (datang awal /
+        // pulang telat) karena basis pembayarannya beda. Hanya sesi yang sudah
+        // disetujui admin yang masuk total; yang ditolak tidak dihitung sama
+        // sekali, dan sesi lembur tidak menambah "hari hadir".
+        if (row.overtimeStatus === 'approved') {
+          summary.overtimeUrgentMinutes += row.overtimeMinutes;
+          summary.overtimeUrgentCount += 1;
+        } else if (row.overtimeStatus === 'pending') {
+          summary.overtimeUrgentPending += 1;
+        }
+      } else if (row.leaveType === null) {
         const days = daysByUser.get(row.userId) ?? new Set<string>();
         days.add(row.date);
         daysByUser.set(row.userId, days);
@@ -262,7 +396,7 @@ export default function ReportsPage() {
         a.userName.localeCompare(b.userName)
       ),
     };
-  }, [attendanceData, usersData, shiftsData, leavesData, monthStart, monthEnd]);
+  }, [attendanceData, usersData, shiftsData, leavesData, scheduleData, monthStart, monthEnd]);
 
   // Filter per karyawan
   const filteredRows = useMemo(
@@ -288,13 +422,18 @@ export default function ReportsPage() {
       return;
     }
     const escapeCsv = (v: string) => `"${v.replace(/"/g, '""')}"`;
-    const header = ['Tanggal', 'Nama', 'Role', 'Keterangan', 'Shift', 'Jam Masuk', 'Jam Pulang', 'Telat (menit)', 'Lembur (menit)', 'Pulang Cepat (menit)'];
+    const header = ['Tanggal', 'Nama', 'Role', 'Keterangan', 'Status Lembur', 'Shift', 'Jam Masuk', 'Jam Pulang', 'Telat (menit)', 'Lembur (menit)', 'Pulang Cepat (menit)'];
     const lines = filteredRows.map((row) =>
       [
         row.date,
         escapeCsv(row.userName),
         getRoleLabel(row.role),
-        row.leaveType ? getLeaveTypeLabel(row.leaveType) : 'Hadir',
+        row.kind === 'lembur'
+          ? 'Lembur Urgent'
+          : row.leaveType
+            ? getLeaveTypeLabel(row.leaveType)
+            : 'Hadir',
+        row.overtimeStatus ? OVERTIME_STATUS_LABEL[row.overtimeStatus] : '-',
         row.shiftNumber != null ? `Shift ${row.shiftNumber}` : '-',
         row.clockIn ? format(row.clockIn, 'HH:mm') : '-',
         row.clockOut ? format(row.clockOut, 'HH:mm') : '-',
@@ -351,7 +490,7 @@ export default function ReportsPage() {
     doc.text('Ringkasan per Karyawan', 14, 30);
     autoTable(doc, {
       startY: 33,
-      head: [['Nama', 'Role', 'Hadir', 'Sakit', 'Izin', 'Cuti', 'Libur', 'Total Telat', 'Total Lembur', 'Total Pulang Cepat']],
+      head: [['Nama', 'Role', 'Hadir', 'Sakit', 'Izin', 'Cuti', 'Libur', 'Total Telat', 'Total Lembur', 'Lembur Urgent', 'Total Pulang Cepat']],
       body: filteredSummaries.map((s) => [
         s.userName,
         getRoleLabel(s.role),
@@ -362,6 +501,9 @@ export default function ReportsPage() {
         String(s.liburDays),
         formatMinutes(s.totalLateMinutes),
         formatMinutes(s.totalOvertimeMinutes),
+        s.overtimeUrgentMinutes > 0
+          ? `${formatMinutes(s.overtimeUrgentMinutes)} (${s.overtimeUrgentCount}x)`
+          : '-',
         formatMinutes(s.totalEarlyLeaveMinutes),
       ]),
       theme: 'grid',
@@ -375,12 +517,17 @@ export default function ReportsPage() {
     doc.text('Detail Harian', 14, detailStartY - 3);
     autoTable(doc, {
       startY: detailStartY,
-      head: [['Tanggal', 'Nama', 'Role', 'Keterangan', 'Shift', 'Jam Masuk', 'Jam Pulang', 'Telat', 'Lembur', 'Pulang Cepat']],
+      head: [['Tanggal', 'Nama', 'Role', 'Keterangan', 'Status Lembur', 'Shift', 'Jam Masuk', 'Jam Pulang', 'Telat', 'Lembur', 'Pulang Cepat']],
       body: filteredRows.map((row) => [
         format(new Date(`${row.date}T00:00:00`), 'dd MMM yyyy', { locale: localeId }),
         row.userName,
         getRoleLabel(row.role),
-        row.leaveType ? getLeaveTypeLabel(row.leaveType) : 'Hadir',
+        row.kind === 'lembur'
+          ? 'Lembur Urgent'
+          : row.leaveType
+            ? getLeaveTypeLabel(row.leaveType)
+            : 'Hadir',
+        row.overtimeStatus ? OVERTIME_STATUS_LABEL[row.overtimeStatus] : '-',
         row.shiftNumber != null ? `Shift ${row.shiftNumber}` : '-',
         row.clockIn ? format(row.clockIn, 'HH:mm') : '-',
         row.clockOut ? format(row.clockOut, 'HH:mm') : '-',
@@ -494,6 +641,7 @@ export default function ReportsPage() {
                     <th className="py-2 pr-3 text-center font-medium">Libur</th>
                     <th className="py-2 pr-3 text-center font-medium">Total Telat</th>
                     <th className="py-2 pr-3 text-center font-medium">Total Lembur</th>
+                    <th className="py-2 pr-3 text-center font-medium">Lembur Urgent</th>
                     <th className="py-2 text-center font-medium">Total Pulang Cepat</th>
                   </tr>
                 </thead>
@@ -540,6 +688,27 @@ export default function ReportsPage() {
                           <span className="text-text-secondary">-</span>
                         )}
                       </td>
+                      <td className="py-2.5 pr-3 text-center">
+                        {s.overtimeUrgentMinutes > 0 || s.overtimeUrgentPending > 0 ? (
+                          <div className="flex flex-col items-center gap-0.5">
+                            {s.overtimeUrgentMinutes > 0 && (
+                              <span className="font-medium text-success">
+                                {formatMinutes(s.overtimeUrgentMinutes)}
+                                <span className="ml-1 font-normal text-text-secondary">
+                                  ({s.overtimeUrgentCount}×)
+                                </span>
+                              </span>
+                            )}
+                            {s.overtimeUrgentPending > 0 && (
+                              <Badge variant="warning">
+                                {s.overtimeUrgentPending} belum diverifikasi
+                              </Badge>
+                            )}
+                          </div>
+                        ) : (
+                          <span className="text-text-secondary">-</span>
+                        )}
+                      </td>
                       <td className="py-2.5 text-center">
                         {s.totalEarlyLeaveMinutes > 0 ? (
                           <span className="font-medium text-warning">
@@ -561,8 +730,11 @@ export default function ReportsPage() {
             <CardHeader>
               <CardTitle>Detail Harian</CardTitle>
               <CardDescription>
-                Satu baris per shift per hari. Pulang cepat = pulang sebelum jam pulang shift
-                (lembur datang awal tidak menutupi kekurangan jam)
+                Satu baris per shift per hari. Hari bershift “libur” di jadwal tercatat Libur
+                otomatis. Baris <strong>Lembur</strong> = panggilan lembur urgent di luar shift —
+                seluruh durasinya dihitung lembur, dan baru masuk total setelah Anda menyetujuinya.
+                Pulang cepat = pulang sebelum jam pulang shift (lembur datang awal tidak menutupi
+                kekurangan jam)
               </CardDescription>
             </CardHeader>
             <CardContent className="overflow-x-auto">
@@ -594,7 +766,16 @@ export default function ReportsPage() {
                       <td className="py-2.5 pr-3 font-medium text-text-primary">{row.userName}</td>
                       <td className="py-2.5 pr-3 text-text-secondary">{getRoleLabel(row.role)}</td>
                       <td className="py-2.5 pr-3 text-center">
-                        {row.leaveType ? (
+                        {row.kind === 'lembur' ? (
+                          <div className="flex flex-col items-center gap-1">
+                            <Badge variant="default">Lembur</Badge>
+                            {row.overtimeStatus && (
+                              <Badge variant={OVERTIME_STATUS_VARIANT[row.overtimeStatus]}>
+                                {OVERTIME_STATUS_LABEL[row.overtimeStatus]}
+                              </Badge>
+                            )}
+                          </div>
+                        ) : row.leaveType ? (
                           <Badge variant={row.leaveType === 'libur' ? 'secondary' : 'warning'}>
                             {getLeaveTypeLabel(row.leaveType)}
                           </Badge>
@@ -639,8 +820,46 @@ export default function ReportsPage() {
                         )}
                       </td>
                       <td className="py-2.5 text-center">
-                        {/* Baris izin/libur tidak punya sesi kerja → tak ada jejak */}
-                        {row.leaveType === null && row.clockIn ? (
+                        {/* Sesi lembur menunggu keputusan admin — verifikasi dulu */}
+                        {row.kind === 'lembur' && row.overtimeRecordId ? (
+                          <div className="flex items-center justify-center gap-1">
+                            {row.overtimeStatus === 'pending' ? (
+                              <>
+                                <Button
+                                  variant="success"
+                                  size="sm"
+                                  onClick={() => reviewOvertime(row, 'approve')}
+                                  disabled={reviewOvertimeMutation.isPending}
+                                >
+                                  <Check className="h-4 w-4" aria-hidden="true" /> Setujui
+                                </Button>
+                                <Button
+                                  variant="outline"
+                                  size="sm"
+                                  onClick={() => reviewOvertime(row, 'reject')}
+                                  disabled={reviewOvertimeMutation.isPending}
+                                >
+                                  <X className="h-4 w-4" aria-hidden="true" /> Tolak
+                                </Button>
+                              </>
+                            ) : (
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  reviewOvertime(
+                                    row,
+                                    row.overtimeStatus === 'approved' ? 'reject' : 'approve'
+                                  )
+                                }
+                                disabled={reviewOvertimeMutation.isPending}
+                              >
+                                {row.overtimeStatus === 'approved' ? 'Batalkan' : 'Setujui'}
+                              </Button>
+                            )}
+                          </div>
+                        ) : /* Baris izin/libur tidak punya sesi kerja → tak ada jejak */
+                        row.leaveType === null && row.clockIn ? (
                           <Button
                             variant="ghost"
                             size="sm"

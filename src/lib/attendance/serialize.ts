@@ -1,11 +1,16 @@
 import type { attendanceRecords } from '@/lib/db/schema';
-import type { AttendanceRecordResponse } from '@/types/api';
+import type {
+  AttendanceKind,
+  AttendanceRecordResponse,
+  OvertimeStatus,
+} from '@/types/api';
 
 export type AttendanceRow = {
   record: typeof attendanceRecords.$inferSelect;
   userName: string | null;
   userImage: string | null;
   geofenceName: string | null;
+  reviewerName?: string | null;
 };
 
 /**
@@ -21,6 +26,10 @@ export function toAttendanceResponse(row: AttendanceRow): AttendanceRecordRespon
     userName: row.userName ?? 'Pengguna terhapus',
     userAvatar: row.userImage,
     type: record.type as 'clock_in' | 'clock_out',
+    kind: (record.kind ?? 'shift') as AttendanceKind,
+    overtimeStatus: (record.overtimeStatus as OvertimeStatus | null) ?? null,
+    reviewedByName: row.reviewerName ?? null,
+    reviewNote: record.reviewNote,
     shiftNumber: record.shiftNumber,
     timestamp: record.timestamp.toISOString(),
     latitude: Number(record.latitude),

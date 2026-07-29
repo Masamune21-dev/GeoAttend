@@ -1,8 +1,20 @@
 import { z } from 'zod';
 
 // --- Request Schemas ---
+
+/**
+ * Jenis sesi absensi. 'lembur' = lembur urgent di luar shift (dipanggil
+ * gangguan malam, dsb) — dihitung 100% lembur, tanpa telat & pulang cepat.
+ */
+export const ATTENDANCE_KINDS = ['shift', 'lembur'] as const;
+export type AttendanceKind = (typeof ATTENDANCE_KINDS)[number];
+
+export const OVERTIME_STATUSES = ['pending', 'approved', 'rejected'] as const;
+export type OvertimeStatus = (typeof OVERTIME_STATUSES)[number];
+
 export const CreateAttendanceSchema = z.object({
   type: z.enum(['clock_in', 'clock_out']),
+  kind: z.enum(ATTENDANCE_KINDS).default('shift'),
   shiftNumber: z.number().int().min(1).max(3).optional(),
   latitude: z.number().min(-90).max(90),
   longitude: z.number().min(-180).max(180),
@@ -10,7 +22,18 @@ export const CreateAttendanceSchema = z.object({
   photoBase64: z.string().startsWith('data:image/jpeg;base64,'),
   notes: z.string().max(500).optional(),
 });
-export type CreateAttendanceInput = z.infer<typeof CreateAttendanceSchema>;
+/**
+ * Payload yang DIKIRIM klien — pakai `z.input` supaya `kind` tetap opsional
+ * (server yang mengisi default 'shift'). `z.infer` akan mewajibkannya.
+ */
+export type CreateAttendanceInput = z.input<typeof CreateAttendanceSchema>;
+
+/** Verifikasi sesi lembur oleh administrator (PATCH /api/attendance/[id]). */
+export const ReviewOvertimeSchema = z.object({
+  action: z.enum(['approve', 'reject']),
+  reviewNote: z.string().max(500).optional(),
+});
+export type ReviewOvertimeInput = z.infer<typeof ReviewOvertimeSchema>;
 
 export const UpdateGeofenceSchema = z.object({
   name: z.string().min(1).max(255),
@@ -160,6 +183,12 @@ export interface AttendanceRecordResponse {
   userName: string;
   userAvatar?: string | null;
   type: 'clock_in' | 'clock_out';
+  /** 'shift' = absen kerja biasa, 'lembur' = lembur urgent di luar shift */
+  kind: AttendanceKind;
+  /** Status verifikasi sesi lembur (hanya terisi di record pembuka sesi lembur) */
+  overtimeStatus: OvertimeStatus | null;
+  reviewedByName?: string | null;
+  reviewNote?: string | null;
   shiftNumber: number | null;
   timestamp: string; // ISO 8601
   latitude: number;
