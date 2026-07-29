@@ -303,7 +303,12 @@ export function DashboardScreen() {
               {todayPiket ? (
                 <>
                   <View style={styles.piketRow}>
-                    <Avatar name={todayPiket.userName} size={44} />
+                    <Avatar
+                      name={todayPiket.userName}
+                      size={44}
+                      uri={toAbsoluteUrl(todayPiket.userImage)}
+                      headers={authImageHeaders()}
+                    />
                     <View style={{ flex: 1, gap: 4 }}>
                       <Text style={styles.piketName} numberOfLines={1}>
                         {todayPiket.userName}

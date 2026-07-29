@@ -62,7 +62,9 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
             return (
               <View key={route.key} style={styles.tab} pointerEvents="none">
                 <View style={{ height: BUTTON - OVERHANG + 2 }} />
-                <Text style={[styles.label, centerFocused && styles.labelActive]}>{label}</Text>
+                <Text style={[styles.label, centerFocused && styles.labelActive]} numberOfLines={1}>
+                  {label}
+                </Text>
               </View>
             );
           }
@@ -81,7 +83,9 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
                 color={focused ? colors.primary : colors.textMuted}
                 strokeWidth={focused ? 2.2 : 2}
               />
-              <Text style={[styles.label, focused && styles.labelActive]}>{label}</Text>
+              <Text style={[styles.label, focused && styles.labelActive]} numberOfLines={1}>
+                {label}
+              </Text>
             </Pressable>
           );
         })}
@@ -120,7 +124,18 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.sm,
   },
   tab: { flex: 1, alignItems: 'center', gap: 3 },
-  label: { fontSize: 10, color: colors.textMuted },
+  /**
+   * `alignSelf: stretch` + `textAlign: center` sengaja dipakai supaya Text
+   * memakai lebar penuh slot tab, bukan lebar hasil pengukurannya sendiri.
+   * Tanpa itu Android memotong huruf terakhir label non-bold ("Absen" jadi
+   * "Abse") karena pembulatan lebar teks.
+   */
+  label: {
+    fontSize: 11,
+    color: colors.textMuted,
+    alignSelf: 'stretch',
+    textAlign: 'center',
+  },
   labelActive: { color: colors.primary, fontWeight: '700' },
 
   centerLayer: {

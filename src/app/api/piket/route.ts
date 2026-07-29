@@ -40,6 +40,7 @@ export async function GET(req: NextRequest) {
         date: piketAssignments.date,
         userId: piketAssignments.userId,
         userName: user.name,
+        userImage: user.image,
         done: piketAssignments.done,
       })
       .from(piketAssignments)
@@ -50,6 +51,7 @@ export async function GET(req: NextRequest) {
       date: r.date,
       userId: r.userId,
       userName: r.userName ?? 'Pengguna terhapus',
+      userImage: r.userImage ?? null,
       done: r.done,
     }));
 

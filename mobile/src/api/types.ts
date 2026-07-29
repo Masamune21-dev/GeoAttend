@@ -153,6 +153,8 @@ export interface PiketAssignment {
   date: string; // "yyyy-MM-dd"
   userId: string;
   userName: string;
+  /** Foto profil petugas; null bila belum pasang. */
+  userImage: string | null;
   done: boolean;
 }
 

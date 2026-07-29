@@ -14,6 +14,7 @@ import type {
 import { useSession } from '../auth/session';
 import { formatDate, formatDuration, formatTime, toLocalDateString } from '../lib/geo';
 import { toLocalMonth } from '../lib/schedule';
+import { buildOvertimeSessions, type OvertimeSession } from '../lib/session';
 import {
   Badge,
   Button,
@@ -52,15 +53,6 @@ const OVERTIME_META: Record<string, { label: string; tone: Tone }> = {
 };
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
-
-/** Satu sesi lembur: record pembuka + penutupnya (bila sudah ditutup). */
-interface OvertimeSession {
-  id: string;
-  startedAt: string;
-  endedAt: string | null;
-  status: string;
-  notes: string | null;
-}
 
 export function LeavesScreen() {
   const navigation = useNavigation();
@@ -415,30 +407,6 @@ export function LeavesScreen() {
       </Sheet>
     </View>
   );
-}
-
-/**
- * Rakit sesi lembur dari daftar record absensi (terurut menurun).
- * Record pembuka `kind='lembur'` dipasangkan dengan clock_out lembur terdekat
- * SETELAHNYA; status verifikasi hanya ada di record pembuka.
- */
-function buildOvertimeSessions(records: AttendanceRecordResponse[]): OvertimeSession[] {
-  const lembur = records.filter((r) => r.kind === 'lembur');
-  const sessions: OvertimeSession[] = [];
-  for (let i = 0; i < lembur.length; i += 1) {
-    const record = lembur[i];
-    if (record.type !== 'clock_in') continue;
-    // Daftar menurun → penutup sesi berada di indeks sebelumnya.
-    const closer = lembur[i - 1];
-    sessions.push({
-      id: record.id,
-      startedAt: record.timestamp,
-      endedAt: closer?.type === 'clock_out' ? closer.timestamp : null,
-      status: record.overtimeStatus ?? 'pending',
-      notes: record.notes ?? null,
-    });
-  }
-  return sessions;
 }
 
 const styles = StyleSheet.create({

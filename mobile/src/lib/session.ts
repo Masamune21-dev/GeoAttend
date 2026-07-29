@@ -35,3 +35,38 @@ export function deriveOpenSession(records: AttendanceRecordResponse[]): OpenSess
     kind: isOpen ? last.kind ?? 'shift' : 'shift',
   };
 }
+
+/** Satu sesi lembur: record pembuka + penutupnya (bila sudah ditutup). */
+export interface OvertimeSession {
+  id: string;
+  startedAt: string;
+  endedAt: string | null;
+  status: string;
+  notes: string | null;
+}
+
+/**
+ * Rakit sesi lembur dari daftar record absensi (terurut menurun).
+ *
+ * Server belum punya endpoint khusus lembur, jadi record `kind='lembur'`
+ * dipasangkan di sisi klien: pembuka (`clock_in`) dengan penutup terdekat
+ * SETELAHNYA — yang pada daftar menurun berada di indeks sebelumnya.
+ * Status verifikasi hanya ada di record pembuka.
+ */
+export function buildOvertimeSessions(records: AttendanceRecordResponse[]): OvertimeSession[] {
+  const lembur = records.filter((r) => r.kind === 'lembur');
+  const sessions: OvertimeSession[] = [];
+  for (let i = 0; i < lembur.length; i += 1) {
+    const record = lembur[i];
+    if (record.type !== 'clock_in') continue;
+    const closer = lembur[i - 1];
+    sessions.push({
+      id: record.id,
+      startedAt: record.timestamp,
+      endedAt: closer?.type === 'clock_out' ? closer.timestamp : null,
+      status: record.overtimeStatus ?? 'pending',
+      notes: record.notes ?? null,
+    });
+  }
+  return sessions;
+}

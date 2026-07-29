@@ -23,7 +23,6 @@ import {
   SwitchCamera,
   TreePalm,
   TriangleAlert,
-  UserRound,
   X,
   Zap,
 } from 'lucide-react-native';
@@ -39,7 +38,6 @@ import type {
 } from '../api/types';
 import { useSession } from '../auth/session';
 import {
-  bearingDegrees,
   formatClock,
   formatDistance,
   formatTime,
@@ -50,7 +48,7 @@ import { toLocalMonth } from '../lib/schedule';
 import { deriveOpenSession, sessionWindowStart } from '../lib/session';
 import { pickShift } from '../lib/shifts';
 import { isTracking, startTracking, stopTracking } from '../tracking/locationTask';
-import { GeofenceRadar } from '../components/GeofenceRadar';
+import { GeofenceMap } from '../components/GeofenceMap';
 import { Avatar, Button, Card, Field } from '../components/ui';
 import { colors, radius, shadow, spacing, type } from '../theme';
 
@@ -226,10 +224,8 @@ export function CheckInScreen() {
       ? manualShift
       : defaultShift;
 
-  const { distanceMeters, bearing, isInside } = useMemo(() => {
-    if (!coords || !geofence) {
-      return { distanceMeters: null as number | null, bearing: null as number | null, isInside: false };
-    }
+  const { distanceMeters, isInside } = useMemo(() => {
+    if (!coords || !geofence) return { distanceMeters: null as number | null, isInside: false };
     const d = haversineDistance(
       coords.latitude,
       coords.longitude,
@@ -237,11 +233,7 @@ export function CheckInScreen() {
       geofence.longitude
     );
     const buffer = Math.min(coords.accuracy ?? 0, 50);
-    return {
-      distanceMeters: d,
-      bearing: bearingDegrees(geofence.latitude, geofence.longitude, coords.latitude, coords.longitude),
-      isInside: d <= geofence.radiusMeters + buffer,
-    };
+    return { distanceMeters: d, isInside: d <= geofence.radiusMeters + buffer };
   }, [coords, geofence]);
 
   const gpsWeak = (coords?.accuracy ?? 0) > GPS_WEAK_THRESHOLD;
@@ -443,13 +435,18 @@ export function CheckInScreen() {
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
-        <GeofenceRadar
-          distanceMeters={distanceMeters}
-          bearing={bearing}
-          radiusMeters={geofence?.radiusMeters ?? null}
+        <GeofenceMap
+          latitude={coords?.latitude ?? null}
+          longitude={coords?.longitude ?? null}
           accuracyMeters={coords?.accuracy ?? null}
+          centerLatitude={geofence?.latitude ?? null}
+          centerLongitude={geofence?.longitude ?? null}
+          radiusMeters={geofence?.radiusMeters ?? null}
           isInside={isInside || !geofence}
           areaName={geofence?.name ?? null}
+          distanceLabel={
+            distanceMeters != null ? `${formatDistance(distanceMeters)} dari pusat` : null
+          }
         />
 
         <View style={{ padding: spacing.xl, gap: spacing.lg }}>
@@ -641,16 +638,12 @@ export function CheckInScreen() {
                 <Button title="Ambil Ulang" variant="outline" icon={Camera} onPress={() => setPhoto(null)} />
               </>
             ) : (
-              <Pressable
-                onPress={openCamera}
-                style={({ pressed }) => [styles.photoPlaceholder, pressed && { opacity: 0.7 }]}
-              >
-                <UserRound size={26} color={colors.textMuted} strokeWidth={1.6} />
-                <Text style={styles.photoHint}>Ketuk untuk ambil foto wajah</Text>
-                <Text style={[styles.photoHint, { fontSize: 10.5 }]}>
-                  Pastikan wajah berada di dalam panduan
+              <>
+                <Button title="Ambil Foto" icon={Camera} variant="outline" onPress={openCamera} />
+                <Text style={[styles.photoHint, { textAlign: 'center' }]}>
+                  Pastikan wajah terlihat jelas dan tidak membelakangi cahaya.
                 </Text>
-              </Pressable>
+              </>
             )}
 
             {photo && (
@@ -799,18 +792,6 @@ const styles = StyleSheet.create({
   shiftTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
 
   preview: { width: '100%', aspectRatio: 3 / 4, borderRadius: radius.md },
-  photoPlaceholder: {
-    width: '100%',
-    aspectRatio: 3 / 4,
-    borderRadius: radius.md,
-    borderWidth: 1.5,
-    borderColor: colors.border,
-    borderStyle: 'dashed',
-    backgroundColor: colors.muted,
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-  },
   photoHint: { fontSize: 12, color: colors.textSecondary },
 
   cameraControls: {

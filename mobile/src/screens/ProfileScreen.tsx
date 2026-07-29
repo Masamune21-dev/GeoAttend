@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
@@ -9,11 +9,23 @@ import {
   Text,
   View,
 } from 'react-native';
+import { useIsFocused } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { StatusBar } from 'expo-status-bar';
 import Constants from 'expo-constants';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
-import { Camera, ImagePlus, KeyRound, LogOut, Settings, UserRound } from 'lucide-react-native';
+import {
+  CalendarCheck,
+  Camera,
+  FileText,
+  ImagePlus,
+  KeyRound,
+  LogOut,
+  Settings,
+  UserRound,
+  Zap,
+} from 'lucide-react-native';
 import { useSession } from '../auth/session';
 import {
   api,
@@ -22,6 +34,13 @@ import {
   getServerUrl,
   toAbsoluteUrl,
 } from '../api/client';
+import type {
+  AttendanceRecordResponse,
+  LeaveRequestResponse,
+  PaginatedResponse,
+} from '../api/types';
+import { toLocalDateString } from '../lib/geo';
+import { buildOvertimeSessions } from '../lib/session';
 import {
   Badge,
   Button,
@@ -30,7 +49,9 @@ import {
   InfoRow,
   MenuRow,
   PasswordField,
+  SectionHeader,
   Sheet,
+  StatCard,
 } from '../components/ui';
 import { colors, initialsOf, radius, shadow, spacing } from '../theme';
 
@@ -68,11 +89,65 @@ async function pickImage(aspect: [number, number], maxWidth: number): Promise<st
   return `data:image/jpeg;base64,${processed.base64}`;
 }
 
+/** Awal bulan berjalan sebagai ISO — batas bawah query rekap. */
+function startOfMonthIso(): string {
+  const now = new Date();
+  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
+}
+
 export function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const isFocused = useIsFocused();
   const { user, signOut, refresh } = useSession();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+
+  // Rekap bulan berjalan — supaya halaman profil tidak sekadar identitas.
+  const [records, setRecords] = useState<AttendanceRecordResponse[]>([]);
+  const [leaves, setLeaves] = useState<LeaveRequestResponse[]>([]);
+
+  const loadSummary = useCallback(async () => {
+    const [att, lv] = await Promise.all([
+      api<PaginatedResponse<AttendanceRecordResponse>>(
+        `/api/attendance?userId=self&from=${encodeURIComponent(startOfMonthIso())}&limit=200`
+      ).catch(() => ({ data: [] as AttendanceRecordResponse[] }) as PaginatedResponse<AttendanceRecordResponse>),
+      api<{ data: LeaveRequestResponse[] }>('/api/leaves?userId=self').catch(() => ({
+        data: [] as LeaveRequestResponse[],
+      })),
+    ]);
+    setRecords(att.data);
+    setLeaves(lv.data);
+  }, []);
+
+  useEffect(() => {
+    loadSummary().catch(() => undefined);
+  }, [loadSummary]);
+
+  const summary = useMemo(() => {
+    // Hari hadir = tanggal unik yang punya absen masuk shift (bukan lembur).
+    const presentDays = new Set(
+      records
+        .filter((r) => r.type === 'clock_in' && r.kind !== 'lembur')
+        .map((r) => toLocalDateString(new Date(r.timestamp)))
+    ).size;
+
+    // Total lembur = jumlah durasi sesi yang sudah ditutup bulan ini.
+    const overtimeMs = buildOvertimeSessions(records)
+      .filter((s) => s.endedAt)
+      .reduce((sum, s) => sum + (new Date(s.endedAt!).getTime() - new Date(s.startedAt).getTime()), 0);
+    const overtimeMinutes = Math.max(0, Math.floor(overtimeMs / 60_000));
+    const overtimeLabel =
+      overtimeMinutes >= 60
+        ? `${Math.floor(overtimeMinutes / 60)}j ${String(overtimeMinutes % 60).padStart(2, '0')}m`
+        : `${overtimeMinutes}m`;
+
+    const month = toLocalDateString(new Date()).slice(0, 7);
+    const approvedLeaves = leaves.filter(
+      (l) => l.status === 'approved' && l.type !== 'libur' && l.startDate.slice(0, 7) === month
+    ).length;
+
+    return { presentDays, overtimeLabel, approvedLeaves };
+  }, [records, leaves]);
 
   // Sheet pengaturan akun (form nama & sandi disembunyikan di sini)
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -200,17 +275,29 @@ export function ProfileScreen() {
 
   return (
     <View style={{ flex: 1, backgroundColor: colors.background }}>
+      {/* Sampul membentang di bawah status bar — ikonnya perlu terang. */}
+      {isFocused && <StatusBar style="light" />}
       <ScrollView
         contentContainerStyle={{ paddingBottom: spacing.xxl }}
         showsVerticalScrollIndicator={false}
       >
-        {/* Kartu identitas: sampul biru + avatar overlap */}
-        <View style={[styles.identityCard, shadow.card, { paddingTop: insets.top }]}>
+        {/* Kartu identitas: sampul membentang sampai status bar + avatar overlap */}
+        <View style={[styles.identityCard, shadow.card]}>
           <Pressable onPress={handleChangeCover} disabled={uploadingCover}>
             {coverUrl ? (
-              <Image source={{ uri: coverUrl, headers: authHeaders }} style={styles.cover} resizeMode="cover" />
+              <Image
+                source={{ uri: coverUrl, headers: authHeaders }}
+                style={[styles.cover, { height: COVER_HEIGHT + insets.top }]}
+                resizeMode="cover"
+              />
             ) : (
-              <View style={[styles.cover, styles.coverPlaceholder]}>
+              <View
+                style={[
+                  styles.cover,
+                  styles.coverPlaceholder,
+                  { height: COVER_HEIGHT + insets.top, paddingTop: insets.top },
+                ]}
+              >
                 <ImagePlus size={22} color="rgba(255,255,255,0.85)" />
                 <Text style={styles.coverHint}>Ketuk untuk pasang foto sampul</Text>
               </View>
@@ -255,6 +342,34 @@ export function ProfileScreen() {
         </View>
 
         <View style={{ padding: spacing.xl, gap: spacing.lg }}>
+          {/* Rekap bulan berjalan */}
+          <View style={{ gap: spacing.md }}>
+            <SectionHeader title="Rekap Bulan Ini" icon={CalendarCheck} />
+            <View style={{ flexDirection: 'row', gap: spacing.md }}>
+              <StatCard
+                icon={CalendarCheck}
+                value={String(summary.presentDays)}
+                label="Hari Hadir"
+                tone="primary"
+                style={{ flex: 1 }}
+              />
+              <StatCard
+                icon={Zap}
+                value={summary.overtimeLabel}
+                label="Total Lembur"
+                tone="warning"
+                style={{ flex: 1 }}
+              />
+              <StatCard
+                icon={FileText}
+                value={String(summary.approvedLeaves)}
+                label="Izin Disetujui"
+                tone="success"
+                style={{ flex: 1 }}
+              />
+            </View>
+          </View>
+
           <MenuRow
             icon={Settings}
             title="Pengaturan Akun"

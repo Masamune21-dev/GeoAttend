@@ -11,7 +11,7 @@ import {
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ArrowLeftRight, Check, ChevronLeft, ChevronRight, Sparkles, X } from 'lucide-react-native';
-import { api, ApiRequestError } from '../api/client';
+import { api, ApiRequestError, authImageHeaders, toAbsoluteUrl } from '../api/client';
 import type {
   PiketAssignment,
   PiketResponse,
@@ -311,7 +311,9 @@ export function ScheduleScreen() {
             {LEGEND.map((l) => (
               <View key={l.label} style={styles.legendItem}>
                 <View style={[styles.dot, { backgroundColor: l.color }]} />
-                <Text style={styles.legendText}>{l.label}</Text>
+                <Text style={styles.legendText} numberOfLines={1}>
+                  {l.label}
+                </Text>
               </View>
             ))}
           </View>
@@ -358,7 +360,12 @@ export function ScheduleScreen() {
           <SectionHeader title="Piket Kebersihan" icon={Sparkles} />
           <Card style={{ gap: spacing.md }}>
             <View style={{ flexDirection: 'row', alignItems: 'center', gap: spacing.md }}>
-              <Avatar name={todayPiket?.userName ?? '—'} size={40} />
+              <Avatar
+                name={todayPiket?.userName ?? '—'}
+                size={40}
+                uri={toAbsoluteUrl(todayPiket?.userImage)}
+                headers={authImageHeaders()}
+              />
               <View style={{ flex: 1 }}>
                 <Text style={styles.subtle}>Petugas hari ini</Text>
                 <Text style={styles.cardStrong}>{todayPiket ? todayPiket.userName : '—'}</Text>
@@ -584,8 +591,10 @@ const styles = StyleSheet.create({
     borderTopColor: colors.muted,
     paddingTop: spacing.md,
   },
-  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5 },
-  legendText: { fontSize: 10.5, color: colors.textSecondary },
+  // flexShrink: 0 supaya item membungkus ke baris berikutnya, bukan diperas
+  // sampai teksnya terpotong ("Piket" jadi "Pike").
+  legendItem: { flexDirection: 'row', alignItems: 'center', gap: 5, flexShrink: 0 },
+  legendText: { fontSize: 11, color: colors.textSecondary },
 
   body: { fontSize: 13.5, color: colors.textPrimary, lineHeight: 19 },
   subtle: { fontSize: 12.5, color: colors.textSecondary },
