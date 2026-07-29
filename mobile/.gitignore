@@ -39,3 +39,7 @@ yarn-error.*
 # generated native folders
 /ios
 /android
+
+# artefak build lokal (assembleRelease) — jangan pernah masuk repo
+*.apk
+*.aab
