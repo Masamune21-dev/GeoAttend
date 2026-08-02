@@ -6,7 +6,8 @@ import {
 } from '@/lib/schedule/roles';
 import { isTeamOnDuty, teamOnDuty } from '@/lib/schedule/teams';
 import { isMoppingDay } from '@/lib/schedule/display';
-import { generateOffDaysOnly } from '@/lib/schedule/rotation';
+import { generateOffDaysOnly, monthDates } from '@/lib/schedule/rotation';
+import { UpsertScheduleSchema } from '@/types/api';
 
 describe('shiftOptionsForRole', () => {
   it('teknisi hanya punya Shift 1 dan Libur', () => {
@@ -65,6 +66,31 @@ describe('isMoppingDay', () => {
   it('false pada hari selain Sabtu, termasuk Minggu', () => {
     expect(isMoppingDay('2026-07-05')).toBe(false); // Minggu
     expect(isMoppingDay('2026-07-06')).toBe(false); // Senin
+  });
+});
+
+describe('UpsertScheduleSchema', () => {
+  // Grid dikirim utuh: batas array pernah terlalu ketat (500) sehingga simpan
+  // gagal "Data tidak valid" begitu peserta menembus 17 orang.
+  const fullGrid = (participants: number, month = '2026-08') => ({
+    month,
+    entries: monthDates(month).flatMap((date) =>
+      Array.from({ length: participants }, (_, i) => ({
+        userId: `user-${i}`,
+        date,
+        shift: '1' as const,
+      }))
+    ),
+  });
+
+  it('menerima grid penuh untuk jumlah peserta saat ini', () => {
+    const payload = fullGrid(21);
+    expect(payload.entries).toHaveLength(651);
+    expect(UpsertScheduleSchema.safeParse(payload).success).toBe(true);
+  });
+
+  it('masih menerima grid penuh sampai 100 peserta', () => {
+    expect(UpsertScheduleSchema.safeParse(fullGrid(100)).success).toBe(true);
   });
 });
 

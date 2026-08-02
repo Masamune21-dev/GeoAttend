@@ -91,7 +91,9 @@ export async function PUT(req: NextRequest) {
       return NextResponse.json(
         {
           code: 'VALIDATION_ERROR',
-          message: 'Data tidak valid',
+          // Sebutkan sebab pastinya — pesan generik menyulitkan admin menebak
+          // apa yang salah dari grid sebesar ini.
+          message: `Data tidak valid: ${parsed.error.issues[0]?.message ?? 'periksa isian'}`,
           details: parsed.error.flatten(),
           timestamp: new Date().toISOString(),
         },

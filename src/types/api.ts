@@ -341,7 +341,10 @@ export const UpsertScheduleSchema = z.object({
         shift: z.enum(SCHEDULE_SHIFTS),
       })
     )
-    .max(500),
+    // Grid dikirim utuh sebulan: batasnya jumlah peserta × hari terpanjang.
+    // Dilonggarkan sampai 100 peserta × 31 hari supaya tidak jadi plafon diam-diam
+    // saat karyawan bertambah (dulu 500 → mentok di 21 peserta).
+    .max(3100),
 });
 export type UpsertScheduleInput = z.infer<typeof UpsertScheduleSchema>;
 
