@@ -5,7 +5,8 @@ import { db } from '@/lib/db';
 import { leaveRequests, user } from '@/lib/db/schema';
 import { getApiSession, isAdmin, unauthorizedResponse } from '@/lib/auth/utils';
 import { CreateLeaveSchema, type LeaveRequestResponse } from '@/types/api';
-import { rangesOverlap, toLocalDateString } from '@/lib/leaves';
+import { rangesOverlap } from '@/lib/leaves';
+import { appToday } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
 
@@ -112,7 +113,7 @@ export async function POST(req: NextRequest) {
     }
 
     const input = parsed.data;
-    const today = toLocalDateString(new Date());
+    const today = appToday();
 
     if (input.type === 'libur') {
       // Libur = penanda hari ini saja, langsung tercatat

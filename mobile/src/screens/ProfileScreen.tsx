@@ -15,9 +15,13 @@ import { StatusBar } from 'expo-status-bar';
 import Constants from 'expo-constants';
 import * as ImagePicker from 'expo-image-picker';
 import { manipulateAsync, SaveFormat } from 'expo-image-manipulator';
+import * as Print from 'expo-print';
+import * as Sharing from 'expo-sharing';
+import { File, Paths } from 'expo-file-system';
 import {
   CalendarCheck,
   Camera,
+  Download,
   FileText,
   ImagePlus,
   KeyRound,
@@ -34,13 +38,15 @@ import {
   getServerUrl,
   toAbsoluteUrl,
 } from '../api/client';
-import type {
-  AttendanceRecordResponse,
-  LeaveRequestResponse,
-  PaginatedResponse,
-} from '../api/types';
-import { toLocalDateString } from '../lib/geo';
-import { buildOvertimeSessions } from '../lib/session';
+import type { RecapResponse } from '../api/types';
+import { formatClock, formatLongDate } from '../lib/geo';
+import { toLocalMonth } from '../lib/schedule';
+import {
+  buildRecapHtml,
+  formatMinutesCompact,
+  monthTitle,
+  recapFileName,
+} from '../lib/recap';
 import {
   Badge,
   Button,
@@ -89,12 +95,6 @@ async function pickImage(aspect: [number, number], maxWidth: number): Promise<st
   return `data:image/jpeg;base64,${processed.base64}`;
 }
 
-/** Awal bulan berjalan sebagai ISO — batas bawah query rekap. */
-function startOfMonthIso(): string {
-  const now = new Date();
-  return new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-}
-
 export function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const isFocused = useIsFocused();
@@ -102,52 +102,66 @@ export function ProfileScreen() {
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
 
-  // Rekap bulan berjalan — supaya halaman profil tidak sekadar identitas.
-  const [records, setRecords] = useState<AttendanceRecordResponse[]>([]);
-  const [leaves, setLeaves] = useState<LeaveRequestResponse[]>([]);
+  // Rekap bulan berjalan. Angkanya datang JADI dari server (modul perhitungan
+  // yang sama dengan halaman Rekap Bulanan web) — jangan dihitung ulang di sini,
+  // itu penyebab "Total Lembur" sempat 0 padahal web menunjukkan 2j 3m.
+  const month = toLocalMonth(new Date());
+  const [recap, setRecap] = useState<RecapResponse | null>(null);
+  const [recapError, setRecapError] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const loadSummary = useCallback(async () => {
-    const [att, lv] = await Promise.all([
-      api<PaginatedResponse<AttendanceRecordResponse>>(
-        `/api/attendance?userId=self&from=${encodeURIComponent(startOfMonthIso())}&limit=200`
-      ).catch(() => ({ data: [] as AttendanceRecordResponse[] }) as PaginatedResponse<AttendanceRecordResponse>),
-      api<{ data: LeaveRequestResponse[] }>('/api/leaves?userId=self').catch(() => ({
-        data: [] as LeaveRequestResponse[],
-      })),
-    ]);
-    setRecords(att.data);
-    setLeaves(lv.data);
-  }, []);
+    try {
+      setRecap(await api<RecapResponse>(`/api/reports/recap?month=${month}&userId=self`));
+      setRecapError(false);
+    } catch {
+      // Server lama belum punya endpoint ini — kartu rekap disembunyikan saja.
+      setRecapError(true);
+    }
+  }, [month]);
 
   useEffect(() => {
     loadSummary().catch(() => undefined);
   }, [loadSummary]);
 
-  const summary = useMemo(() => {
-    // Hari hadir = tanggal unik yang punya absen masuk shift (bukan lembur).
-    const presentDays = new Set(
-      records
-        .filter((r) => r.type === 'clock_in' && r.kind !== 'lembur')
-        .map((r) => toLocalDateString(new Date(r.timestamp)))
-    ).size;
+  const summary = recap?.summary ?? null;
 
-    // Total lembur = jumlah durasi sesi yang sudah ditutup bulan ini.
-    const overtimeMs = buildOvertimeSessions(records)
-      .filter((s) => s.endedAt)
-      .reduce((sum, s) => sum + (new Date(s.endedAt!).getTime() - new Date(s.startedAt).getTime()), 0);
-    const overtimeMinutes = Math.max(0, Math.floor(overtimeMs / 60_000));
-    const overtimeLabel =
-      overtimeMinutes >= 60
-        ? `${Math.floor(overtimeMinutes / 60)}j ${String(overtimeMinutes % 60).padStart(2, '0')}m`
-        : `${overtimeMinutes}m`;
+  const handleExportPdf = async () => {
+    if (!recap) return;
+    setExporting(true);
+    try {
+      const printedAt = `${formatLongDate(new Date())} ${formatClock(new Date())} WIB`;
+      const { uri } = await Print.printToFileAsync({
+        html: buildRecapHtml(recap, printedAt),
+      });
 
-    const month = toLocalDateString(new Date()).slice(0, 7);
-    const approvedLeaves = leaves.filter(
-      (l) => l.status === 'approved' && l.type !== 'libur' && l.startDate.slice(0, 7) === month
-    ).length;
+      // expo-print menamai berkasnya acak — salin ke nama yang berarti supaya
+      // enak dikirim lewat WhatsApp/email.
+      let shareUri = uri;
+      try {
+        const target = new File(Paths.cache, recapFileName(recap));
+        if (target.exists) target.delete();
+        new File(uri).copy(target);
+        shareUri = target.uri;
+      } catch {
+        // Gagal menyalin bukan alasan membatalkan — bagikan berkas aslinya.
+      }
 
-    return { presentDays, overtimeLabel, approvedLeaves };
-  }, [records, leaves]);
+      if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(shareUri, {
+          mimeType: 'application/pdf',
+          UTI: 'com.adobe.pdf',
+          dialogTitle: `Rekap Absensi ${monthTitle(recap.month)}`,
+        });
+      } else {
+        Alert.alert('PDF tersimpan', `Berkas dibuat di:\n${shareUri}`);
+      }
+    } catch (err) {
+      Alert.alert('Gagal membuat PDF', (err as Error).message);
+    } finally {
+      setExporting(false);
+    }
+  };
 
   // Sheet pengaturan akun (form nama & sandi disembunyikan di sini)
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -343,32 +357,57 @@ export function ProfileScreen() {
 
         <View style={{ padding: spacing.xl, gap: spacing.lg }}>
           {/* Rekap bulan berjalan */}
-          <View style={{ gap: spacing.md }}>
-            <SectionHeader title="Rekap Bulan Ini" icon={CalendarCheck} />
-            <View style={{ flexDirection: 'row', gap: spacing.md }}>
-              <StatCard
-                icon={CalendarCheck}
-                value={String(summary.presentDays)}
-                label="Hari Hadir"
-                tone="primary"
-                style={{ flex: 1 }}
-              />
-              <StatCard
-                icon={Zap}
-                value={summary.overtimeLabel}
-                label="Total Lembur"
-                tone="warning"
-                style={{ flex: 1 }}
-              />
-              <StatCard
-                icon={FileText}
-                value={String(summary.approvedLeaves)}
-                label="Izin Disetujui"
-                tone="success"
-                style={{ flex: 1 }}
+          {!recapError && (
+            <View style={{ gap: spacing.md }}>
+              <SectionHeader title={`Rekap ${monthTitle(month)}`} icon={CalendarCheck} />
+              <View style={{ flexDirection: 'row', gap: spacing.md }}>
+                <StatCard
+                  icon={CalendarCheck}
+                  value={summary ? String(summary.presentDays) : '—'}
+                  label="Hari Hadir"
+                  tone="primary"
+                  style={{ flex: 1 }}
+                />
+                <StatCard
+                  icon={Zap}
+                  value={summary ? formatMinutesCompact(summary.totalOvertimeMinutes) : '—'}
+                  label="Total Lembur"
+                  tone="warning"
+                  style={{ flex: 1 }}
+                />
+                <StatCard
+                  icon={FileText}
+                  value={
+                    summary
+                      ? String(summary.sakitDays + summary.izinDays + summary.cutiDays)
+                      : '—'
+                  }
+                  label="Izin & Cuti"
+                  tone="success"
+                  style={{ flex: 1 }}
+                />
+              </View>
+              {summary && summary.overtimeUrgentMinutes > 0 && (
+                <Text style={styles.footnote}>
+                  Lembur urgent disetujui: {formatMinutesCompact(summary.overtimeUrgentMinutes)} (
+                  {summary.overtimeUrgentCount}x) — dihitung terpisah dari total di atas.
+                </Text>
+              )}
+              {summary && summary.overtimeUrgentPending > 0 && (
+                <Text style={styles.footnote}>
+                  {summary.overtimeUrgentPending} sesi lembur urgent menunggu verifikasi admin.
+                </Text>
+              )}
+              <Button
+                title={exporting ? 'Menyiapkan PDF…' : 'Unduh Rekap PDF'}
+                icon={Download}
+                variant="outline"
+                onPress={handleExportPdf}
+                loading={exporting}
+                disabled={!recap}
               />
             </View>
-          </View>
+          )}
 
           <MenuRow
             icon={Settings}

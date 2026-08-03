@@ -5,7 +5,7 @@ import { scheduleEntries } from '@/lib/db/schema';
 import { getApiSession, unauthorizedResponse } from '@/lib/auth/utils';
 import type { DayRosterMember, DayRosterResponse, ScheduleShift } from '@/types/api';
 import { listScheduleParticipants } from '@/lib/schedule/participants';
-import { toLocalDateString } from '@/lib/leaves';
+import { appToday } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
 
@@ -35,8 +35,8 @@ export async function GET(req: NextRequest) {
         { status: 400 }
       );
     }
-    // Tanpa parameter → hari ini menurut waktu server (WIB di produksi).
-    const date = raw ?? toLocalDateString(new Date());
+    // Tanpa parameter → hari ini menurut WIB (bukan TZ host, yang di produksi UTC).
+    const date = raw ?? appToday();
 
     const { users } = await listScheduleParticipants();
     if (users.length === 0) {

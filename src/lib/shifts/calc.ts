@@ -1,5 +1,10 @@
+import { appDayOffset, appMinutesOfDay } from '@/lib/time';
+
 /**
  * Logika perhitungan telat, lembur, & pulang cepat berdasarkan SOP jam kerja per role.
+ *
+ * Semua perbandingan jam memakai jam dinding WIB, bukan TZ host — modul ini
+ * dipakai bersama oleh halaman web (browser WIB) dan API server (host UTC).
  *
  * Aturan:
  * - Datang LEBIH AWAL dari jam masuk shift  → selisihnya dihitung LEMBUR
@@ -45,16 +50,14 @@ export function timeToMinutes(time: string): number {
   return hours * 60 + minutes;
 }
 
-/** Menit sejak tengah malam (waktu lokal). */
+/** Menit sejak tengah malam WIB. */
 export function minutesOfDay(date: Date): number {
-  return date.getHours() * 60 + date.getMinutes();
+  return appMinutesOfDay(date);
 }
 
-/** Selisih hari kalender lokal antara dua waktu (0 = hari sama, 1 = besoknya). */
+/** Selisih hari kalender WIB antara dua waktu (0 = hari sama, 1 = besoknya). */
 export function dayOffset(from: Date, to: Date): number {
-  const a = new Date(from.getFullYear(), from.getMonth(), from.getDate());
-  const b = new Date(to.getFullYear(), to.getMonth(), to.getDate());
-  return Math.round((b.getTime() - a.getTime()) / 86_400_000);
+  return appDayOffset(from, to);
 }
 
 /**

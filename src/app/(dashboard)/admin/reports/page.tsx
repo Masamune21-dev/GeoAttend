@@ -32,58 +32,16 @@ import {
 import type { OvertimeStatus } from '@/types/api';
 import { useSchedule } from '@/hooks/useSchedule';
 import { LocationTrailDialog } from '@/components/features/attendance/LocationTrailDialog';
-import { computeRecap, formatMinutes, type ShiftTime } from '@/lib/shifts/calc';
-import { OPEN_SESSION_WINDOW_HOURS } from '@/lib/constants';
-import { expandDateRange, getLeaveTypeLabel, toLocalDateString } from '@/lib/leaves';
-import { deriveScheduledLibur } from '@/lib/schedule/libur';
+import { formatMinutes, type ShiftTime } from '@/lib/shifts/calc';
+import { buildRecap, type RecapRow } from '@/lib/reports/recap';
+import { getLeaveTypeLabel } from '@/lib/leaves';
+import { appToday } from '@/lib/time';
 import { getRoleLabel } from '@/lib/utils';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-
-interface DailyRow {
-  key: string;
-  date: string; // yyyy-MM-dd
-  userId: string;
-  userName: string;
-  role: string;
-  clockIn: Date | null;
-  clockOut: Date | null;
-  shiftNumber: number | null;
-  lateMinutes: number;
-  overtimeMinutes: number;
-  earlyLeaveMinutes: number;
-  /** null = hadir; selain itu 'sakit' | 'izin' | 'cuti' | 'libur' */
-  leaveType: string | null;
-  /** 'shift' = kehadiran biasa, 'lembur' = sesi lembur urgent di luar shift */
-  kind: 'shift' | 'lembur';
-  /** Status verifikasi sesi lembur (null utk baris non-lembur) */
-  overtimeStatus: OvertimeStatus | null;
-  /** id record pembuka sesi lembur — sasaran tombol Setujui/Tolak */
-  overtimeRecordId: string | null;
-}
-
-interface UserSummary {
-  userId: string;
-  userName: string;
-  role: string;
-  presentDays: number;
-  sakitDays: number;
-  izinDays: number;
-  cutiDays: number;
-  liburDays: number;
-  totalLateMinutes: number;
-  totalOvertimeMinutes: number;
-  totalEarlyLeaveMinutes: number;
-  /** Menit lembur urgent yang SUDAH disetujui admin */
-  overtimeUrgentMinutes: number;
-  /** Berapa kali dipanggil lembur (sesi disetujui) */
-  overtimeUrgentCount: number;
-  /** Sesi lembur yang masih menunggu verifikasi — belum masuk total */
-  overtimeUrgentPending: number;
-}
 
 const OVERTIME_STATUS_LABEL: Record<OvertimeStatus, string> = {
   pending: 'Belum diverifikasi',
@@ -128,7 +86,7 @@ export default function ReportsPage() {
   const isLoading =
     attendanceLoading || usersLoading || shiftsLoading || leavesLoading || scheduleLoading;
 
-  const reviewOvertime = (row: DailyRow, action: 'approve' | 'reject') => {
+  const reviewOvertime = (row: RecapRow, action: 'approve' | 'reject') => {
     if (!row.overtimeRecordId) return;
     reviewOvertimeMutation.mutate(
       { id: row.overtimeRecordId, action },
@@ -144,259 +102,27 @@ export default function ReportsPage() {
     );
   };
 
-  const { dailyRows, summaries } = useMemo(() => {
-    const records = attendanceData?.data ?? [];
-    const users = usersData?.data ?? [];
-    const shifts: ShiftTime[] = (shiftsData?.data ?? []).map((s) => ({
-      role: s.role,
-      shiftNumber: s.shiftNumber,
-      startTime: s.startTime,
-      endTime: s.endTime,
-    }));
-
-    const roleByUser = new Map(users.map((u) => [u.id, u.role as string]));
-    const shiftsByRole = new Map<string, ShiftTime[]>();
-    for (const shift of shifts) {
-      const list = shiftsByRole.get(shift.role) ?? [];
-      list.push(shift);
-      shiftsByRole.set(shift.role, list);
-    }
-
-    // Bentuk SESI kerja per user secara KRONOLOGIS: clock_in membuka sesi,
-    // clock_out menutupnya. clock_out mewarisi TANGGAL & shift dari clock-in
-    // sesinya — jadi pulang 02:00 keesokan hari tetap masuk rekap tanggal
-    // clock-in (shift lintas tengah malam), bukan baris terpisah di tanggal
-    // berikutnya. clock_out tanpa sesi terbuka (masuk hilang / data lama)
-    // menjadi baris pulang berdiri sendiri pada tanggalnya.
-    const OPEN_SESSION_WINDOW_MS = OPEN_SESSION_WINDOW_HOURS * 60 * 60 * 1000;
-
-    const sessions: {
-      userId: string;
-      userName: string;
-      date: string;
-      shiftNumber: number | null;
-      clockIn: Date | null;
-      clockOut: Date | null;
-      kind: 'shift' | 'lembur';
-      overtimeStatus: OvertimeStatus | null;
-      overtimeRecordId: string | null;
-    }[] = [];
-
-    const recordsByUser = new Map<string, typeof records>();
-    for (const record of records) {
-      const list = recordsByUser.get(record.userId) ?? [];
-      list.push(record);
-      recordsByUser.set(record.userId, list);
-    }
-
-    for (const list of Array.from(recordsByUser.values())) {
-      const sorted = [...list].sort(
-        (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
-      );
-      let open: (typeof sessions)[number] | null = null;
-      for (const record of sorted) {
-        const ts = new Date(record.timestamp);
-        const shiftNumber = record.shiftNumber ?? null;
-        const kind = record.kind ?? 'shift';
-        if (record.type === 'clock_in') {
-          // clock_in baru membuka sesi baru; sesi sebelumnya yang belum ditutup
-          // dianggap lupa clock-out (jam pulang tetap kosong).
-          open = {
-            userId: record.userId,
-            userName: record.userName,
-            date: format(ts, 'yyyy-MM-dd'),
-            shiftNumber,
-            clockIn: ts,
-            clockOut: null,
-            kind,
-            // Status & id verifikasi menempel di record PEMBUKA sesi lembur
-            overtimeStatus: kind === 'lembur' ? record.overtimeStatus ?? 'pending' : null,
-            overtimeRecordId: kind === 'lembur' ? record.id : null,
-          };
-          sessions.push(open);
-        } else if (
-          open &&
-          open.clockIn &&
-          ts.getTime() - open.clockIn.getTime() <= OPEN_SESSION_WINDOW_MS
-        ) {
-          open.clockOut = ts;
-          open = null;
-        } else {
-          sessions.push({
-            userId: record.userId,
-            userName: record.userName,
-            date: format(ts, 'yyyy-MM-dd'),
-            shiftNumber,
-            clockIn: null,
-            clockOut: ts,
-            kind,
-            overtimeStatus: null,
-            overtimeRecordId: null,
-          });
-          open = null;
-        }
-      }
-    }
-
-    const rows: DailyRow[] = sessions.map((entry, index) => {
-      const role = roleByUser.get(entry.userId) ?? 'employee';
-      const recap = computeRecap(
-        {
-          clockIn: entry.clockIn,
-          clockOut: entry.clockOut,
-          shiftNumber: entry.shiftNumber,
-          kind: entry.kind,
-        },
-        shiftsByRole.get(role) ?? []
-      );
-      return {
-        key: `${entry.userId}|${entry.date}|${entry.shiftNumber ?? 'x'}|${index}`,
-        date: entry.date,
-        userId: entry.userId,
-        userName: entry.userName,
-        role,
-        clockIn: entry.clockIn,
-        clockOut: entry.clockOut,
-        shiftNumber: entry.shiftNumber ?? recap.shift?.shiftNumber ?? null,
-        lateMinutes: recap.lateMinutes,
-        overtimeMinutes: recap.overtimeMinutes,
-        earlyLeaveMinutes: recap.earlyLeaveMinutes,
-        leaveType: null,
-        kind: entry.kind,
-        overtimeStatus: entry.overtimeStatus,
-        overtimeRecordId: entry.overtimeRecordId,
-      };
-    });
-
-    // Sisipkan baris izin/libur (yang disetujui) untuk tanggal tanpa absensi.
-    // Bila karyawan tetap absen di tanggal tersebut, baris kehadiran yang dipakai.
-    // Hanya sesi SHIFT yang dianggap "masuk kerja": dipanggil lembur urgent di
-    // hari libur/izin tidak menghapus hari libur itu — keduanya tampil.
-    const attendedDates = new Set(
-      sessions.filter((s) => s.kind === 'shift').map((s) => `${s.userId}|${s.date}`)
-    );
-    const leaveDates = new Set<string>();
-    for (const leave of leavesData?.data ?? []) {
-      const from = leave.startDate < monthStart ? monthStart : leave.startDate;
-      const to = leave.endDate > monthEnd ? monthEnd : leave.endDate;
-      if (from > to) continue;
-      for (const date of expandDateRange(from, to)) {
-        leaveDates.add(`${leave.userId}|${date}`);
-        if (attendedDates.has(`${leave.userId}|${date}`)) continue;
-        rows.push({
-          key: `${leave.userId}|${date}|${leave.type}`,
-          date,
-          userId: leave.userId,
-          userName: leave.userName,
-          role: roleByUser.get(leave.userId) ?? leave.userRole,
-          clockIn: null,
-          clockOut: null,
-          shiftNumber: null,
-          lateMinutes: 0,
-          overtimeMinutes: 0,
-          earlyLeaveMinutes: 0,
-          leaveType: leave.type,
-          kind: 'shift',
-          overtimeStatus: null,
-          overtimeRecordId: null,
-        });
-      }
-    }
-
-    // Libur menurut JADWAL SHIFT — tercatat otomatis, karyawan tidak perlu
-    // menekan "Libur Hari Ini". Hanya sampai hari ini, dan kalah dari baris
-    // kehadiran maupun izin/libur yang sudah tercatat.
-    const nameByUser = new Map(users.map((u) => [u.id, u.name]));
-    const todayStr = toLocalDateString(new Date());
-    const scheduledLibur = deriveScheduledLibur(scheduleData?.entries ?? [], {
-      until: monthEnd < todayStr ? monthEnd : todayStr,
-      attendedKeys: attendedDates,
-      leaveKeys: leaveDates,
-    });
-    for (const { userId, date } of scheduledLibur) {
-      const userName = nameByUser.get(userId);
-      if (!userName) continue; // karyawan sudah dihapus — abaikan
-      rows.push({
-        key: `${userId}|${date}|jadwal-libur`,
-        date,
-        userId,
-        userName,
-        role: roleByUser.get(userId) ?? 'employee',
-        clockIn: null,
-        clockOut: null,
-        shiftNumber: null,
-        lateMinutes: 0,
-        overtimeMinutes: 0,
-        earlyLeaveMinutes: 0,
-        leaveType: 'libur',
-        kind: 'shift',
-        overtimeStatus: null,
-        overtimeRecordId: null,
-      });
-    }
-
-    rows.sort(
-      (a, b) =>
-        a.date.localeCompare(b.date) ||
-        a.userName.localeCompare(b.userName) ||
-        (a.shiftNumber ?? 0) - (b.shiftNumber ?? 0)
-    );
-
-    // Ringkasan per user (hari hadir = tanggal unik, bukan jumlah shift)
-    const summaryMap = new Map<string, UserSummary>();
-    const daysByUser = new Map<string, Set<string>>();
-    for (const row of rows) {
-      const summary =
-        summaryMap.get(row.userId) ??
-        {
-          userId: row.userId,
-          userName: row.userName,
-          role: row.role,
-          presentDays: 0,
-          sakitDays: 0,
-          izinDays: 0,
-          cutiDays: 0,
-          liburDays: 0,
-          totalLateMinutes: 0,
-          totalOvertimeMinutes: 0,
-          totalEarlyLeaveMinutes: 0,
-          overtimeUrgentMinutes: 0,
-          overtimeUrgentCount: 0,
-          overtimeUrgentPending: 0,
-        };
-      if (row.kind === 'lembur') {
-        // Lembur urgent dihitung TERPISAH dari lembur biasa (datang awal /
-        // pulang telat) karena basis pembayarannya beda. Hanya sesi yang sudah
-        // disetujui admin yang masuk total; yang ditolak tidak dihitung sama
-        // sekali, dan sesi lembur tidak menambah "hari hadir".
-        if (row.overtimeStatus === 'approved') {
-          summary.overtimeUrgentMinutes += row.overtimeMinutes;
-          summary.overtimeUrgentCount += 1;
-        } else if (row.overtimeStatus === 'pending') {
-          summary.overtimeUrgentPending += 1;
-        }
-      } else if (row.leaveType === null) {
-        const days = daysByUser.get(row.userId) ?? new Set<string>();
-        days.add(row.date);
-        daysByUser.set(row.userId, days);
-        summary.presentDays = days.size;
-        summary.totalLateMinutes += row.lateMinutes;
-        summary.totalOvertimeMinutes += row.overtimeMinutes;
-        summary.totalEarlyLeaveMinutes += row.earlyLeaveMinutes;
-      } else if (row.leaveType === 'sakit') summary.sakitDays += 1;
-      else if (row.leaveType === 'izin') summary.izinDays += 1;
-      else if (row.leaveType === 'cuti') summary.cutiDays += 1;
-      else if (row.leaveType === 'libur') summary.liburDays += 1;
-      summaryMap.set(row.userId, summary);
-    }
-
-    return {
-      dailyRows: rows,
-      summaries: Array.from(summaryMap.values()).sort((a, b) =>
-        a.userName.localeCompare(b.userName)
-      ),
-    };
-  }, [attendanceData, usersData, shiftsData, leavesData, scheduleData, monthStart, monthEnd]);
+  const { rows: dailyRows, summaries } = useMemo(
+    () =>
+      buildRecap({
+        records: attendanceData?.data ?? [],
+        users: usersData?.data ?? [],
+        shifts: (shiftsData?.data ?? []).map(
+          (s): ShiftTime => ({
+            role: s.role,
+            shiftNumber: s.shiftNumber,
+            startTime: s.startTime,
+            endTime: s.endTime,
+          })
+        ),
+        leaves: leavesData?.data ?? [],
+        scheduleEntries: scheduleData?.entries ?? [],
+        monthStart,
+        monthEnd,
+        today: appToday(),
+      }),
+    [attendanceData, usersData, shiftsData, leavesData, scheduleData, monthStart, monthEnd]
+  );
 
   // Filter per karyawan
   const filteredRows = useMemo(
@@ -435,8 +161,8 @@ export default function ReportsPage() {
             : 'Hadir',
         row.overtimeStatus ? OVERTIME_STATUS_LABEL[row.overtimeStatus] : '-',
         row.shiftNumber != null ? `Shift ${row.shiftNumber}` : '-',
-        row.clockIn ? format(row.clockIn, 'HH:mm') : '-',
-        row.clockOut ? format(row.clockOut, 'HH:mm') : '-',
+        row.clockInTime ?? '-',
+        row.clockOutTime ?? '-',
         String(row.lateMinutes),
         String(row.overtimeMinutes),
         String(row.earlyLeaveMinutes),
@@ -529,8 +255,8 @@ export default function ReportsPage() {
             : 'Hadir',
         row.overtimeStatus ? OVERTIME_STATUS_LABEL[row.overtimeStatus] : '-',
         row.shiftNumber != null ? `Shift ${row.shiftNumber}` : '-',
-        row.clockIn ? format(row.clockIn, 'HH:mm') : '-',
-        row.clockOut ? format(row.clockOut, 'HH:mm') : '-',
+        row.clockInTime ?? '-',
+        row.clockOutTime ?? '-',
         formatMinutes(row.lateMinutes),
         formatMinutes(row.overtimeMinutes),
         formatMinutes(row.earlyLeaveMinutes),
@@ -787,10 +513,10 @@ export default function ReportsPage() {
                         {row.shiftNumber != null ? row.shiftNumber : '-'}
                       </td>
                       <td className="py-2.5 pr-3 text-center text-text-primary">
-                        {row.clockIn ? format(row.clockIn, 'HH:mm') : '-'}
+                        {row.clockInTime ?? '-'}
                       </td>
                       <td className="py-2.5 pr-3 text-center text-text-primary">
-                        {row.clockOut ? format(row.clockOut, 'HH:mm') : '-'}
+                        {row.clockOutTime ?? '-'}
                       </td>
                       <td className="py-2.5 pr-3 text-center">
                         {row.lateMinutes > 0 ? (
@@ -859,7 +585,7 @@ export default function ReportsPage() {
                             )}
                           </div>
                         ) : /* Baris izin/libur tidak punya sesi kerja → tak ada jejak */
-                        row.leaveType === null && row.clockIn ? (
+                        row.leaveType === null && row.clockInAt ? (
                           <Button
                             variant="ghost"
                             size="sm"
@@ -868,7 +594,7 @@ export default function ReportsPage() {
                                 userId: row.userId,
                                 userName: row.userName,
                                 date: row.date,
-                                clockInAt: row.clockIn!.toISOString(),
+                                clockInAt: row.clockInAt!,
                               })
                             }
                           >

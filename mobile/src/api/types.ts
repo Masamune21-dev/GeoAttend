@@ -197,3 +197,53 @@ export interface StockMovementResponse {
   createdByName: string | null;
   createdAt: string;
 }
+
+// --- Rekap absensi bulanan (GET /api/reports/recap) ---
+
+/** Satu baris detail harian rekap — bentuknya sama dengan tabel di web. */
+export interface RecapRow {
+  key: string;
+  date: string; // "yyyy-MM-dd"
+  userId: string;
+  userName: string;
+  role: string;
+  clockInAt: string | null; // ISO 8601
+  clockOutAt: string | null;
+  clockInTime: string | null; // "HH:mm"
+  clockOutTime: string | null;
+  shiftNumber: number | null;
+  lateMinutes: number;
+  overtimeMinutes: number;
+  earlyLeaveMinutes: number;
+  /** null = hadir; selain itu 'sakit' | 'izin' | 'cuti' | 'libur' */
+  leaveType: string | null;
+  kind: AttendanceKind;
+  overtimeStatus: OvertimeStatus | null;
+  overtimeRecordId: string | null;
+}
+
+export interface RecapSummary {
+  userId: string;
+  userName: string;
+  role: string;
+  presentDays: number;
+  sakitDays: number;
+  izinDays: number;
+  cutiDays: number;
+  liburDays: number;
+  totalLateMinutes: number;
+  /** Lembur biasa: datang lebih awal + pulang lebih larut dari jam shift. */
+  totalOvertimeMinutes: number;
+  totalEarlyLeaveMinutes: number;
+  /** Lembur urgent yang sudah disetujui admin (dihitung terpisah). */
+  overtimeUrgentMinutes: number;
+  overtimeUrgentCount: number;
+  overtimeUrgentPending: number;
+}
+
+export interface RecapResponse {
+  month: string; // "yyyy-MM"
+  user: { id: string; name: string; role: string };
+  summary: RecapSummary;
+  rows: RecapRow[];
+}

@@ -5,7 +5,7 @@ import { db } from '@/lib/db';
 import { scheduleEntries, shiftSwapRequests, user } from '@/lib/db/schema';
 import { getApiSession, isAdmin, unauthorizedResponse } from '@/lib/auth/utils';
 import { CreateSwapSchema, type SwapRequestResponse, type SwapStatus } from '@/types/api';
-import { toLocalDateString } from '@/lib/leaves';
+import { appToday } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
 
@@ -113,7 +113,7 @@ export async function POST(req: NextRequest) {
 
     const { date, targetUserId, reason } = parsed.data;
     const selfId = session.user.id;
-    const today = toLocalDateString(new Date());
+    const today = appToday();
 
     const fail = (code: string, message: string, statusCode = 422) =>
       NextResponse.json({ code, message, timestamp: new Date().toISOString() }, { status: statusCode });

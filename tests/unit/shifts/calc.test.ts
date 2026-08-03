@@ -16,18 +16,21 @@ const TEKNISI_SHIFTS: ShiftTime[] = [
   { role: 'teknisi', shiftNumber: 1, startTime: '08:00', endTime: '16:00' },
 ];
 
-/** Buat Date lokal di jam tertentu hari ini. */
-function at(hours: number, minutes: number): Date {
-  const d = new Date(2026, 6, 20); // tanggal arbitrer
-  d.setHours(hours, minutes, 0, 0);
-  return d;
+/** Jam WIB pada tanggal arbitrer — sengaja eksplisit agar tes lepas dari TZ mesin. */
+function wib(day: number, hours: number, minutes: number): Date {
+  const hh = String(hours).padStart(2, '0');
+  const mm = String(minutes).padStart(2, '0');
+  return new Date(`2026-07-${String(day).padStart(2, '0')}T${hh}:${mm}:00+07:00`);
 }
 
-/** Date lokal keesokan hari (untuk sesi yang menembus tengah malam). */
+/** Jam WIB pada tanggal acuan. */
+function at(hours: number, minutes: number): Date {
+  return wib(20, hours, minutes);
+}
+
+/** Jam WIB keesokan hari (untuk sesi yang menembus tengah malam). */
 function atNextDay(hours: number, minutes: number): Date {
-  const d = new Date(2026, 6, 21);
-  d.setHours(hours, minutes, 0, 0);
-  return d;
+  return wib(21, hours, minutes);
 }
 
 describe('timeToMinutes', () => {

@@ -9,7 +9,8 @@ import {
   forbiddenResponse,
 } from '@/lib/auth/utils';
 import { UpsertPiketSchema, MarkPiketDoneSchema, type PiketAssignment } from '@/types/api';
-import { monthDates, toLocalMonth } from '@/lib/schedule/rotation';
+import { monthDates } from '@/lib/schedule/rotation';
+import { appMonth } from '@/lib/time';
 import { listScheduleParticipants } from '@/lib/schedule/participants';
 
 export const dynamic = 'force-dynamic';
@@ -23,7 +24,7 @@ export async function GET(req: NextRequest) {
     const session = await getApiSession(req);
     if (!session) return unauthorizedResponse();
 
-    const month = req.nextUrl.searchParams.get('month') ?? toLocalMonth(new Date());
+    const month = req.nextUrl.searchParams.get('month') ?? appMonth();
     if (!/^\d{4}-\d{2}$/.test(month)) {
       return NextResponse.json(
         { code: 'VALIDATION_ERROR', message: 'Format bulan harus yyyy-MM', timestamp: new Date().toISOString() },

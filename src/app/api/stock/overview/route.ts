@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getApiSession, unauthorizedResponse } from '@/lib/auth/utils';
 import { getStockOverview } from '@/lib/stock';
-import { toLocalDateString } from '@/lib/leaves';
+import { appMonthStart, appToday } from '@/lib/time';
 import { internalError } from '@/lib/http';
 
 export const dynamic = 'force-dynamic';
@@ -16,9 +16,8 @@ export async function GET(req: NextRequest) {
     if (!session) return unauthorizedResponse();
 
     const params = req.nextUrl.searchParams;
-    const now = new Date();
-    const from = params.get('from') ?? toLocalDateString(new Date(now.getFullYear(), now.getMonth(), 1));
-    const to = params.get('to') ?? toLocalDateString(now);
+    const from = params.get('from') ?? appMonthStart();
+    const to = params.get('to') ?? appToday();
 
     const overview = await getStockOverview(from, to);
     return NextResponse.json(overview);
