@@ -12,6 +12,20 @@ import {
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
+/**
+ * PERINGATAN — proses server WAJIB berjalan pada TZ=UTC.
+ *
+ * Semua kolom `timestamp()` di bawah ini adalah `timestamp WITHOUT time zone`,
+ * dan seluruh isinya sudah tertulis sebagai jam UTC. node-postgres menafsirkan
+ * kolom semacam ini memakai TZ proses Node: menyetel TZ=Asia/Jakarta akan
+ * membuat setiap pembacaan meleset 7 jam DAN menulis baris baru dengan jam WIB
+ * — dua konvensi bercampur dalam satu kolom.
+ *
+ * Karena itu jangan menyetel TZ pada layanan (systemd/Docker). Kebutuhan "jam
+ * dinding WIB" dipenuhi di level kode lewat `@/lib/time`, yang menghitung
+ * tanggal/jam WIB tanpa bergantung pada TZ host.
+ */
+
 // ============================================
 // Tabel Better Auth (user, session, account, verification)
 // Nama export harus sesuai model Better Auth (singular),
