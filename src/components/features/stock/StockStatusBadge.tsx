@@ -1,13 +1,13 @@
 import { Badge } from '@/components/ui/badge';
+import { STOCK_STATUS_LABEL } from '@/lib/stock/labels';
 import type { StockStatus } from '@/types/api';
 
-const MAP: Record<StockStatus, { label: string; variant: 'success' | 'warning' | 'destructive' }> = {
-  aman: { label: 'Aman', variant: 'success' },
-  menipis: { label: 'Menipis', variant: 'warning' },
-  habis: { label: 'Habis', variant: 'destructive' },
+const VARIANT: Record<StockStatus, 'success' | 'warning' | 'destructive'> = {
+  aman: 'success',
+  menipis: 'warning',
+  habis: 'destructive',
 };
 
 export function StockStatusBadge({ status }: { status: StockStatus }) {
-  const s = MAP[status];
-  return <Badge variant={s.variant}>{s.label}</Badge>;
+  return <Badge variant={VARIANT[status]}>{STOCK_STATUS_LABEL[status]}</Badge>;
 }

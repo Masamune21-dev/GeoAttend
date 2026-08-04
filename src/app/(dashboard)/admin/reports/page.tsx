@@ -32,8 +32,10 @@ import {
 import type { OvertimeStatus } from '@/types/api';
 import { useSchedule } from '@/hooks/useSchedule';
 import { LocationTrailDialog } from '@/components/features/attendance/LocationTrailDialog';
+import { XlsxExportButton } from '@/components/features/export/XlsxExportButton';
 import { formatMinutes, type ShiftTime } from '@/lib/shifts/calc';
-import { buildRecap, type RecapRow } from '@/lib/reports/recap';
+import { buildRecap, type RecapRow, type RecapSummary } from '@/lib/reports/recap';
+import { xlsxDate, xlsxSheet, XLSX_DATE_FMT } from '@/lib/export/xlsx';
 import { getLeaveTypeLabel } from '@/lib/leaves';
 import { appToday } from '@/lib/time';
 import { getRoleLabel } from '@/lib/utils';
@@ -54,6 +56,12 @@ const OVERTIME_STATUS_VARIANT: Record<OvertimeStatus, 'warning' | 'success' | 'd
   approved: 'success',
   rejected: 'destructive',
 };
+
+/** Label kolom "Keterangan" — dipakai seragam oleh ekspor CSV, Excel, dan PDF. */
+function keteranganLabel(row: RecapRow): string {
+  if (row.kind === 'lembur') return 'Lembur Urgent';
+  return row.leaveType ? getLeaveTypeLabel(row.leaveType) : 'Hadir';
+}
 
 export default function ReportsPage() {
   const [month, setMonth] = useState(() => startOfMonth(new Date()));
@@ -141,6 +149,11 @@ export default function ReportsPage() {
   );
 
   const monthLabel = format(month, 'MMMM yyyy', { locale: localeId });
+  const selectedName =
+    selectedUserId === 'all' ? 'Semua Karyawan' : filteredSummaries[0]?.userName ?? '';
+  /** Nama karyawan ikut masuk nama berkas saat rekap disaring per orang. */
+  const fileSuffix =
+    selectedUserId === 'all' ? '' : `_${selectedName.toLowerCase().replace(/\s+/g, '-')}`;
 
   const handleExport = () => {
     if (filteredRows.length === 0) {
@@ -154,11 +167,7 @@ export default function ReportsPage() {
         row.date,
         escapeCsv(row.userName),
         getRoleLabel(row.role),
-        row.kind === 'lembur'
-          ? 'Lembur Urgent'
-          : row.leaveType
-            ? getLeaveTypeLabel(row.leaveType)
-            : 'Hadir',
+        keteranganLabel(row),
         row.overtimeStatus ? OVERTIME_STATUS_LABEL[row.overtimeStatus] : '-',
         row.shiftNumber != null ? `Shift ${row.shiftNumber}` : '-',
         row.clockInTime ?? '-',
@@ -173,10 +182,108 @@ export default function ReportsPage() {
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.href = url;
-    link.download = `rekap_${format(month, 'yyyy-MM')}.csv`;
+    link.download = `rekap_${format(month, 'yyyy-MM')}${fileSuffix}.csv`;
     link.click();
     URL.revokeObjectURL(url);
     toast.success('CSV berhasil diunduh');
+  };
+
+  /**
+   * Dua sheet: ringkasan per karyawan + detail harian. Menit ditulis sebagai
+   * angka (bukan "2j 3m") agar bisa langsung dijumlah/dipivot di Excel.
+   */
+  const buildXlsxSheets = () => {
+    const printedAt = format(new Date(), 'dd MMMM yyyy HH:mm', { locale: localeId });
+    const subtitle = `${selectedName} · Dicetak ${printedAt}`;
+
+    const summarySheet = xlsxSheet<RecapSummary>({
+      name: 'Ringkasan',
+      title: `Rekap Absensi — ${monthLabel}`,
+      subtitle,
+      rows: filteredSummaries,
+      columns: [
+        { header: 'Nama', width: 24, value: (s) => s.userName },
+        { header: 'Role', width: 16, value: (s) => getRoleLabel(s.role) },
+        { header: 'Hadir', width: 8, align: 'center', value: (s) => s.presentDays },
+        { header: 'Sakit', width: 8, align: 'center', value: (s) => s.sakitDays },
+        { header: 'Izin', width: 8, align: 'center', value: (s) => s.izinDays },
+        { header: 'Cuti', width: 8, align: 'center', value: (s) => s.cutiDays },
+        { header: 'Libur', width: 8, align: 'center', value: (s) => s.liburDays },
+        {
+          header: 'Total Telat (menit)',
+          width: 12,
+          align: 'right',
+          value: (s) => s.totalLateMinutes,
+        },
+        {
+          header: 'Total Lembur (menit)',
+          width: 12,
+          align: 'right',
+          value: (s) => s.totalOvertimeMinutes,
+        },
+        {
+          header: 'Lembur Urgent (menit)',
+          width: 12,
+          align: 'right',
+          value: (s) => s.overtimeUrgentMinutes,
+        },
+        {
+          header: 'Lembur Urgent (kali)',
+          width: 10,
+          align: 'center',
+          value: (s) => s.overtimeUrgentCount,
+        },
+        {
+          header: 'Lembur Belum Diverifikasi',
+          width: 12,
+          align: 'center',
+          value: (s) => s.overtimeUrgentPending,
+        },
+        {
+          header: 'Total Pulang Cepat (menit)',
+          width: 13,
+          align: 'right',
+          value: (s) => s.totalEarlyLeaveMinutes,
+        },
+      ],
+    });
+
+    const detailSheet = xlsxSheet<RecapRow>({
+      name: 'Detail Harian',
+      title: `Detail Harian — ${monthLabel}`,
+      subtitle,
+      rows: filteredRows,
+      columns: [
+        {
+          header: 'Tanggal',
+          width: 12,
+          align: 'center',
+          numFmt: XLSX_DATE_FMT,
+          value: (row) => xlsxDate(row.date),
+        },
+        { header: 'Nama', width: 24, value: (row) => row.userName },
+        { header: 'Role', width: 16, value: (row) => getRoleLabel(row.role) },
+        { header: 'Keterangan', width: 16, value: keteranganLabel },
+        {
+          header: 'Status Lembur',
+          width: 18,
+          value: (row) => (row.overtimeStatus ? OVERTIME_STATUS_LABEL[row.overtimeStatus] : null),
+        },
+        { header: 'Shift', width: 8, align: 'center', value: (row) => row.shiftNumber },
+        { header: 'Jam Masuk', width: 11, align: 'center', value: (row) => row.clockInTime },
+        { header: 'Jam Pulang', width: 11, align: 'center', value: (row) => row.clockOutTime },
+        { header: 'Telat (menit)', width: 11, align: 'right', value: (row) => row.lateMinutes },
+        { header: 'Lembur (menit)', width: 11, align: 'right', value: (row) => row.overtimeMinutes },
+        {
+          header: 'Pulang Cepat (menit)',
+          width: 12,
+          align: 'right',
+          value: (row) => row.earlyLeaveMinutes,
+        },
+      ],
+    });
+
+    return [summarySheet, detailSheet];
   };
 
   const handleExportPdf = async () => {
@@ -191,11 +298,6 @@ export default function ReportsPage() {
 
     const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
     type DocWithTable = typeof doc & { lastAutoTable: { finalY: number } };
-
-    const selectedName =
-      selectedUserId === 'all'
-        ? 'Semua Karyawan'
-        : filteredSummaries[0]?.userName ?? '';
 
     doc.setFontSize(15);
     doc.setTextColor(15, 23, 42);
@@ -248,11 +350,7 @@ export default function ReportsPage() {
         format(new Date(`${row.date}T00:00:00`), 'dd MMM yyyy', { locale: localeId }),
         row.userName,
         getRoleLabel(row.role),
-        row.kind === 'lembur'
-          ? 'Lembur Urgent'
-          : row.leaveType
-            ? getLeaveTypeLabel(row.leaveType)
-            : 'Hadir',
+        keteranganLabel(row),
         row.overtimeStatus ? OVERTIME_STATUS_LABEL[row.overtimeStatus] : '-',
         row.shiftNumber != null ? `Shift ${row.shiftNumber}` : '-',
         row.clockInTime ?? '-',
@@ -266,11 +364,7 @@ export default function ReportsPage() {
       styles: { fontSize: 9, cellPadding: 2 },
     });
 
-    const suffix =
-      selectedUserId === 'all'
-        ? ''
-        : `_${selectedName.toLowerCase().replace(/\s+/g, '-')}`;
-    doc.save(`rekap_${format(month, 'yyyy-MM')}${suffix}.pdf`);
+    doc.save(`rekap_${format(month, 'yyyy-MM')}${fileSuffix}.pdf`);
     toast.success('PDF berhasil diunduh');
   };
 
@@ -322,6 +416,10 @@ export default function ReportsPage() {
             <Download className="h-4 w-4" aria-hidden="true" />
             CSV
           </Button>
+          <XlsxExportButton
+            filename={`rekap_${format(month, 'yyyy-MM')}${fileSuffix}`}
+            build={buildXlsxSheets}
+          />
           <Button variant="outline" size="sm" onClick={handleExportPdf}>
             <FileText className="h-4 w-4" aria-hidden="true" />
             PDF
