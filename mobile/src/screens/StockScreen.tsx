@@ -454,23 +454,32 @@ export function StockScreen() {
               {(['masuk', 'keluar'] as const).map((t) => {
                 const active = type === t;
                 const Icon = t === 'masuk' ? ArrowDownToLine : ArrowUpFromLine;
-                const activeColor = t === 'masuk' ? colors.success : colors.warningStrong;
-                const activeBg = t === 'masuk' ? colors.successSubtle : colors.warningSubtle;
+                // Arah terpilih diberi warna PENUH, bukan cuma rona muda:
+                // bedanya harus kentara sekali lirik supaya teknisi tidak salah
+                // arah sejak awal — hijau = masuk, oranye tua = keluar.
+                const activeFill = t === 'masuk' ? colors.success : colors.warningStrong;
                 return (
                   <Pressable
                     key={t}
                     onPress={() => setType(t)}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: active }}
                     style={[
                       styles.toggle,
-                      active && { borderColor: activeColor, backgroundColor: activeBg },
+                      active && { borderColor: activeFill, backgroundColor: activeFill },
                     ]}
                   >
-                    <Icon size={18} color={active ? activeColor : colors.textSecondary} strokeWidth={2.3} />
+                    <Icon
+                      size={18}
+                      color={active ? '#FFF' : colors.textSecondary}
+                      strokeWidth={2.3}
+                    />
                     <Text
                       style={{
-                        fontWeight: '700',
-                        textTransform: 'capitalize',
-                        color: active ? activeColor : colors.textSecondary,
+                        fontWeight: '800',
+                        textTransform: active ? 'uppercase' : 'capitalize',
+                        letterSpacing: active ? 0.5 : 0,
+                        color: active ? '#FFF' : colors.textSecondary,
                       }}
                     >
                       {t}
