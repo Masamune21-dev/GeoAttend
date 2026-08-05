@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Alert,
   Image,
+  KeyboardAvoidingView,
   Modal,
   Pressable,
   RefreshControl,
@@ -393,7 +394,11 @@ export function CheckInScreen() {
         : 'Kirim Presensi Pulang';
 
   return (
-    <View style={{ flex: 1, backgroundColor: colors.background }}>
+    // behavior="padding" di kedua platform: layar Android modern (edge-to-edge)
+    // tidak lagi menyusut sendiri saat papan ketik muncul, sehingga kolom
+    // Catatan bisa tertutup. KAV mengukur posisi layar, jadi kalau jendelanya
+    // memang menyusut hasil hitungnya 0 — tidak dobel terangkat.
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.background }} behavior="padding">
       {/* Header putih dengan indikator pelacakan */}
       <View style={[styles.header, { paddingTop: insets.top + spacing.md }]}>
         <Avatar
@@ -740,7 +745,7 @@ export function CheckInScreen() {
           </View>
         </View>
       </Modal>
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 

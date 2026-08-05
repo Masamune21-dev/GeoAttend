@@ -69,8 +69,15 @@ const ROLE_LABELS: Record<string, string> = {
   employee: 'Karyawan',
 };
 
-const COVER_HEIGHT = 120;
+/**
+ * Sampul dipilih dengan potongan 16:9, jadi tingginya dibuat mendekati rasio
+ * itu pada lebar layar HP — foto tampil hampir utuh, bukan terpotong pita
+ * sempit. Avatar & identitas ikut turun karena menempel di bawah sampul.
+ */
+const COVER_HEIGHT = 184;
 const AVATAR_SIZE = 96;
+/** Seberapa dalam avatar menindih sampul (dulu setengah — terlalu naik). */
+const AVATAR_OVERLAP = Math.round(AVATAR_SIZE / 3);
 
 /** Pilih gambar dari galeri lalu kompres ke JPEG base64. */
 async function pickImage(aspect: [number, number], maxWidth: number): Promise<string | null> {
@@ -509,7 +516,7 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  avatarRow: { alignItems: 'center', marginTop: -(AVATAR_SIZE / 2) },
+  avatarRow: { alignItems: 'center', marginTop: -AVATAR_OVERLAP },
   avatar: {
     width: AVATAR_SIZE,
     height: AVATAR_SIZE,

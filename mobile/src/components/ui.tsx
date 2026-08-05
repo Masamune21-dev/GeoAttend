@@ -1,10 +1,8 @@
-import { useState, type ComponentType, type ReactNode } from 'react';
+import { useEffect, useRef, useState, type ComponentType, type ReactNode } from 'react';
 import {
   ActivityIndicator,
   Image,
-  KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -19,6 +17,7 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ChevronRight, Eye, EyeOff, X } from 'lucide-react-native';
+import { useKeyboardHeight } from '../lib/keyboard';
 import { avatarColor, colors, initialsOf, radius, shadow, spacing, type } from '../theme';
 
 /** Tipe komponen ikon lucide-react-native. */
@@ -576,34 +575,54 @@ export function Sheet({
   scroll?: boolean;
 }) {
   const insets = useSafeAreaInsets();
+  const keyboardHeight = useKeyboardHeight();
+
+  /*
+   * Sheet diangkat sendiri ke atas papan ketik: jendela Modal Android umumnya
+   * TIDAK ikut menyusut walau aplikasi memakai adjustResize, jadi form yang
+   * sedang diisi tertutup papan ketik.
+   *
+   * Supaya tidak dobel terangkat di perangkat/OS yang jendelanya MEMANG
+   * menyusut, tinggi jendela saat papan ketik tersembunyi disimpan sebagai
+   * acuan — yang kita angkat hanya sisa selisihnya.
+   */
+  const [windowHeight, setWindowHeight] = useState(0);
+  const restingHeight = useRef(0);
+  useEffect(() => {
+    if (keyboardHeight === 0 && windowHeight > 0) restingHeight.current = windowHeight;
+  }, [keyboardHeight, windowHeight]);
+  const shrunkBy = Math.max(0, restingHeight.current - windowHeight);
+  const lift = Math.max(0, keyboardHeight - shrunkBy);
+
+  // Saat terangkat, jarak aman bawah tidak perlu — areanya tertutup papan ketik.
   const body = (
-    <View style={{ gap: spacing.lg, paddingBottom: insets.bottom + spacing.lg }}>{children}</View>
+    <View style={{ gap: spacing.lg, paddingBottom: (lift > 0 ? 0 : insets.bottom) + spacing.lg }}>
+      {children}
+    </View>
   );
   return (
     <Modal visible={visible} animationType="slide" transparent onRequestClose={onClose}>
-      <KeyboardAvoidingView
-        style={{ flex: 1 }}
-        behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      <View
+        style={[styles.sheetOverlay, { paddingBottom: lift }]}
+        onLayout={(e) => setWindowHeight(e.nativeEvent.layout.height)}
       >
-        <View style={styles.sheetOverlay}>
-          <View style={styles.sheet}>
-            <View style={styles.sheetHandle} />
-            <View style={styles.sheetHeader}>
-              <Text style={styles.sheetTitle}>{title}</Text>
-              <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Tutup">
-                <X size={22} color={colors.textSecondary} />
-              </Pressable>
-            </View>
-            {scroll ? (
-              <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
-                {body}
-              </ScrollView>
-            ) : (
-              <View style={{ flex: 1 }}>{children}</View>
-            )}
+        <View style={styles.sheet}>
+          <View style={styles.sheetHandle} />
+          <View style={styles.sheetHeader}>
+            <Text style={styles.sheetTitle}>{title}</Text>
+            <Pressable onPress={onClose} hitSlop={10} accessibilityLabel="Tutup">
+              <X size={22} color={colors.textSecondary} />
+            </Pressable>
           </View>
+          {scroll ? (
+            <ScrollView keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+              {body}
+            </ScrollView>
+          ) : (
+            <View style={{ flex: 1 }}>{children}</View>
+          )}
         </View>
-      </KeyboardAvoidingView>
+      </View>
     </Modal>
   );
 }

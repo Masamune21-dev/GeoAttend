@@ -2,7 +2,6 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   KeyboardAvoidingView,
   Modal,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -142,10 +141,9 @@ export function AuthScreen() {
   const isRegister = mode === 'register';
 
   return (
-    <KeyboardAvoidingView
-      style={{ flex: 1, backgroundColor: colors.primary }}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    // Android pun perlu "padding": pada layar edge-to-edge jendelanya tidak
+    // menyusut saat papan ketik muncul, jadi kolom sandi tertutup.
+    <KeyboardAvoidingView style={{ flex: 1, backgroundColor: colors.primary }} behavior="padding">
       <ScrollView
         contentContainerStyle={styles.container}
         keyboardShouldPersistTaps="handled"
