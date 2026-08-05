@@ -236,6 +236,16 @@
 </div>
 
 <div class="callout new" style="margin-top:16px;">
+  <span class="t">Tambahan terbaru (Agustus 2026)</span>
+  <ul class="bullets" style="margin-bottom:0;">
+    <li><strong>Ekspor Excel</strong> — Rekap Bulanan bisa diunduh sebagai berkas Excel dua sheet dengan menit berupa angka siap dijumlah, dan daftar Inventaris gudang juga bisa diekspor (bab 18 &amp; 21).</li>
+    <li><strong>Konfirmasi arah stok</strong> — mencatat barang masuk/keluar kini wajib melewati jendela konfirmasi yang menyebut arah dan perubahan stoknya, untuk mencegah masuk/keluar tertukar (bab 21).</li>
+    <li><strong>Jadwal Shift Hari Ini per role</strong> — kartu di Overview administrator memisahkan Admin &amp; CS, NOC, dan Teknisi beserta jumlahnya (bab 14).</li>
+  </ul>
+  <p class="muted" style="margin:8px 0 0;">Bab-bab di bawah masih menjelaskan aplikasi Android v1.6. Fitur mobile yang lebih baru (Lembur Urgent, Dashboard, pratinjau foto profil) belum masuk panduan cetak ini.</p>
+</div>
+
+<div class="callout new" style="margin-top:16px;">
   <span class="t">Yang baru di versi 1.6</span>
   <ul class="bullets" style="margin-bottom:0;">
     <li><strong>Riwayat lokasi harian</strong> — administrator bisa melihat rute perjalanan karyawan per hari, lengkap dengan titik berhenti dan foto absen (bab 19).</li>
@@ -694,7 +704,13 @@
     <li>Buka <strong>Rekap Bulanan</strong>, pilih bulan (dan karyawan tertentu bila perlu).</li>
     <li>Periksa <strong>Ringkasan per Karyawan</strong>: hari hadir, sakit/izin/cuti/libur, total telat, lembur, dan pulang cepat.</li>
     <li>Periksa <strong>Detail Harian</strong>: satu baris per shift per hari, dengan kolom Keterangan yang membedakan Hadir/Sakit/Izin/Cuti/Libur.</li>
-    <li>Unduh <strong>PDF</strong> untuk arsip &amp; tanda tangan, atau <strong>CSV</strong> untuk diolah di Excel.</li>
+    <li>Unduh hasilnya — ketiga tombol ekspor mengikuti bulan &amp; filter karyawan yang sedang tampil:
+      <ul class="bullets" style="margin:6px 0 0;">
+        <li><strong>Excel</strong> <span class="pill new">baru</span> — paling cocok untuk payroll. Satu berkas dua sheet (<em>Ringkasan</em> &amp; <em>Detail Harian</em>), menit ditulis sebagai <strong>angka</strong> sehingga bisa langsung dijumlah/dipivot, tanggal sebagai tanggal Excel asli, baris judul beku dan siap disaring.</li>
+        <li><strong>CSV</strong> — berkas teks sederhana.</li>
+        <li><strong>PDF</strong> — untuk arsip &amp; tanda tangan.</li>
+      </ul>
+    </li>
   </ol>
 
   <h3 class="sub">Cara perhitungan</h3>
@@ -771,11 +787,25 @@
   <table>
     <tr><th style="width:28%">Menu</th><th>Fungsi</th></tr>
     <tr><td>Ringkasan</td><td>Jumlah barang, nilai stok, dan barang yang menipis/habis.</td></tr>
-    <tr><td>Inventory</td><td>Kelola daftar barang: kode, nama, kategori, satuan, stok awal, stok minimum, foto. Khusus administrator.</td></tr>
+    <tr><td>Inventory</td><td>Kelola daftar barang: kode, nama, kategori, satuan, stok awal, stok minimum, foto. Tersedia tombol <strong>Excel</strong> <span class="pill new">baru</span> untuk mengunduh daftar inventaris sesuai filter yang tampil. Khusus administrator &amp; admin gudang.</td></tr>
     <tr><td>Pergerakan</td><td>Catat barang <strong>masuk</strong>, <strong>keluar</strong>, atau <strong>penyesuaian</strong>, dengan foto dan catatan.</td></tr>
     <tr><td>Riwayat</td><td>Seluruh pergerakan stok beserta pencatatnya.</td></tr>
   </table>
   <p class="muted">Status stok: <span class="pill g">Aman</span> di atas stok minimum · <span class="pill a">Menipis</span> mendekati batas · <span class="pill r">Habis</span> stok nol.</p>
+
+  <div class="callout new">
+    <span class="t">Konfirmasi arah sebelum tersimpan</span>
+    Menekan Simpan tidak langsung mencatat. Muncul dulu jendela konfirmasi berisi nama barang, jumlah, <strong>perubahan stoknya</strong> (mis. “Stok: 6 → 4 pcs”), catatan, dan penjelasan arti arahnya. Tombol setujunya pun menyebut arah — <strong>“Ya, Barang Keluar”</strong>, bukan “OK”.
+    <br/><br/>
+    Ini disengaja: kesalahan tersering di lapangan adalah barang yang seharusnya <em>keluar</em> justru tercatat <em>masuk</em>, dan baru ketahuan saat stok tidak cocok. Tombol arah pada formulir juga kini berwarna penuh — <strong>hijau</strong> untuk Masuk, <strong>oranye</strong> untuk Keluar.
+  </div>
+
+  <div class="callout warn">
+    <span class="t">Salah arah? Jangan diedit — catat kebalikannya</span>
+    Pergerakan yang sudah tersimpan tidak bisa disunting, karena stok dihitung dari seluruh riwayat (buku besar) agar selalu bisa dipertanggungjawabkan. Cara memperbaiki: catat <strong>pergerakan kebalikannya</strong> dengan catatan “koreksi salah input”, lalu catat pergerakan yang benar.
+    <br/><br/>
+    <strong>Menonaktifkan barang</strong> juga bukan menghapus: barang hilang dari daftar dan tak bisa dipilih saat mencatat stok, tetapi seluruh riwayatnya tetap tersimpan dan barang bisa diaktifkan kembali.
+  </div>
 </div>
 
 <div class="section">

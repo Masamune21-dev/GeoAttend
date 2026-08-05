@@ -172,6 +172,18 @@ Set `BETTER_AUTH_URL` ke URL HTTPS final — cookie `__Secure-` menuntut HTTPS d
   Docker: `15 3 * * * docker compose -f /opt/geoattend/docker-compose.yml exec -T app npm run db:cleanup-trails`.
   Catatan: `tsx` ada di devDependencies — deployment harus memakai `npm ci` (bukan `--omit=dev`), atau ganti `ExecStart` menjadi `npx tsx scripts/cleanup-trails.ts`.
 - **Update aplikasi**: `git pull && npm ci && npm run db:migrate && npm run build && systemctl restart geoattend` (atau rebuild image Docker). Migrasi bersifat additive sehingga aman dijalankan sebelum restart
+
+  Yang bisa dilewati agar cepat: `npm ci` **hanya** bila `package.json`/lock
+  berubah, dan `db:migrate` **hanya** bila ada berkas migrasi baru. Server lama
+  tetap melayani sampai `restart`, jadi build boleh dijalankan saat jam kerja.
+  Commit yang hanya menyentuh `mobile/` tidak memengaruhi build web sama sekali.
+
+  > **Jalankan sebagai pengguna service, jangan root.** Bila `npm ci` gagal
+  > dengan `EACCES … unlink .../node_modules/.bin/…`, berarti sebagian pohon
+  > `node_modules` dimiliki `root` akibat pernah di-install sebagai root.
+  > Perbaiki sekali: `chown -R geoattend:geoattend /opt/geoattend`, lalu ulangi
+  > `npm ci` sebagai `geoattend`. `git` sebagai root di direktori itu juga
+  > memicu peringatan *dubious ownership*.
 - **Rollback**: checkout tag sebelumnya + restart; DB tidak perlu di-rollback (migrasi additive)
 - **Log**: `journalctl -u geoattend -f` (native) atau `docker logs -f geoattend-app`
 

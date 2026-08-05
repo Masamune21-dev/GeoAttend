@@ -90,7 +90,7 @@ Email login hanya bisa diubah oleh administrator.
 5. Alternatif tanpa kode: **Pengguna** → **Tambah Pengguna** — buat akun karyawan langsung (nama, email, kata sandi awal, role). Sampaikan kredensial ke karyawan dan minta mereka mengganti kata sandi di menu Profil
 
 ### Harian
-- **Overview**: ringkasan hadir hari ini + absensi terbaru
+- **Overview**: ringkasan hadir hari ini + absensi terbaru. Kartu **Jadwal Shift Hari Ini** memecah isi tiap shift **per role** (Admin & CS → NOC → Teknisi) beserta jumlahnya, jadi komposisi tim langsung terbaca tanpa menghitung nama satu per satu
 - **Peta Live**: pantau posisi karyawan — hijau berdenyut = posisi terkini (live), **abu-abu = posisi terakhir yang diketahui** (karyawan berhenti bergerak atau sinyal hilang; marker tetap di tempat terakhir, tidak kembali ke titik absen), biru = belum pernah melapor sehingga dipakai posisi saat absen, merah = sedang di luar area. Klik marker untuk foto & jam. Data diperbarui otomatis (10–30 detik)
 - **Persetujuan Izin**: cek tab **Menunggu** — **Setujui** atau **Tolak** (bisa beri catatan alasan) pengajuan sakit/izin/cuti. Penanda libur karyawan tercatat otomatis tanpa persetujuan
 
@@ -106,7 +106,11 @@ Email login hanya bisa diubah oleh administrator.
 2. Periksa tabel ringkasan (hari hadir, sakit/izin/cuti/libur, total telat, total lembur, total pulang cepat) dan detail harian — satu baris per shift; kolom **Keterangan** membedakan Hadir/Sakit/Izin/Cuti/Libur. **Hari bershift "libur" di jadwal ikut terhitung Libur otomatis** — karyawan tidak perlu menandainya sendiri, jadi kolom Libur mencerminkan jadwal yang Anda susun (libur di masa depan belum dihitung)
 3. **Verifikasi lembur urgent**: baris berbadge **Lembur** + **Belum diverifikasi** adalah panggilan lembur di luar shift. Klik **Setujui** (masuk kolom Lembur Urgent) atau **Tolak** (tidak dihitung sama sekali) di kolom Aksi. Kolom **Lembur Urgent** sengaja dipisah dari **Total Lembur** — yang pertama karena dipanggil, yang kedua karena kelebihan jam kerja, dan basis bayarnya berbeda
 4. **Riwayat lokasi**: pada tabel Detail Harian, klik tombol **Riwayat** di kolom Aksi untuk melihat ke mana saja karyawan pergi hari itu — rute perjalanan di peta, titik berhenti beserta lamanya, total jarak tempuh, dan foto absen masuk & pulang berdampingan. Tersedia untuk baris kehadiran (bukan izin/libur) dan tersimpan sampai 90 hari ke belakang
-5. **PDF** untuk arsip/tanda tangan, **CSV** untuk olah di Excel (kolom Aksi tidak ikut terekspor; ada kolom **Status Lembur** untuk membedakan sesi yang disetujui/ditolak)
+5. Tiga tombol ekspor, ikut bulan & filter karyawan yang sedang tampil (kolom Aksi tidak ikut terekspor; ada kolom **Status Lembur** untuk membedakan sesi yang disetujui/ditolak):
+   - **Excel (.xlsx)** — paling nyaman untuk payroll. Satu berkas dua sheet: **Ringkasan** per karyawan dan **Detail Harian**. Menit ditulis sebagai **angka** (bukan "2j 3m") sehingga bisa langsung di-SUM/pivot, tanggal sebagai tanggal Excel asli, header beku + autofilter
+   - **CSV** — teks sederhana, dipisah titik koma
+   - **PDF** — untuk arsip/tanda tangan
+   Nama berkas mengikuti bulan, dan menyertakan nama karyawan bila rekap disaring per orang
 
 > **Catatan pulang cepat:** lembur karena datang lebih awal TIDAK menutupi
 > kekurangan jam karena pulang lebih cepat — keduanya tampil terpisah agar
@@ -116,6 +120,35 @@ Email login hanya bisa diubah oleh administrator.
 - **Ubah role**: dropdown di daftar pengguna (menentukan SOP shift & akses)
 - **Edit** (ikon pensil): ubah nama, email login, atau **reset kata sandi** (isi kata sandi baru; kosongkan bila tidak diubah)
 - **Hapus** (ikon tempat sampah): menghapus user beserta seluruh riwayat absensinya — tidak bisa dibatalkan
+
+### Stok Gudang
+Modul terpisah untuk stok barang & peralatan lapangan. Aplikasi dan loginnya
+sama, hanya tampilannya yang berganti sesuai alamat: **stok.kusumavision.net**
+(shell stok) atau sub-tab **Stok** di dalam GeoAttend. Menu **Inventory** hanya
+untuk administrator & admin gudang; menu lain terbuka bagi karyawan.
+
+| Menu | Isi |
+| :--- | :--- |
+| **Overview** | Total barang & stok, total masuk/keluar periode, barang menipis/habis, pergerakan terbaru |
+| **Inventory** | Master barang: tambah/ubah (kode, nama, kategori, satuan, stok awal, stok minimum, foto), nonaktifkan, dan **ekspor Excel** inventaris sesuai filter yang tampil |
+| **Masuk & Keluar** | Catat mutasi: pilih barang → arah **Masuk/Keluar** → jumlah → foto & catatan opsional |
+| **Riwayat** | Seluruh mutasi dengan filter tipe & rentang tanggal |
+
+Beberapa hal yang perlu diketahui:
+
+- **Stok tidak disimpan sebagai satu angka**, melainkan dihitung dari stok awal
+  + seluruh mutasi (buku besar). Karena itu riwayat selalu bisa
+  dipertanggungjawabkan dan koreksi cukup dengan mencatat mutasi baru
+- **Konfirmasi arah wajib** sebelum mutasi tersimpan — muncul popup berisi nama
+  barang, jumlah, **perubahan stok** ("Stok: 6 → 4 pcs"), catatan, dan
+  penjelasan arti arahnya. Tombol setujunya ikut menyebut arah ("Ya, Barang
+  Keluar"), bukan "OK". Ini sengaja dibuat "berisik" karena kesalahan tersering
+  di lapangan adalah barang yang seharusnya keluar tercatat masuk
+- **Nonaktifkan barang ≠ hapus**: barang hilang dari daftar dan tak bisa dipilih
+  saat mencatat stok, tetapi **riwayat masuk/keluarnya tetap tersimpan** dan
+  barang bisa diaktifkan kembali
+- Status barang otomatis: **Habis** (stok ≤ 0), **Menipis** (stok ≤ stok
+  minimum), **Aman** (di atasnya)
 
 ### Kasus khusus
 | Situasi | Penanganan |
@@ -127,3 +160,4 @@ Email login hanya bisa diubah oleh administrator.
 | Kode pendaftaran tersebar | Pengaturan → General → Generate kode baru → Simpan (kode lama langsung tidak berlaku) |
 | Pindah lokasi kantor | Pengaturan → geser pin geofence → Simpan (berlaku seketika) |
 | Absen tercatat "luar area" | Cek akurasi GPS di detail record; pertimbangkan menambah radius |
+| Teknisi salah arah saat catat stok (masuk/keluar tertukar) | Tidak bisa disunting — catat **mutasi kebalikannya** dengan catatan "koreksi salah input", lalu catat mutasi yang benar. Riwayat tetap utuh dan stok kembali cocok |

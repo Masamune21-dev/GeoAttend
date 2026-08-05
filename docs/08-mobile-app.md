@@ -27,8 +27,8 @@ dengan izin *background location* bisa terus mengirim posisi walau HP di saku.
 
 | Bagian | Pilihan |
 | :--- | :--- |
-| Framework | Expo SDK **57** (`expo ~57.0.8`) |
-| Runtime | React Native **0.86.0**, React **19.2.3** |
+| Framework | Expo SDK **57** (`expo ~57.0.10`) |
+| Runtime | React Native **0.86.2**, React **19.2.3** |
 | Bahasa | TypeScript ~6.0.3 (strict) |
 | Navigasi | `@react-navigation/native` + `@react-navigation/bottom-tabs` |
 | Lokasi | `expo-location` + `expo-task-manager` (task background) |
@@ -58,18 +58,26 @@ mobile/
     ├── auth/
     │   └── session.tsx         # SessionProvider: signIn/signUp/signOut/refresh
     ├── components/
-    │   └── ui.tsx              # Primitives: Button, Field, PasswordField, Card, Badge
+    │   ├── ui.tsx              # Primitives: Button, Field, Card, Badge, Sheet, PhotoViewer
+    │   ├── AppAlert.tsx        # Dialog bertema + appAlert() (pengganti Alert bawaan)
+    │   ├── TabBar.tsx          # Tab bar mengambang + useTabBarSpace()
+    │   └── GeofenceMap.tsx     # Peta OSM via WebView
     ├── lib/
     │   ├── geo.ts             # Haversine, format jarak/tanggal/jam
-    │   ├── schedule.ts        # Label shift/bulan, meta status tukar
+    │   ├── keyboard.ts        # useKeyboardHeight (angkat isi di atas papan ketik)
+    │   ├── recap.ts           # HTML rekap untuk cetak PDF
+    │   ├── schedule.ts        # Label shift/bulan, meta status tukar, label role roster
+    │   ├── session.ts         # deriveOpenSession (sesi absen terbuka)
     │   └── shifts.ts          # pickShift (shift default berdasar jam)
     ├── screens/
     │   ├── AuthScreen.tsx      # Masuk / Daftar (segmented) + setelan server
+    │   ├── DashboardScreen.tsx # Ringkasan, roster hari ini per role, piket
     │   ├── CheckInScreen.tsx   # Absen: status lokasi + kamera + kirim
     │   ├── ScheduleScreen.tsx  # Jadwal shift, tukar shift, piket
     │   ├── LeavesScreen.tsx    # Izin & libur
-    │   ├── HistoryScreen.tsx   # Riwayat absensi
-    │   └── ProfileScreen.tsx   # Profil, foto, keluar
+    │   ├── HistoryScreen.tsx   # Riwayat absensi & stok
+    │   ├── StockScreen.tsx     # Katalog stok + catat masuk/keluar
+    │   └── ProfileScreen.tsx   # Profil, foto, rekap PDF, keluar
     ├── theme.ts                # Token warna/spacing/radius (selaras DESIGN.md)
     └── tracking/
         └── locationTask.ts     # Task background pelacakan posisi + start/stop
@@ -237,6 +245,57 @@ menyala terus walau pengguna di tab lain. Cadence 10 dtk.
   (varian primary/outline/destructive/success/warning, loading), `Field`,
   `PasswordField` (toggle mata), `Card`, `Badge`. Halaman hanya menyusun primitives.
 
+### 10.1 Popup — semuanya bertema, tanpa `Alert` bawaan
+
+`Alert.alert` bawaan sistem **tidak dipakai lagi** (dulu 51 pemanggilan): gayanya
+Android mentah dan berbeda jauh dari kartu/sheet di sekitarnya. Penggantinya
+[`components/AppAlert.tsx`](../mobile/src/components/AppAlert.tsx):
+
+```tsx
+appAlert('Gagal menyimpan', e.message);              // bentuknya meniru Alert.alert
+appAlert('Keluar?', 'Pelacakan dihentikan.', [       // tombol
+  { text: 'Batal', style: 'cancel' },
+  { text: 'Keluar', style: 'destructive', onPress: signOut },
+]);
+showAppAlert({ title, content: <View>…</View>, buttons });  // isi berstruktur
+```
+
+- **Imperatif, bukan hook** — dipanggil dari dalam `.catch()` dan callback
+  non-komponen. `AppAlertHost` dipasang sekali di `App.tsx`.
+- **Nada** (ikon + warna) ditebak dari judul: berakhiran `✓`/"Tersimpan" → sukses
+  hijau, "Gagal…" → merah, ≥2 tombol → konfirmasi biru. Bisa dipaksa lewat
+  argumen keempat. Penebakan ini disengaja agar puluhan pemanggilan lama tak
+  perlu disunting satu-satu.
+- **Tombol ditumpuk penuh lebar**, pilihan aman (`style: 'cancel'`) diletakkan
+  **paling bawah** — ketukan refleks dekat ibu jari jatuh ke pilihan tanpa akibat.
+- **Antrean**: dua pesan berurutan tidak saling menimpa, termasuk pola
+  "konfirmasi → simpan → pesan sukses" yang muncul setelah `await`.
+- **Selalu di atas sheet**: modalnya baru tampil saat ada pesan, jadi jendelanya
+  ditambahkan paling akhir dan tidak tenggelam di bawah bottom sheet/kamera.
+
+Popup lain: `Sheet` (bottom sheet form), `PhotoViewer` (foto layar penuh, ketuk
+untuk tutup), dan modal kamera layar penuh.
+
+### 10.2 Papan ketik & tepi layar
+
+Dua jebakan Android modern yang sudah ditangani — keduanya berakar pada layar
+**edge-to-edge**, di mana jendela **tidak lagi menyusut** saat papan ketik muncul
+sehingga `adjustResize` tak berefek:
+
+- **Isi bottom sheet** diangkat sendiri setinggi papan ketik via
+  [`lib/keyboard.ts`](../mobile/src/lib/keyboard.ts) (`useKeyboardHeight`). Sheet
+  mengukur sendiri berapa banyak jendela sudah menyusut dan hanya mengangkat
+  sisanya, jadi tidak dobel terangkat di perangkat yang jendelanya memang
+  menyusut.
+- **Layar biasa** (Absen, Login) memakai `KeyboardAvoidingView behavior="padding"`
+  di **kedua** platform. Jangan kembalikan `behavior={undefined}` untuk Android —
+  itu artinya "tidak melakukan apa pun" dan formnya kembali tertutup.
+- **Tab bar** mengambang di atas isi layar (`position: absolute`) dengan jalur
+  tembus pandang tempat tombol Absen naik. Karena itu setiap layar tab menambah
+  jarak aman bawah lewat `useTabBarSpace()` — tinggi bar dilaporkan sendiri ke
+  navigator, tidak ditebak. Ruang tombol Absen tetap berupa **padding transparan**
+  (bukan margin negatif) karena Android memotong anak yang keluar batas induk.
+
 ---
 
 ## 11. Build & Rilis (EAS)
@@ -264,6 +323,17 @@ npx eas-cli build:view <BUILD_ID>
   menimpa instalasi lama tanpa uninstall.
 - **Distribusi:** APK internal — unduh dari halaman build Expo lalu bagikan
   langsung ke karyawan.
+- **Tidak ada OTA** (`expo-updates` tidak dipasang): setiap perubahan kode mobile
+  **wajib build APK baru**. Deploy server tidak mengubah apa pun di aplikasi.
+- **Ukuran arsip unggahan:** `eas build` menyalin seluruh direktori git root dan
+  hanya membaca **`.gitignore` root** — `.gitignore` bersarang diabaikan. Karena
+  itu `/mobile/android` diulang di `.gitignore` root; tanpa itu folder prebuild
+  ±1,5 GB ikut terunggah (dulu arsipnya 395 MB, sekarang 3,4 MB). Periksa dengan
+  `npx eas-cli build:inspect --platform android --stage archive --output <dir>`.
+  `.easignore` sengaja **tidak** dipakai karena berkas itu *mengganti*
+  `.gitignore`, sehingga aturan baru di sana tak lagi dipatuhi EAS.
+- **`expo doctor`** dijalankan otomatis di awal build; peringatan versi patch
+  tidak menggagalkan build, tapi rapikan berkala dengan `npx expo install --fix`.
 - **iOS:** belum disiapkan (butuh akun Apple Developer berbayar + kredensial
   interaktif). Konfigurasi `app.json` sudah siap bila nanti diaktifkan.
 - **Estimasi antre:** build Android free tier bisa ~4 jam dari submit sampai selesai.
