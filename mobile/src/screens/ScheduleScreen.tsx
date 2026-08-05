@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -47,6 +46,7 @@ import {
   SectionHeader,
   Sheet,
 } from '../components/ui';
+import { appAlert } from '../components/AppAlert';
 import { colors, radius, spacing } from '../theme';
 
 const DATE_REGEX = /^\d{4}-\d{2}-\d{2}$/;
@@ -171,7 +171,7 @@ export function ScheduleScreen() {
 
   const submitSwap = async () => {
     if (!targetId) {
-      Alert.alert('Pilih rekan', 'Pilih rekan yang akan ditukar');
+      appAlert('Pilih rekan', 'Pilih rekan yang akan ditukar');
       return;
     }
     setSubmitting(true);
@@ -185,10 +185,10 @@ export function ScheduleScreen() {
         }),
       });
       setSwapOpen(false);
-      Alert.alert('Terkirim ✓', 'Pengajuan tukar dikirim ke rekan');
+      appAlert('Terkirim ✓', 'Pengajuan tukar dikirim ke rekan');
       await loadData();
     } catch (err) {
-      Alert.alert('Gagal', (err as ApiRequestError).message);
+      appAlert('Gagal', (err as ApiRequestError).message);
     } finally {
       setSubmitting(false);
     }
@@ -199,12 +199,12 @@ export function ScheduleScreen() {
       await api(`/api/swaps/${id}`, { method: 'PATCH', body: JSON.stringify({ action }) });
       await loadData();
     } catch (err) {
-      Alert.alert('Gagal', (err as Error).message);
+      appAlert('Gagal', (err as Error).message);
     }
   };
 
   const cancelSwap = (s: SwapRequestResponse) => {
-    Alert.alert('Batalkan pengajuan?', `Tukar dengan ${s.targetName} (${formatShortDate(s.date)})`, [
+    appAlert('Batalkan pengajuan?', `Tukar dengan ${s.targetName} (${formatShortDate(s.date)})`, [
       { text: 'Tidak' },
       {
         text: 'Ya, batalkan',
@@ -214,7 +214,7 @@ export function ScheduleScreen() {
             await api(`/api/swaps/${s.id}`, { method: 'DELETE' });
             await loadData();
           } catch (err) {
-            Alert.alert('Gagal', (err as Error).message);
+            appAlert('Gagal', (err as Error).message);
           }
         },
       },
@@ -226,7 +226,7 @@ export function ScheduleScreen() {
       await api('/api/piket', { method: 'PATCH', body: JSON.stringify({ date, done }) });
       await loadData();
     } catch (err) {
-      Alert.alert('Gagal', (err as Error).message);
+      appAlert('Gagal', (err as Error).message);
     }
   };
 

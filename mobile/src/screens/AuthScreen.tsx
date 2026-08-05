@@ -12,7 +12,7 @@ import { Check, MapPin, ServerCog, X } from 'lucide-react-native';
 import { useSession } from '../auth/session';
 import { getServerUrl, loadApiState, ApiRequestError } from '../api/client';
 import { Button, Card, Field, PasswordField } from '../components/ui';
-import { colors, radius, spacing } from '../theme';
+import { colors, radius, shadow, spacing } from '../theme';
 
 type Mode = 'login' | 'register';
 
@@ -375,11 +375,13 @@ const styles = StyleSheet.create({
     paddingHorizontal: spacing.xl,
     paddingTop: 80,
   },
+  // Sudut & bayangannya disamakan dengan dialog AppAlert agar sekeluarga
   modalCard: {
     backgroundColor: colors.surface,
-    borderRadius: radius.lg,
+    borderRadius: radius.xxl,
     padding: spacing.xl,
     gap: spacing.lg,
+    ...shadow.raised,
   },
   modalHeader: {
     flexDirection: 'row',

@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Image,
   Pressable,
   ScrollView,
@@ -60,6 +59,7 @@ import {
   Sheet,
   StatCard,
 } from '../components/ui';
+import { appAlert } from '../components/AppAlert';
 import { useTabBarSpace } from '../components/TabBar';
 import { colors, initialsOf, radius, shadow, spacing } from '../theme';
 
@@ -85,7 +85,7 @@ const AVATAR_OVERLAP = Math.round(AVATAR_SIZE / 3);
 async function pickImage(aspect: [number, number], maxWidth: number): Promise<string | null> {
   const perm = await ImagePicker.requestMediaLibraryPermissionsAsync();
   if (!perm.granted) {
-    Alert.alert('Izin galeri diperlukan', 'Izinkan akses galeri di pengaturan HP');
+    appAlert('Izin galeri diperlukan', 'Izinkan akses galeri di pengaturan HP');
     return null;
   }
   const result = await ImagePicker.launchImageLibraryAsync({
@@ -166,10 +166,10 @@ export function ProfileScreen() {
           dialogTitle: `Rekap Absensi ${monthTitle(recap.month)}`,
         });
       } else {
-        Alert.alert('PDF tersimpan', `Berkas dibuat di:\n${shareUri}`);
+        appAlert('PDF tersimpan', `Berkas dibuat di:\n${shareUri}`);
       }
     } catch (err) {
-      Alert.alert('Gagal membuat PDF', (err as Error).message);
+      appAlert('Gagal membuat PDF', (err as Error).message);
     } finally {
       setExporting(false);
     }
@@ -207,7 +207,7 @@ export function ProfileScreen() {
       });
       await refresh();
     } catch (err) {
-      Alert.alert('Gagal mengunggah foto', (err as Error).message);
+      appAlert('Gagal mengunggah foto', (err as Error).message);
     } finally {
       setUploadingAvatar(false);
     }
@@ -224,7 +224,7 @@ export function ProfileScreen() {
       });
       await refresh();
     } catch (err) {
-      Alert.alert('Gagal mengunggah sampul', (err as Error).message);
+      appAlert('Gagal mengunggah sampul', (err as Error).message);
     } finally {
       setUploadingCover(false);
     }
@@ -233,7 +233,7 @@ export function ProfileScreen() {
   const handleSaveName = async () => {
     const trimmed = name.trim();
     if (trimmed.length === 0) {
-      Alert.alert('Nama tidak boleh kosong');
+      appAlert('Nama tidak boleh kosong');
       return;
     }
     setSavingName(true);
@@ -245,9 +245,9 @@ export function ProfileScreen() {
       });
       await refresh();
       setSettingsOpen(false);
-      Alert.alert('Tersimpan ✓', 'Nama berhasil diubah');
+      appAlert('Tersimpan ✓', 'Nama berhasil diubah');
     } catch (err) {
-      Alert.alert('Gagal menyimpan nama', (err as Error).message);
+      appAlert('Gagal menyimpan nama', (err as Error).message);
     } finally {
       setSavingName(false);
     }
@@ -255,11 +255,11 @@ export function ProfileScreen() {
 
   const handleChangePassword = async () => {
     if (newPassword.length < 8) {
-      Alert.alert('Kata sandi baru minimal 8 karakter');
+      appAlert('Kata sandi baru minimal 8 karakter');
       return;
     }
     if (newPassword !== confirmPassword) {
-      Alert.alert('Konfirmasi kata sandi tidak cocok');
+      appAlert('Konfirmasi kata sandi tidak cocok');
       return;
     }
     setChangingPassword(true);
@@ -272,10 +272,10 @@ export function ProfileScreen() {
       setNewPassword('');
       setConfirmPassword('');
       setSettingsOpen(false);
-      Alert.alert('Tersimpan ✓', 'Kata sandi berhasil diubah');
+      appAlert('Tersimpan ✓', 'Kata sandi berhasil diubah');
     } catch (err) {
       const e = err as ApiRequestError;
-      Alert.alert(
+      appAlert(
         'Gagal mengubah kata sandi',
         e.code === 'INVALID_PASSWORD' ? 'Kata sandi saat ini salah' : e.message
       );
@@ -293,7 +293,7 @@ export function ProfileScreen() {
   };
 
   const handleSignOut = () => {
-    Alert.alert('Keluar?', 'Pelacakan posisi (bila aktif) juga akan dihentikan.', [
+    appAlert('Keluar?', 'Pelacakan posisi (bila aktif) juga akan dihentikan.', [
       { text: 'Batal' },
       { text: 'Keluar', style: 'destructive', onPress: () => signOut() },
     ]);

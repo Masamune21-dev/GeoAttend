@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
-  Alert,
   Pressable,
   RefreshControl,
   ScrollView,
@@ -44,6 +43,7 @@ import {
   SectionHeader,
   type IconType,
 } from '../components/ui';
+import { appAlert } from '../components/AppAlert';
 import { useTabBarSpace } from '../components/TabBar';
 import { colors, radius, shadow, spacing, type } from '../theme';
 
@@ -163,7 +163,7 @@ export function DashboardScreen() {
       });
       await loadData();
     } catch (err) {
-      Alert.alert('Gagal', (err as Error).message);
+      appAlert('Gagal', (err as Error).message);
     }
   };
 

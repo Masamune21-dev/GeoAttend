@@ -14,6 +14,7 @@ import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ScheduleScreen } from './src/screens/ScheduleScreen';
 import { LeavesScreen } from './src/screens/LeavesScreen';
 import { TabBar } from './src/components/TabBar';
+import { AppAlertHost } from './src/components/AppAlert';
 import { colors } from './src/theme';
 import type { RootStackParamList, TabParamList } from './src/navigation';
 
@@ -65,6 +66,8 @@ export default function App() {
         <NavigationContainer>
           <StatusBar style="dark" />
           <Root />
+          {/* Dipasang sekali; semua appAlert() di aplikasi tampil di sini */}
+          <AppAlertHost />
         </NavigationContainer>
       </SessionProvider>
     </SafeAreaProvider>

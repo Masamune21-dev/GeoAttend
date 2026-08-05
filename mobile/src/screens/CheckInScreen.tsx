@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   Image,
   KeyboardAvoidingView,
   Modal,
@@ -51,6 +50,7 @@ import { pickShift } from '../lib/shifts';
 import { isTracking, startTracking, stopTracking } from '../tracking/locationTask';
 import { GeofenceMap } from '../components/GeofenceMap';
 import { Avatar, Button, Card, Field } from '../components/ui';
+import { appAlert } from '../components/AppAlert';
 import { useTabBarSpace } from '../components/TabBar';
 import { colors, radius, shadow, spacing, type } from '../theme';
 
@@ -161,7 +161,7 @@ export function CheckInScreen() {
 
   useEffect(() => {
     loadData()
-      .catch((err) => Alert.alert('Gagal memuat data', err?.message ?? 'Coba lagi'))
+      .catch((err) => appAlert('Gagal memuat data', err?.message ?? 'Coba lagi'))
       .finally(() => setLoading(false));
   }, [loadData]);
 
@@ -246,7 +246,7 @@ export function CheckInScreen() {
     if (!cameraPermission?.granted) {
       const res = await requestCameraPermission();
       if (!res.granted) {
-        Alert.alert('Kamera diperlukan', 'Izinkan akses kamera di pengaturan HP');
+        appAlert('Kamera diperlukan', 'Izinkan akses kamera di pengaturan HP');
         return;
       }
     }
@@ -269,7 +269,7 @@ export function CheckInScreen() {
       setPhotoAt(new Date());
       setCameraOpen(false);
     } catch (err) {
-      Alert.alert('Gagal mengambil foto', err instanceof Error ? err.message : 'Coba lagi');
+      appAlert('Gagal mengambil foto', err instanceof Error ? err.message : 'Coba lagi');
     } finally {
       setCapturing(false);
     }
@@ -320,14 +320,14 @@ export function CheckInScreen() {
         if (bg.granted) {
           await startTracking();
           setTracking(await isTracking());
-          Alert.alert(
+          appAlert(
             title,
             isOvertime
               ? 'Posisi Anda terpantau selama lembur. Jangan lupa tekan "Selesai Lembur" setelah pekerjaan beres — sesi menunggu verifikasi admin.'
               : 'Posisi Anda terpantau selama jam kerja.'
           );
         } else {
-          Alert.alert(
+          appAlert(
             title,
             'Agar posisi tetap terpantau saat aplikasi ditutup, izin lokasi perlu diubah ke "Izinkan sepanjang waktu".\n\nHP akan membuka halaman Pengaturan — setelah memilih, kembali ke aplikasi ini.',
             [
@@ -338,7 +338,7 @@ export function CheckInScreen() {
                   const ok = await startTracking();
                   setTracking(await isTracking());
                   if (!ok) {
-                    Alert.alert(
+                    appAlert(
                       'Pelacakan tidak aktif',
                       'Izin "sepanjang waktu" belum diberikan. Posisi hanya terkirim saat aplikasi terbuka.'
                     );
@@ -351,7 +351,7 @@ export function CheckInScreen() {
       } else {
         await stopTracking();
         setTracking(false);
-        Alert.alert(
+        appAlert(
           isOvertime ? 'Lembur selesai ✓' : 'Absen pulang tercatat ✓',
           isOvertime
             ? 'Seluruh durasi lembur tercatat. Admin akan memverifikasinya di rekap.'
@@ -363,22 +363,22 @@ export function CheckInScreen() {
       switch (e.code) {
         case 'GEOFENCE_VIOLATION':
         case 'GEOFENCE_REASON_REQUIRED':
-          Alert.alert('Di luar area', e.message);
+          appAlert('Di luar area', e.message);
           break;
         case 'OVERTIME_REASON_REQUIRED':
-          Alert.alert('Alasan wajib diisi', e.message);
+          appAlert('Alasan wajib diisi', e.message);
           break;
         case 'DUPLICATE_CHECKIN':
-          Alert.alert('Sudah absen', 'Anda sudah absen masuk dan belum absen pulang');
+          appAlert('Sudah absen', 'Anda sudah absen masuk dan belum absen pulang');
           break;
         case 'INVALID_SEQUENCE':
-          Alert.alert('Urutan salah', 'Anda harus absen masuk terlebih dahulu');
+          appAlert('Urutan salah', 'Anda harus absen masuk terlebih dahulu');
           break;
         case 'INVALID_SHIFT':
-          Alert.alert('Shift tidak valid', 'Shift yang dipilih tidak tersedia untuk role Anda');
+          appAlert('Shift tidak valid', 'Shift yang dipilih tidak tersedia untuk role Anda');
           break;
         default:
-          Alert.alert('Gagal mengirim', e.message ?? 'Tidak dapat terhubung ke server');
+          appAlert('Gagal mengirim', e.message ?? 'Tidak dapat terhubung ke server');
       }
     } finally {
       setSubmitting(false);

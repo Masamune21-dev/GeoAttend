@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Alert, Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useNavigation, useRoute, type RouteProp } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { CalendarPlus, ChevronLeft, FileText, TreePalm, Zap } from 'lucide-react-native';
@@ -28,6 +28,7 @@ import {
   Sheet,
   type Tone,
 } from '../components/ui';
+import { appAlert } from '../components/AppAlert';
 import { colors, radius, spacing } from '../theme';
 
 const TYPE_LABELS: Record<string, string> = {
@@ -138,11 +139,11 @@ export function LeavesScreen() {
         method: 'POST',
         body: JSON.stringify({ type: 'libur', startDate: today, endDate: today }),
       });
-      Alert.alert('Tercatat ✓', 'Hari ini tercatat sebagai libur');
+      appAlert('Tercatat ✓', 'Hari ini tercatat sebagai libur');
       await loadData();
     } catch (err) {
       const e = err as ApiRequestError;
-      Alert.alert(
+      appAlert(
         'Gagal',
         e.code === 'LEAVE_OVERLAP' ? 'Sudah ada izin/libur pada hari ini' : e.message
       );
@@ -151,11 +152,11 @@ export function LeavesScreen() {
 
   const submitLeave = async () => {
     if (!DATE_REGEX.test(startDate) || !DATE_REGEX.test(endDate)) {
-      Alert.alert('Tanggal tidak valid', 'Gunakan format YYYY-MM-DD, mis. 2026-07-24');
+      appAlert('Tanggal tidak valid', 'Gunakan format YYYY-MM-DD, mis. 2026-07-24');
       return;
     }
     if (!reason.trim()) {
-      Alert.alert('Alasan wajib diisi');
+      appAlert('Alasan wajib diisi');
       return;
     }
     setSubmitting(true);
@@ -171,11 +172,11 @@ export function LeavesScreen() {
       });
       setFormOpen(false);
       setReason('');
-      Alert.alert('Terkirim ✓', 'Pengajuan menunggu persetujuan administrator');
+      appAlert('Terkirim ✓', 'Pengajuan menunggu persetujuan administrator');
       await loadData();
     } catch (err) {
       const e = err as ApiRequestError;
-      Alert.alert(
+      appAlert(
         'Gagal mengirim',
         e.code === 'LEAVE_OVERLAP'
           ? 'Sudah ada pengajuan pada rentang tanggal tersebut'
@@ -187,7 +188,7 @@ export function LeavesScreen() {
   };
 
   const cancelLeave = (leave: LeaveRequestResponse) => {
-    Alert.alert('Batalkan?', `${TYPE_LABELS[leave.type]} ${leave.startDate}`, [
+    appAlert('Batalkan?', `${TYPE_LABELS[leave.type]} ${leave.startDate}`, [
       { text: 'Tidak' },
       {
         text: 'Ya, batalkan',
@@ -197,7 +198,7 @@ export function LeavesScreen() {
             await api(`/api/leaves/${leave.id}`, { method: 'DELETE' });
             await loadData();
           } catch (err) {
-            Alert.alert('Gagal membatalkan', (err as Error).message);
+            appAlert('Gagal membatalkan', (err as Error).message);
           }
         },
       },

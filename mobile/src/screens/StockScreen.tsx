@@ -1,6 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
-  Alert,
   FlatList,
   Image,
   Modal,
@@ -42,6 +41,7 @@ import {
   StatCard,
   type Tone,
 } from '../components/ui';
+import { appAlert, showAppAlert } from '../components/AppAlert';
 import { useTabBarSpace } from '../components/TabBar';
 import { colors, radius, spacing } from '../theme';
 
@@ -89,7 +89,7 @@ export function StockScreen() {
 
   useEffect(() => {
     loadItems()
-      .catch((err) => Alert.alert('Gagal memuat barang', err?.message ?? 'Coba lagi'))
+      .catch((err) => appAlert('Gagal memuat barang', err?.message ?? 'Coba lagi'))
       .finally(() => setLoading(false));
   }, [loadItems]);
 
@@ -148,7 +148,7 @@ export function StockScreen() {
     if (!cameraPermission?.granted) {
       const res = await requestCameraPermission();
       if (!res.granted) {
-        Alert.alert('Kamera diperlukan', 'Izinkan akses kamera di pengaturan HP');
+        appAlert('Kamera diperlukan', 'Izinkan akses kamera di pengaturan HP');
         return;
       }
     }
@@ -169,7 +169,7 @@ export function StockScreen() {
       setPhoto(`data:image/jpeg;base64,${processed.base64}`);
       setCameraOpen(false);
     } catch (err) {
-      Alert.alert('Gagal mengambil foto', err instanceof Error ? err.message : 'Coba lagi');
+      appAlert('Gagal mengambil foto', err instanceof Error ? err.message : 'Coba lagi');
     } finally {
       setCapturing(false);
     }
@@ -187,10 +187,10 @@ export function StockScreen() {
    * pun ikut menyebut arah — bukan cuma "OK" yang mudah ditekan refleks.
    */
   const confirmSubmit = () => {
-    if (!itemId || !selected) return Alert.alert('Pilih barang dulu');
-    if (!Number.isFinite(qty) || qty < 1) return Alert.alert('Jumlah minimal 1');
+    if (!itemId || !selected) return appAlert('Pilih barang dulu');
+    if (!Number.isFinite(qty) || qty < 1) return appAlert('Jumlah minimal 1');
     if (type === 'keluar' && qty > selected.currentStock) {
-      return Alert.alert(
+      return appAlert(
         'Stok tidak cukup',
         `Stok tersisa ${selected.currentStock} ${selected.unit}`
       );
@@ -198,32 +198,65 @@ export function StockScreen() {
 
     const masuk = type === 'masuk';
     const stokSesudah = masuk ? selected.currentStock + qty : selected.currentStock - qty;
-    const rincian = [
-      `${selected.name} (${selected.code})`,
-      '',
-      `${masuk ? 'Jumlah masuk' : 'Jumlah keluar'}: ${qty} ${selected.unit}`,
-      `Stok: ${selected.currentStock} → ${stokSesudah} ${selected.unit}`,
-    ];
-    if (note.trim()) rincian.push(`Catatan: ${note.trim()}`);
-    rincian.push('');
-    rincian.push(
-      masuk
-        ? 'MASUK = barang DITAMBAH ke gudang (mis. kiriman supplier, sisa alat dikembalikan).'
-        : 'KELUAR = barang DIAMBIL dari gudang (mis. dipakai ke lokasi pelanggan).'
-    );
-    rincian.push(
-      masuk
-        ? 'Kalau barang ini justru dibawa keluar, tekan "Periksa lagi" lalu ganti ke Keluar.'
-        : 'Kalau barang ini justru masuk gudang, tekan "Periksa lagi" lalu ganti ke Masuk.'
-    );
+    const arahWarna = masuk ? colors.success : colors.warningStrong;
 
-    Alert.alert(masuk ? 'Catat BARANG MASUK?' : 'Catat BARANG KELUAR?', rincian.join('\n'), [
-      { text: 'Periksa lagi', style: 'cancel' },
-      {
-        text: masuk ? 'Ya, Barang Masuk' : 'Ya, Barang Keluar',
-        onPress: () => void handleSubmit(),
-      },
-    ]);
+    showAppAlert({
+      title: masuk ? 'Catat BARANG MASUK?' : 'Catat BARANG KELUAR?',
+      tone: 'question',
+      content: (
+        <>
+          <View
+            style={[
+              styles.confirmItem,
+              { borderColor: arahWarna, backgroundColor: masuk ? colors.successSubtle : colors.warningSubtle },
+            ]}
+          >
+            <Text style={styles.confirmItemName}>{selected.name}</Text>
+            <Text style={styles.confirmItemCode}>{selected.code}</Text>
+          </View>
+
+          <View style={{ gap: 6 }}>
+            <View style={styles.confirmRow}>
+              <Text style={styles.confirmLabel}>Jumlah {masuk ? 'masuk' : 'keluar'}</Text>
+              <Text style={styles.confirmValue}>
+                {qty} {selected.unit}
+              </Text>
+            </View>
+            <View style={styles.confirmRow}>
+              <Text style={styles.confirmLabel}>Stok</Text>
+              <Text style={styles.confirmValue}>
+                {selected.currentStock} →{' '}
+                <Text style={{ fontSize: 16, fontWeight: '800', color: arahWarna }}>
+                  {stokSesudah}
+                </Text>{' '}
+                {selected.unit}
+              </Text>
+            </View>
+            {note.trim() ? (
+              <View style={styles.confirmRow}>
+                <Text style={styles.confirmLabel}>Catatan</Text>
+                <Text style={[styles.confirmValue, styles.confirmNote]} numberOfLines={2}>
+                  {note.trim()}
+                </Text>
+              </View>
+            ) : null}
+          </View>
+
+          <Text style={styles.confirmHint}>
+            {masuk
+              ? 'MASUK = barang DITAMBAH ke gudang (mis. kiriman supplier, sisa alat dikembalikan). Kalau barang ini justru dibawa keluar, tekan “Periksa lagi” lalu ganti ke Keluar.'
+              : 'KELUAR = barang DIAMBIL dari gudang (mis. dipakai ke lokasi pelanggan). Kalau barang ini justru masuk gudang, tekan “Periksa lagi” lalu ganti ke Masuk.'}
+          </Text>
+        </>
+      ),
+      buttons: [
+        { text: 'Periksa lagi', style: 'cancel' },
+        {
+          text: masuk ? 'Ya, Barang Masuk' : 'Ya, Barang Keluar',
+          onPress: () => void handleSubmit(),
+        },
+      ],
+    });
   };
 
   /** Dipanggil hanya setelah lolos confirmSubmit(). */
@@ -245,14 +278,14 @@ export function StockScreen() {
       });
       setSheetOpen(false);
       // Stok hasilnya disebut lagi supaya salah arah langsung kelihatan
-      Alert.alert(
+      appAlert(
         masuk ? 'Barang masuk tercatat ✓' : 'Barang keluar tercatat ✓',
         `${selected.name}\nStok sekarang ${stokSesudah} ${selected.unit}`
       );
       await loadItems().catch(() => undefined);
     } catch (err) {
       const e = err as ApiRequestError;
-      Alert.alert('Gagal menyimpan', e.message ?? 'Tidak dapat terhubung ke server');
+      appAlert('Gagal menyimpan', e.message ?? 'Tidak dapat terhubung ke server');
     } finally {
       setSubmitting(false);
     }
@@ -615,6 +648,23 @@ const styles = StyleSheet.create({
   },
   pickName: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },
   changeLink: { fontSize: 12.5, fontWeight: '600', color: colors.primary },
+
+  /* Rincian di dalam popup konfirmasi arah stok */
+  confirmItem: { borderWidth: 1, borderRadius: radius.md, padding: spacing.md, gap: 2 },
+  confirmItemName: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
+  confirmItemCode: { fontSize: 11.5, color: colors.textSecondary },
+  confirmRow: { flexDirection: 'row', alignItems: 'baseline', justifyContent: 'space-between', gap: spacing.md },
+  confirmLabel: { fontSize: 13, color: colors.textSecondary },
+  confirmValue: { fontSize: 13.5, fontWeight: '700', color: colors.textPrimary },
+  confirmNote: { flex: 1, textAlign: 'right', fontWeight: '600' },
+  confirmHint: {
+    fontSize: 11.5,
+    lineHeight: 17,
+    color: colors.textSecondary,
+    backgroundColor: colors.muted,
+    borderRadius: radius.md,
+    padding: spacing.md,
+  },
 
   toggle: {
     flex: 1,

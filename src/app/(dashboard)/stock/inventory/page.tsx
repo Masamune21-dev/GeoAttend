@@ -15,6 +15,7 @@ import { InventoryTable } from '@/components/features/stock/InventoryTable';
 import { ItemFormDialog } from '@/components/features/stock/ItemFormDialog';
 import { XlsxExportButton } from '@/components/features/export/XlsxExportButton';
 import { Button } from '@/components/ui/button';
+import { Dialog } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -29,6 +30,8 @@ export default function InventoryPage() {
   const [categoryId, setCategoryId] = useState('');
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<StockItemResponse | null>(null);
+  /** Barang yang menunggu konfirmasi penonaktifan; null = dialog tertutup. */
+  const [deleting, setDeleting] = useState<StockItemResponse | null>(null);
 
   // Kelola inventaris hanya untuk administrator / admin gudang; role lain dipantulkan.
   useEffect(() => {
@@ -95,11 +98,14 @@ export default function InventoryPage() {
     ];
   };
 
-  const handleDelete = async (item: StockItemResponse) => {
-    if (!window.confirm(`Nonaktifkan barang "${item.name}"? Riwayat tetap tersimpan.`)) return;
+  /** Konfirmasi lewat dialog bertema, bukan window.confirm bawaan browser. */
+  const handleDelete = async () => {
+    if (!deleting) return;
+    const item = deleting;
+    setDeleting(null);
     try {
       await deleteItem.mutateAsync(item.id);
-      toast.success('Barang dinonaktifkan');
+      toast.success(`"${item.name}" dinonaktifkan`);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Gagal menghapus');
     }
@@ -150,7 +156,7 @@ export default function InventoryPage() {
           ))}
         </div>
       ) : (
-        <InventoryTable items={items} onEdit={openEdit} onDelete={handleDelete} />
+        <InventoryTable items={items} onEdit={openEdit} onDelete={setDeleting} />
       )}
 
       <ItemFormDialog
@@ -159,6 +165,45 @@ export default function InventoryPage() {
         item={editing}
         categories={categories}
       />
+
+      <Dialog
+        open={deleting !== null}
+        onClose={() => setDeleting(null)}
+        title="Nonaktifkan barang?"
+      >
+        <div className="flex flex-col gap-4">
+          <div className="rounded-lg border border-destructive/40 bg-destructive-subtle p-3">
+            <p className="font-semibold text-text-primary">{deleting?.name}</p>
+            <p className="font-mono text-xs text-text-secondary">{deleting?.code}</p>
+          </div>
+          <p className="text-sm text-text-secondary">
+            Barang tidak lagi muncul di daftar dan tidak bisa dipilih saat mencatat stok.{' '}
+            <span className="font-medium text-text-primary">
+              Riwayat masuk/keluarnya tetap tersimpan
+            </span>{' '}
+            dan barang bisa diaktifkan kembali.
+          </p>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              className="flex-1"
+              onClick={() => setDeleting(null)}
+            >
+              Batal
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              className="flex-1"
+              onClick={handleDelete}
+              isLoading={deleteItem.isPending}
+            >
+              Ya, Nonaktifkan
+            </Button>
+          </div>
+        </div>
+      </Dialog>
     </div>
   );
 }
