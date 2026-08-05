@@ -17,22 +17,15 @@ Dokumentasi lengkap aplikasi absensi GeoAttend (KusumaVision).
 
 | Dokumen | Isi | Untuk Siapa |
 | :--- | :--- | :--- |
-| **[Panduan Lengkap GeoAttend v1.6](Panduan-Lengkap-GeoAttend.pdf)** ⭐ | Panduan menyeluruh: karyawan (pemasangan, absen, jadwal, piket, tim jaga malam, izin) **dan** administrator (setup, peta live, kelola jadwal, rekap, riwayat lokasi, stok, pemeliharaan) | Karyawan & Administrator |
-| [Panduan Mobile](Panduan-Mobile-GeoAttend.pdf) | Panduan aplikasi mobile versi lama (v1.4) | Karyawan |
+| **[Panduan Lengkap GeoAttend v1.8](panduan-lengkap.html)** ⭐ | 24 bab: karyawan (pemasangan, absen, **lembur urgent**, **layar utama aplikasi**, jadwal, piket, tim jaga malam, izin) **dan** administrator (setup, peta live, kelola jadwal, rekap + **ekspor Excel**, riwayat lokasi, **stok gudang**, pemeliharaan) | Karyawan & Administrator |
+| [Panduan Mobile](Panduan-Mobile-GeoAttend.pdf) | Panduan aplikasi mobile versi lama (v1.4) — digantikan panduan lengkap | Karyawan |
 | [Panduan Update](Panduan-Update-GeoAttend.pdf) | Instruksi pembaruan aplikasi ke v1.5 | Karyawan |
 
-Sumber HTML-nya ada di folder yang sama ([panduan-lengkap.html](panduan-lengkap.html)) dan bisa dicetak ulang ke PDF lewat browser (Ctrl+P → Simpan sebagai PDF, ukuran A4, margin default). **PDF di repo ini belum ikut diperbarui** — cetak ulang dari HTML bila perubahan terakhir perlu ikut tercetak.
-
-### Yang belum masuk panduan cetak
-
-Isi bab `panduan-lengkap.html` masih menjelaskan aplikasi Android **v1.6**,
-sementara aplikasi sudah v1.8.x. Sudah ditambahkan sebagai catatan/bagian:
-ekspor Excel, konfirmasi arah stok, dan roster per role. **Belum ada babnya:**
-
-- **Lembur Urgent** (panggilan di luar shift + verifikasi admin di rekap) — sudah
-  terdokumentasi di [06 — Panduan Pengguna](06-user-guide.md)
-- **Dashboard aplikasi mobile** (ringkasan, aksi cepat, roster hari ini)
-- **Pratinjau foto profil & sampul** dan dialog bertema baru di mobile — lihat
-  [08 — Aplikasi Mobile §10](08-mobile-app.md)
+> **PDF perlu dicetak ulang.** Sumber isinya `panduan-lengkap.html` sudah v1.8,
+> tetapi `Panduan-Lengkap-GeoAttend.pdf` di repo masih hasil cetakan v1.6 —
+> PDF di sini dibuat manual, bukan lewat skrip. Cara mencetak ulang: buka
+> [panduan-lengkap.html](panduan-lengkap.html) di browser → Ctrl+P → ukuran
+> **A4**, margin **default**, aktifkan *Background graphics* → Simpan sebagai
+> PDF, timpa berkas lama.
 
 **Mulai cepat (development):** lihat [README utama](../README.md).
