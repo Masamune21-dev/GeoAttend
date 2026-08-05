@@ -24,6 +24,7 @@ import {
 import { api, ApiRequestError, authImageHeaders, toAbsoluteUrl } from '../api/client';
 import type {
   AttendanceRecordResponse,
+  DayRosterMember,
   DayRosterResponse,
   PaginatedResponse,
   PiketResponse,
@@ -31,7 +32,7 @@ import type {
 } from '../api/types';
 import { useSession } from '../auth/session';
 import { formatClock, formatLongDate, formatTime, toLocalDateString } from '../lib/geo';
-import { toLocalMonth } from '../lib/schedule';
+import { ROSTER_ROLE_LABEL, ROSTER_ROLE_ORDER, toLocalMonth } from '../lib/schedule';
 import { deriveOpenSession, sessionWindowStart } from '../lib/session';
 import {
   Avatar,
@@ -128,12 +129,25 @@ export function DashboardScreen() {
     [roster, user?.id]
   );
 
+  // Isi tiap shift dipecah per role — roster dari API sudah urut role lalu nama
   const groups = useMemo(
     () =>
-      ROSTER_GROUPS.map((g) => ({
-        ...g,
-        members: roster?.members.filter((m) => m.shift === g.shift) ?? [],
-      })).filter((g) => g.members.length > 0),
+      ROSTER_GROUPS.map((g) => {
+        const members = roster?.members.filter((m) => m.shift === g.shift) ?? [];
+        const roles: { role: string; label: string; members: DayRosterMember[] }[] = [];
+        for (const m of members) {
+          let bucket = roles.find((r) => r.role === m.role);
+          if (!bucket) {
+            bucket = { role: m.role, label: ROSTER_ROLE_LABEL[m.role] ?? m.role, members: [] };
+            roles.push(bucket);
+          }
+          bucket.members.push(m);
+        }
+        roles.sort(
+          (a, b) => (ROSTER_ROLE_ORDER[a.role] ?? 99) - (ROSTER_ROLE_ORDER[b.role] ?? 99)
+        );
+        return { ...g, total: members.length, roles };
+      }).filter((g) => g.total > 0),
     [roster]
   );
 
@@ -266,25 +280,33 @@ export function DashboardScreen() {
                 </Text>
               ) : (
                 groups.map((group) => (
-                  <View key={group.shift} style={{ gap: 7 }}>
+                  <View key={group.shift} style={{ gap: spacing.sm }}>
                     <View style={styles.groupHeader}>
                       <View style={[styles.groupTag, { backgroundColor: group.bg }]}>
                         <Text style={[type.micro, { color: group.fg }]}>{group.label}</Text>
                       </View>
                       <Text style={[type.tiny, { color: colors.textSecondary }]}>
-                        {group.members.length} orang
+                        {group.total} orang
                       </Text>
                     </View>
-                    <View style={styles.chipWrap}>
-                      {group.members.map((m) => (
-                        <PersonChip
-                          key={m.userId}
-                          name={m.name}
-                          uri={toAbsoluteUrl(m.image)}
-                          headers={authImageHeaders()}
-                        />
-                      ))}
-                    </View>
+                    {group.roles.map((r) => (
+                      <View key={r.role} style={styles.roleGroup}>
+                        <Text style={styles.roleLabel}>
+                          {r.label.toUpperCase()}
+                          <Text style={styles.roleCount}> ({r.members.length})</Text>
+                        </Text>
+                        <View style={styles.chipWrap}>
+                          {r.members.map((m) => (
+                            <PersonChip
+                              key={m.userId}
+                              name={m.name}
+                              uri={toAbsoluteUrl(m.image)}
+                              headers={authImageHeaders()}
+                            />
+                          ))}
+                        </View>
+                      </View>
+                    ))}
                   </View>
                 ))
               )}
@@ -383,6 +405,14 @@ const styles = StyleSheet.create({
   groupHeader: { flexDirection: 'row', alignItems: 'center', gap: 7 },
   groupTag: { borderRadius: 5, paddingHorizontal: 7, paddingVertical: 2 },
   chipWrap: { flexDirection: 'row', flexWrap: 'wrap', gap: 6 },
+  roleGroup: {
+    gap: 6,
+    borderLeftWidth: 2,
+    borderLeftColor: colors.border,
+    paddingLeft: spacing.md,
+  },
+  roleLabel: { fontSize: 10, fontWeight: '800', letterSpacing: 0.4, color: colors.textSecondary },
+  roleCount: { fontWeight: '600', letterSpacing: 0 },
 
   piketRow: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
   piketName: { fontSize: 14, fontWeight: '600', color: colors.textPrimary },

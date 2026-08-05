@@ -53,6 +53,19 @@ export function formatShortDate(dateStr: string): string {
   return `${WEEKDAY_SHORT[weekdayOf(dateStr)]}, ${day} ${MONTH_NAMES[mon - 1].slice(0, 3)}`;
 }
 
+/**
+ * Pengelompokan role pada kartu roster harian. Label & urutannya disamakan
+ * dengan grid jadwal di web (ROLE_GROUP_LABEL / ROLE_ORDER) supaya admin
+ * membaca istilah yang sama di kedua tempat.
+ */
+export const ROSTER_ROLE_LABEL: Record<string, string> = {
+  admin: 'Admin & CS',
+  noc: 'NOC',
+  teknisi: 'Teknisi',
+};
+
+export const ROSTER_ROLE_ORDER: Record<string, number> = { admin: 0, noc: 1, teknisi: 2 };
+
 export const SHIFT_BADGE: Record<ScheduleShift, { label: string; tone: Tone }> = {
   '1': { label: 'Shift 1', tone: 'primary' },
   '2': { label: 'Shift 2', tone: 'warning' },
