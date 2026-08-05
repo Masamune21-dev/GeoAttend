@@ -34,4 +34,13 @@ next-env.d.ts
 # uploads (foto absensi)
 /uploads
 
+# Folder native hasil prebuild mobile — sudah diabaikan mobile/.gitignore juga,
+# TAPI perlu diulang di sini: saat `eas build` dijalankan, EAS menyalin seluruh
+# direktori git root dan hanya membaca .gitignore ROOT (.gitignore bersarang
+# diabaikan). Tanpa dua baris ini, mobile/android ±1,5 GB ikut terunggah tiap
+# build. Verifikasi ulang dengan:
+#   npx eas-cli build:inspect --platform android --stage archive --output <dir>
+/mobile/android
+/mobile/ios
+
 # drizzle
