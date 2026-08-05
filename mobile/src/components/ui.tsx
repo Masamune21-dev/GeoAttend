@@ -557,6 +557,59 @@ export function EmptyState({
   );
 }
 
+// ---------- Penampil foto ----------
+
+/**
+ * Pratinjau foto layar penuh: latar gelap, foto tampil utuh (bukan terpotong),
+ * ketuk di mana saja untuk menutup. `uri` null = tertutup.
+ */
+export function PhotoViewer({
+  uri,
+  headers,
+  onClose,
+  actionLabel,
+  onAction,
+}: {
+  uri?: string | null;
+  headers?: Record<string, string>;
+  onClose: () => void;
+  /** Tombol opsional di bawah, mis. "Ganti Foto". */
+  actionLabel?: string;
+  onAction?: () => void;
+}) {
+  const insets = useSafeAreaInsets();
+  return (
+    <Modal
+      visible={uri != null}
+      animationType="fade"
+      transparent
+      statusBarTranslucent
+      onRequestClose={onClose}
+    >
+      <Pressable style={styles.viewerBackdrop} onPress={onClose} accessibilityLabel="Tutup foto">
+        {uri ? (
+          <Image source={{ uri, headers }} style={styles.viewerImage} resizeMode="contain" />
+        ) : null}
+        {/* Pressable bersarang: yang terdalam menangani sentuhan, jadi tombol
+            ini tidak ikut memicu "tutup" dari latar. */}
+        <Pressable
+          onPress={onClose}
+          hitSlop={12}
+          accessibilityLabel="Tutup"
+          style={[styles.viewerClose, { top: insets.top + spacing.md }]}
+        >
+          <X size={24} color="#FFF" />
+        </Pressable>
+        {actionLabel && onAction ? (
+          <View style={[styles.viewerFooter, { paddingBottom: insets.bottom + spacing.xl }]}>
+            <Button title={actionLabel} onPress={onAction} />
+          </View>
+        ) : null}
+      </Pressable>
+    </Modal>
+  );
+}
+
 // ---------- Bottom sheet ----------
 
 /** Modal bawah dengan judul + tombol tutup; isi bisa discroll. */
@@ -795,6 +848,25 @@ const styles = StyleSheet.create({
   infoValue: { fontSize: 13, fontWeight: '600', color: colors.textPrimary, flexShrink: 1 },
 
   empty: { alignItems: 'center', gap: 6, paddingVertical: 36, paddingHorizontal: spacing.xl },
+
+  viewerBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.93)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewerImage: { width: '100%', height: '76%' },
+  viewerClose: {
+    position: 'absolute',
+    right: spacing.xl,
+    width: 38,
+    height: 38,
+    borderRadius: 19,
+    backgroundColor: 'rgba(255,255,255,0.16)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  viewerFooter: { position: 'absolute', left: spacing.xl, right: spacing.xl, bottom: 0 },
 
   sheetOverlay: { flex: 1, backgroundColor: 'rgba(15,23,42,0.5)', justifyContent: 'flex-end' },
   sheet: {

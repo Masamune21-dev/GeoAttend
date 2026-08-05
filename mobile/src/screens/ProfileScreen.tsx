@@ -55,6 +55,7 @@ import {
   InfoRow,
   MenuRow,
   PasswordField,
+  PhotoViewer,
   SectionHeader,
   Sheet,
   StatCard,
@@ -110,6 +111,8 @@ export function ProfileScreen() {
   const { user, signOut, refresh } = useSession();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
+  /** Foto yang sedang dilihat besar; null = pratinjau tertutup. */
+  const [viewer, setViewer] = useState<'avatar' | 'cover' | null>(null);
 
   // Rekap bulan berjalan. Angkanya datang JADI dari server (modul perhitungan
   // yang sama dengan halaman Rekap Bulanan web) — jangan dihitung ulang di sini,
@@ -306,7 +309,12 @@ export function ProfileScreen() {
       >
         {/* Kartu identitas: sampul membentang sampai status bar + avatar overlap */}
         <View style={[styles.identityCard, shadow.card]}>
-          <Pressable onPress={handleChangeCover} disabled={uploadingCover}>
+          {/* Ketuk foto = lihat besar; lencana kamera = ganti foto */}
+          <Pressable
+            onPress={() => (coverUrl ? setViewer('cover') : handleChangeCover())}
+            disabled={uploadingCover}
+            accessibilityLabel={coverUrl ? 'Lihat foto sampul' : 'Pasang foto sampul'}
+          >
             {coverUrl ? (
               <Image
                 source={{ uri: coverUrl, headers: authHeaders }}
@@ -325,17 +333,27 @@ export function ProfileScreen() {
                 <Text style={styles.coverHint}>Ketuk untuk pasang foto sampul</Text>
               </View>
             )}
-            <View style={styles.coverEditBadge}>
+            <Pressable
+              onPress={handleChangeCover}
+              disabled={uploadingCover}
+              hitSlop={8}
+              accessibilityLabel="Ganti foto sampul"
+              style={styles.coverEditBadge}
+            >
               {uploadingCover ? (
                 <ActivityIndicator size="small" color="#FFF" />
               ) : (
                 <Camera size={14} color="#FFF" />
               )}
-            </View>
+            </Pressable>
           </Pressable>
 
           <View style={styles.avatarRow}>
-            <Pressable onPress={handleChangeAvatar} disabled={uploadingAvatar}>
+            <Pressable
+              onPress={() => (avatarUrl ? setViewer('avatar') : handleChangeAvatar())}
+              disabled={uploadingAvatar}
+              accessibilityLabel={avatarUrl ? 'Lihat foto profil' : 'Pasang foto profil'}
+            >
               {avatarUrl ? (
                 <Image source={{ uri: avatarUrl, headers: authHeaders }} style={styles.avatar} />
               ) : (
@@ -343,13 +361,19 @@ export function ProfileScreen() {
                   <Text style={styles.avatarText}>{initialsOf(user?.name ?? '?')}</Text>
                 </View>
               )}
-              <View style={styles.avatarEditBadge}>
+              <Pressable
+                onPress={handleChangeAvatar}
+                disabled={uploadingAvatar}
+                hitSlop={8}
+                accessibilityLabel="Ganti foto profil"
+                style={styles.avatarEditBadge}
+              >
                 {uploadingAvatar ? (
                   <ActivityIndicator size="small" color="#FFF" />
                 ) : (
                   <Camera size={13} color="#FFF" />
                 )}
-              </View>
+              </Pressable>
             </Pressable>
           </View>
 
@@ -493,6 +517,19 @@ export function ProfileScreen() {
           />
         </View>
       </Sheet>
+
+      <PhotoViewer
+        uri={viewer === 'avatar' ? avatarUrl : viewer === 'cover' ? coverUrl : null}
+        headers={authHeaders}
+        onClose={() => setViewer(null)}
+        actionLabel="Ganti Foto"
+        onAction={() => {
+          const target = viewer;
+          setViewer(null);
+          if (target === 'avatar') void handleChangeAvatar();
+          if (target === 'cover') void handleChangeCover();
+        }}
+      />
     </View>
   );
 }
