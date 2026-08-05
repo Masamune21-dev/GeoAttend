@@ -59,6 +59,7 @@ import {
   Sheet,
   StatCard,
 } from '../components/ui';
+import { useTabBarSpace } from '../components/TabBar';
 import { colors, initialsOf, radius, shadow, spacing } from '../theme';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -104,6 +105,7 @@ async function pickImage(aspect: [number, number], maxWidth: number): Promise<st
 
 export function ProfileScreen() {
   const insets = useSafeAreaInsets();
+  const tabBarSpace = useTabBarSpace();
   const isFocused = useIsFocused();
   const { user, signOut, refresh } = useSession();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
@@ -299,7 +301,7 @@ export function ProfileScreen() {
       {/* Sampul membentang di bawah status bar — ikonnya perlu terang. */}
       {isFocused && <StatusBar style="light" />}
       <ScrollView
-        contentContainerStyle={{ paddingBottom: spacing.xxl }}
+        contentContainerStyle={{ paddingBottom: spacing.xxl + tabBarSpace }}
         showsVerticalScrollIndicator={false}
       >
         {/* Kartu identitas: sampul membentang sampai status bar + avatar overlap */}

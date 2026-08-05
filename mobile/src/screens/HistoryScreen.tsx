@@ -26,11 +26,13 @@ import {
   type IconType,
   type Tone,
 } from '../components/ui';
+import { useTabBarSpace } from '../components/TabBar';
 import { colors, radius, spacing } from '../theme';
 
 type Tab = 'absensi' | 'stok';
 
 export function HistoryScreen() {
+  const tabBarSpace = useTabBarSpace();
   const [tab, setTab] = useState<Tab>('absensi');
   const [records, setRecords] = useState<AttendanceRecordResponse[]>([]);
   const [movements, setMovements] = useState<StockMovementResponse[]>([]);
@@ -146,7 +148,7 @@ export function HistoryScreen() {
     contentContainerStyle: {
       paddingHorizontal: spacing.xl,
       paddingTop: spacing.md,
-      paddingBottom: spacing.xxl,
+      paddingBottom: spacing.xxl + tabBarSpace,
       gap: spacing.sm,
     },
     refreshControl: (

@@ -51,6 +51,7 @@ import { pickShift } from '../lib/shifts';
 import { isTracking, startTracking, stopTracking } from '../tracking/locationTask';
 import { GeofenceMap } from '../components/GeofenceMap';
 import { Avatar, Button, Card, Field } from '../components/ui';
+import { useTabBarSpace } from '../components/TabBar';
 import { colors, radius, shadow, spacing, type } from '../theme';
 
 const GPS_WEAK_THRESHOLD = 50;
@@ -58,6 +59,7 @@ const GPS_WEAK_THRESHOLD = 50;
 export function CheckInScreen() {
   const { user } = useSession();
   const insets = useSafeAreaInsets();
+  const tabBarSpace = useTabBarSpace();
 
   const [coords, setCoords] = useState<Location.LocationObjectCoords | null>(null);
   const [geoError, setGeoError] = useState<string | null>(null);
@@ -433,7 +435,7 @@ export function CheckInScreen() {
       </View>
 
       <ScrollView
-        contentContainerStyle={{ paddingBottom: spacing.xxl }}
+        contentContainerStyle={{ paddingBottom: spacing.xxl + tabBarSpace }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
         }

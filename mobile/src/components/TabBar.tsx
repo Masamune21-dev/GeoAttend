@@ -1,6 +1,11 @@
+import { useContext } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import type { BottomTabBarProps } from '@react-navigation/bottom-tabs';
+import {
+  BottomTabBarHeightCallbackContext,
+  BottomTabBarHeightContext,
+  type BottomTabBarProps,
+} from '@react-navigation/bottom-tabs';
 import { Grid2x2, History, MapPin, Package, UserRound } from 'lucide-react-native';
 import { colors, radius, shadow, spacing } from '../theme';
 import type { IconType } from './ui';
@@ -35,9 +40,25 @@ const BUTTON = 56;
  */
 const OVERHANG = RING / 2 + 1;
 
+/**
+ * Ruang aman di bawah isi layar supaya tidak tertutup bar putih.
+ *
+ * Tab bar mengambang di ATAS isi layar, jadi tiap layar tab perlu menambah
+ * jarak ini pada dasar area gulirnya. Nilainya tinggi bar putih saja — daerah
+ * tembus pandang tempat tombol Absen naik memang boleh dilewati isi layar.
+ * Memakai context langsung (bukan useBottomTabBarHeight) supaya aman dipanggil
+ * dari layar di luar tab navigator: hasilnya 0.
+ */
+export function useTabBarSpace(): number {
+  return useContext(BottomTabBarHeightContext) ?? 0;
+}
+
 /** Tab bar kustom: lima tab dengan tombol Absen diangkat di tengah. */
 export function TabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
+  // Tinggi bar putih dilaporkan ke navigator supaya layar bisa memakainya
+  // lewat useTabBarSpace() sebagai jarak aman bawah.
+  const reportHeight = useContext(BottomTabBarHeightCallbackContext);
   const centerIndex = state.routes.findIndex((r) => r.name === CENTER_ROUTE);
   const centerFocused = centerIndex >= 0 && state.index === centerIndex;
 
@@ -49,8 +70,11 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
   };
 
   return (
-    <View style={styles.wrap}>
-      <View style={[styles.bar, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}>
+    <View style={styles.wrap} pointerEvents="box-none">
+      <View
+        style={[styles.bar, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}
+        onLayout={(e) => reportHeight?.(e.nativeEvent.layout.height)}
+      >
         {state.routes.map((route, index) => {
           const focused = state.index === index;
           const Icon = ICONS[route.name] ?? Grid2x2;
@@ -112,8 +136,21 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
 }
 
 const styles = StyleSheet.create({
-  // Latar sewarna halaman agar tombol tengah terlihat "menembus" tab bar.
-  wrap: { backgroundColor: colors.background, paddingTop: OVERHANG },
+  /**
+   * Tab bar mengambang di atas isi layar: hanya bar putihnya yang menutup,
+   * sedangkan jalur setinggi OVERHANG di atasnya tembus pandang sehingga isi
+   * layar terlihat sampai tepi atas bar (dulu jalur ini ikut buram sewarna
+   * halaman, memakan ±34dp ruang tampilan). `pointerEvents="box-none"` menjaga
+   * jalur itu tetap bisa ditembus sentuhan.
+   */
+  wrap: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    paddingTop: OVERHANG,
+    backgroundColor: 'transparent',
+  },
   bar: {
     flexDirection: 'row',
     alignItems: 'flex-start',

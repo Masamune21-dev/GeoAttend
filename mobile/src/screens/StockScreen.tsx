@@ -42,6 +42,7 @@ import {
   StatCard,
   type Tone,
 } from '../components/ui';
+import { useTabBarSpace } from '../components/TabBar';
 import { colors, radius, spacing } from '../theme';
 
 const ALL = '__all__';
@@ -54,6 +55,7 @@ const STATUS_META: Record<StockStatus, { label: string; tone: Tone }> = {
 
 export function StockScreen() {
   const insets = useSafeAreaInsets();
+  const tabBarSpace = useTabBarSpace();
 
   const [items, setItems] = useState<StockItemResponse[]>([]);
   const [loading, setLoading] = useState(true);
@@ -241,7 +243,8 @@ export function StockScreen() {
         renderItem={renderItem}
         contentContainerStyle={{
           paddingHorizontal: spacing.xl,
-          paddingBottom: 96,
+          // 96 = ruang untuk tombol Fab; tab bar mengambang ditambahkan di atasnya
+          paddingBottom: 96 + tabBarSpace,
           gap: spacing.sm,
         }}
         refreshControl={
@@ -328,7 +331,7 @@ export function StockScreen() {
       <Fab
         icon={Plus}
         onPress={() => openSheet()}
-        bottom={spacing.xl}
+        bottom={tabBarSpace + spacing.md}
         accessibilityLabel="Catat stok masuk atau keluar"
       />
 

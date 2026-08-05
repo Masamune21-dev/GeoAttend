@@ -44,6 +44,7 @@ import {
   SectionHeader,
   type IconType,
 } from '../components/ui';
+import { useTabBarSpace } from '../components/TabBar';
 import { colors, radius, shadow, spacing, type } from '../theme';
 
 const ROLE_LABELS: Record<string, string> = {
@@ -64,6 +65,7 @@ const ROSTER_GROUPS: { shift: ScheduleShift; label: string; bg: string; fg: stri
 export function DashboardScreen() {
   const navigation = useNavigation();
   const insets = useSafeAreaInsets();
+  const tabBarSpace = useTabBarSpace();
   const isFocused = useIsFocused();
   const { user } = useSession();
   const today = toLocalDateString(new Date());
@@ -184,7 +186,7 @@ export function DashboardScreen() {
           karena tab lain tetap ter-mount dan berlatar putih. */}
       {isFocused && <StatusBar style="light" />}
       <ScrollView
-        contentContainerStyle={{ paddingBottom: spacing.xxl }}
+        contentContainerStyle={{ paddingBottom: spacing.xxl + tabBarSpace }}
         refreshControl={
           <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} tintColor={colors.primary} />
         }
