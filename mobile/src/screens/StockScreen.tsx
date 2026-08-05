@@ -178,12 +178,59 @@ export function StockScreen() {
   const qty = Number(quantity);
   const canSubmit = !!itemId && Number.isFinite(qty) && qty >= 1 && !submitting;
 
-  const handleSubmit = async () => {
-    if (!itemId) return Alert.alert('Pilih barang dulu');
+  /**
+   * Konfirmasi sebelum menyimpan.
+   *
+   * Kesalahan tersering di lapangan: barang yang seharusnya KELUAR malah
+   * dicatat MASUK. Karena itu popup ini menyebut arahnya dengan gamblang,
+   * memperlihatkan perubahan stoknya (mis. "6 → 4 pcs"), dan tombol setujunya
+   * pun ikut menyebut arah — bukan cuma "OK" yang mudah ditekan refleks.
+   */
+  const confirmSubmit = () => {
+    if (!itemId || !selected) return Alert.alert('Pilih barang dulu');
     if (!Number.isFinite(qty) || qty < 1) return Alert.alert('Jumlah minimal 1');
-    if (type === 'keluar' && selected && qty > selected.currentStock) {
-      return Alert.alert('Stok tidak cukup', `Stok tersisa ${selected.currentStock}`);
+    if (type === 'keluar' && qty > selected.currentStock) {
+      return Alert.alert(
+        'Stok tidak cukup',
+        `Stok tersisa ${selected.currentStock} ${selected.unit}`
+      );
     }
+
+    const masuk = type === 'masuk';
+    const stokSesudah = masuk ? selected.currentStock + qty : selected.currentStock - qty;
+    const rincian = [
+      `${selected.name} (${selected.code})`,
+      '',
+      `${masuk ? 'Jumlah masuk' : 'Jumlah keluar'}: ${qty} ${selected.unit}`,
+      `Stok: ${selected.currentStock} → ${stokSesudah} ${selected.unit}`,
+    ];
+    if (note.trim()) rincian.push(`Catatan: ${note.trim()}`);
+    rincian.push('');
+    rincian.push(
+      masuk
+        ? 'MASUK = barang DITAMBAH ke gudang (mis. kiriman supplier, sisa alat dikembalikan).'
+        : 'KELUAR = barang DIAMBIL dari gudang (mis. dipakai ke lokasi pelanggan).'
+    );
+    rincian.push(
+      masuk
+        ? 'Kalau barang ini justru dibawa keluar, tekan "Periksa lagi" lalu ganti ke Keluar.'
+        : 'Kalau barang ini justru masuk gudang, tekan "Periksa lagi" lalu ganti ke Masuk.'
+    );
+
+    Alert.alert(masuk ? 'Catat BARANG MASUK?' : 'Catat BARANG KELUAR?', rincian.join('\n'), [
+      { text: 'Periksa lagi', style: 'cancel' },
+      {
+        text: masuk ? 'Ya, Barang Masuk' : 'Ya, Barang Keluar',
+        onPress: () => void handleSubmit(),
+      },
+    ]);
+  };
+
+  /** Dipanggil hanya setelah lolos confirmSubmit(). */
+  const handleSubmit = async () => {
+    if (!selected) return;
+    const masuk = type === 'masuk';
+    const stokSesudah = masuk ? selected.currentStock + qty : selected.currentStock - qty;
     setSubmitting(true);
     try {
       await api<StockMovementResponse>('/api/stock/movements', {
@@ -197,7 +244,11 @@ export function StockScreen() {
         }),
       });
       setSheetOpen(false);
-      Alert.alert('Tersimpan ✓', type === 'masuk' ? 'Barang masuk dicatat' : 'Barang keluar dicatat');
+      // Stok hasilnya disebut lagi supaya salah arah langsung kelihatan
+      Alert.alert(
+        masuk ? 'Barang masuk tercatat ✓' : 'Barang keluar tercatat ✓',
+        `${selected.name}\nStok sekarang ${stokSesudah} ${selected.unit}`
+      );
       await loadItems().catch(() => undefined);
     } catch (err) {
       const e = err as ApiRequestError;
@@ -466,7 +517,7 @@ export function StockScreen() {
                     ? 'Simpan Barang Masuk'
                     : 'Simpan Barang Keluar'
               }
-              onPress={handleSubmit}
+              onPress={confirmSubmit}
               disabled={!canSubmit}
               loading={submitting}
             />
