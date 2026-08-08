@@ -279,8 +279,16 @@ export const shiftSwapRequests = pgTable(
     targetId: text('target_id')
       .references(() => user.id, { onDelete: 'cascade' })
       .notNull(),
-    date: varchar('date', { length: 10 }).notNull(), // "yyyy-MM-dd"
-    requesterShift: varchar('requester_shift', { length: 10 }).notNull(), // '1' | '2'
+    /**
+     * 'shift' — tukar shift pada SATU tanggal (S1 ↔ S2, dipakai admin & NOC).
+     * 'libur' — tukar HARI LIBUR pada DUA tanggal (dipakai teknisi yang hanya
+     * punya S1 + libur, jadi tidak pernah bisa tukar shift di tanggal sama).
+     */
+    kind: varchar('kind', { length: 10 }).default('shift').notNull(),
+    date: varchar('date', { length: 10 }).notNull(), // "yyyy-MM-dd" — tanggal pengaju
+    /** Hanya untuk kind='libur': tanggal libur rekan tujuan. */
+    targetDate: varchar('target_date', { length: 10 }),
+    requesterShift: varchar('requester_shift', { length: 10 }).notNull(), // '1' | '2' | 'libur'
     targetShift: varchar('target_shift', { length: 10 }).notNull(),
     // 'pending_peer' | 'pending_admin' | 'approved' | 'rejected' | 'cancelled'
     status: varchar('status', { length: 20 }).default('pending_peer').notNull(),

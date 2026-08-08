@@ -1,4 +1,4 @@
-import type { ScheduleShift, SwapStatus } from '../api/types';
+import type { ScheduleShift, SwapKind, SwapStatus } from '../api/types';
 import type { Tone } from '../components/ui';
 
 /** Helper jadwal shift untuk aplikasi mobile (murni, tanpa dependensi UI). */
@@ -89,3 +89,20 @@ export const SHIFT_DOT: Record<ScheduleShift, string> = {
 
 /** Titik kedua pada tanggal saat pengguna kebagian piket. */
 export const PIKET_DOT = '#F59E0B';
+
+/**
+ * Apakah role ini HANYA bisa tukar hari libur.
+ *
+ * Teknisi cuma punya Shift 1 + libur, jadi tidak pernah bisa "tukar shift" di
+ * tanggal yang sama — pilihannya dikunci ke tukar libur. Admin & NOC bisa
+ * dua-duanya dan memilih sendiri. Cerminan `soleWorkShiftForRole` di sisi web.
+ */
+export function isLiburOnlyRole(role?: string | null): boolean {
+  return role === 'teknisi';
+}
+
+/** Label mode tukar untuk tombol & judul sheet. */
+export const SWAP_KIND_LABEL: Record<SwapKind, string> = {
+  shift: 'Tukar Shift',
+  libur: 'Tukar Libur',
+};

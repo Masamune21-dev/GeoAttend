@@ -28,9 +28,11 @@ import {
   MOPPING_LABEL,
   SWAP_STATUS_LABEL,
   SWAP_STATUS_VARIANT,
+  formatSwapDate,
 } from '@/lib/schedule/display';
+import { soleWorkShiftForRole } from '@/lib/schedule/roles';
 import { TEAM_LABEL, isTeamOnDuty, teamOnDuty } from '@/lib/schedule/teams';
-import type { ScheduleShift, TechnicianTeam } from '@/types/api';
+import type { ScheduleShift, SwapKind, TechnicianTeam } from '@/types/api';
 import { Alert } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
 import { Dialog } from '@/components/ui/dialog';
@@ -48,10 +50,7 @@ function tomorrowStr(): string {
   return toLocalDateString(d);
 }
 
-function formatDate(dateStr: string): string {
-  const day = Number(dateStr.slice(-2));
-  return `${WEEKDAY_SHORT[weekdayOf(dateStr)]}, ${day} ${monthLabel(dateStr.slice(0, 7))}`;
-}
+const formatDate = formatSwapDate;
 
 export function MySchedule() {
   const { data: session } = useSession();
@@ -65,10 +64,22 @@ export function MySchedule() {
 
   const [swapOpen, setSwapOpen] = useState(false);
   const [swapDate, setSwapDate] = useState(tomorrowStr());
-  const [targetUserId, setTargetUserId] = useState('');
+  /** Mode libur: nilai select berbentuk "userId|tanggalLiburRekan". */
+  const [targetSel, setTargetSel] = useState('');
   const [reason, setReason] = useState('');
 
-  const candidatesQuery = useSwapCandidates(swapOpen ? swapDate : null);
+  const myRole = (session?.user as { role?: string } | undefined)?.role ?? '';
+  /**
+   * Role dengan satu shift kerja (teknisi) tidak pernah bisa tukar shift di
+   * tanggal yang sama, jadi pilihannya dikunci ke tukar libur. Admin & NOC
+   * bisa dua-duanya, jadi mereka memilih sendiri di dalam dialog.
+   */
+  const liburOnly = soleWorkShiftForRole(myRole) !== null;
+  const [swapKind, setSwapKind] = useState<SwapKind>('shift');
+  const effectiveKind: SwapKind = liburOnly ? 'libur' : swapKind;
+  const isLiburSwap = effectiveKind === 'libur';
+
+  const candidatesQuery = useSwapCandidates(swapOpen ? swapDate : null, effectiveKind);
   const createSwap = useCreateSwap();
   const reviewSwap = useReviewSwap();
   const deleteSwap = useDeleteSwap();
@@ -111,17 +122,24 @@ export function MySchedule() {
   };
 
   const submitSwap = () => {
-    if (!targetUserId) {
+    if (!targetSel) {
       toast.error('Pilih rekan yang akan ditukar');
       return;
     }
+    const [targetUserId, pickedDate] = targetSel.split('|');
     createSwap.mutate(
-      { date: swapDate, targetUserId, reason: reason.trim() || undefined },
+      {
+        kind: effectiveKind,
+        date: swapDate,
+        targetDate: isLiburSwap ? pickedDate : undefined,
+        targetUserId,
+        reason: reason.trim() || undefined,
+      },
       {
         onSuccess: () => {
           toast.success('Pengajuan tukar dikirim ke rekan');
           setSwapOpen(false);
-          setTargetUserId('');
+          setTargetSel('');
           setReason('');
         },
         onError: (err: Error) => toast.error(err.message || 'Gagal mengajukan tukar'),
@@ -157,7 +175,7 @@ export function MySchedule() {
         </div>
         <Button onClick={() => setSwapOpen(true)}>
           <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
-          Ajukan Tukar
+          {isLiburSwap ? 'Ajukan Tukar Libur' : 'Ajukan Tukar Shift'}
         </Button>
       </div>
 
@@ -171,9 +189,20 @@ export function MySchedule() {
             {incoming.map((s) => (
               <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-2.5 text-sm">
                 <div>
-                  <span className="font-medium text-text-primary">{s.requesterName}</span> ingin tukar
-                  shift {formatDate(s.date)} — kamu ke <strong>Shift {s.requesterShift}</strong>, dia
-                  ke <strong>Shift {s.targetShift}</strong>.
+                  <span className="font-medium text-text-primary">{s.requesterName}</span>{' '}
+                  {s.kind === 'libur' && s.targetDate ? (
+                    <>
+                      ingin tukar hari libur — kamu <strong>libur</strong>{' '}
+                      {formatDate(s.date)}, gantinya <strong>masuk Shift {s.targetShift}</strong>{' '}
+                      pada {formatDate(s.targetDate)}.
+                    </>
+                  ) : (
+                    <>
+                      ingin tukar shift {formatDate(s.date)} — kamu ke{' '}
+                      <strong>Shift {s.requesterShift}</strong>, dia ke{' '}
+                      <strong>Shift {s.targetShift}</strong>.
+                    </>
+                  )}
                   {s.reason && <span className="block text-text-secondary">“{s.reason}”</span>}
                 </div>
                 <div className="flex items-center gap-1.5">
@@ -383,7 +412,9 @@ export function MySchedule() {
               <div key={s.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border p-2.5 text-sm">
                 <div>
                   Tukar dgn <span className="font-medium text-text-primary">{s.targetName}</span> —{' '}
-                  {formatDate(s.date)} (S{s.requesterShift} ↔ S{s.targetShift})
+                  {s.kind === 'libur' && s.targetDate
+                    ? `masuk S${s.requesterShift} ${formatDate(s.date)}, libur ${formatDate(s.targetDate)}`
+                    : `${formatDate(s.date)} (S${s.requesterShift} ↔ S${s.targetShift})`}
                   {s.reviewNote && <span className="block text-text-secondary">Catatan: {s.reviewNote}</span>}
                 </div>
                 <div className="flex items-center gap-2">
@@ -411,10 +442,33 @@ export function MySchedule() {
       )}
 
       {/* Dialog ajukan tukar */}
-      <Dialog open={swapOpen} onClose={() => setSwapOpen(false)} title="Ajukan Tukar Shift">
+      <Dialog
+        open={swapOpen}
+        onClose={() => setSwapOpen(false)}
+        title={isLiburSwap ? 'Ajukan Tukar Hari Libur' : 'Ajukan Tukar Shift'}
+      >
         <div className="flex flex-col gap-4">
+          {!liburOnly && (
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="swap-kind">Yang ditukar</Label>
+              <Select
+                id="swap-kind"
+                value={swapKind}
+                onChange={(e) => {
+                  setSwapKind(e.target.value as SwapKind);
+                  setTargetSel('');
+                }}
+              >
+                <option value="shift">Shift — tukar S1 ↔ S2 di satu tanggal</option>
+                <option value="libur">Hari libur — tukar hari libur di dua tanggal</option>
+              </Select>
+            </div>
+          )}
+
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="swap-date">Tanggal (ke depan)</Label>
+            <Label htmlFor="swap-date">
+              {isLiburSwap ? 'Hari libur kamu yang mau dilepas' : 'Tanggal (ke depan)'}
+            </Label>
             <Input
               id="swap-date"
               type="date"
@@ -422,43 +476,87 @@ export function MySchedule() {
               min={tomorrowStr()}
               onChange={(e) => {
                 setSwapDate(e.target.value);
-                setTargetUserId('');
+                setTargetSel('');
               }}
             />
           </div>
 
           {candidatesQuery.isLoading ? (
             <Skeleton className="h-10 w-full" />
-          ) : candidatesQuery.data?.requesterShift == null ? (
+          ) : isLiburSwap && candidatesQuery.data?.requesterShift !== 'libur' ? (
+            <Alert variant="warning">Kamu tidak terjadwal libur pada tanggal itu.</Alert>
+          ) : !isLiburSwap && candidatesQuery.data?.requesterShift == null ? (
             <Alert variant="warning">
               Kamu tidak terjadwal shift (atau libur) pada tanggal itu.
             </Alert>
-          ) : candidatesQuery.data.candidates.length === 0 ? (
+          ) : candidatesQuery.data!.candidates.length === 0 ? (
             <Alert variant="warning">
-              Shift kamu <strong>Shift {candidatesQuery.data.requesterShift}</strong>. Tidak ada rekan
-              satu role dengan shift berbeda pada tanggal itu.
+              {isLiburSwap ? (
+                <>
+                  Tidak ada rekan satu role yang masuk pada tanggal itu sekaligus punya hari libur
+                  lain yang bisa kamu ambil.
+                </>
+              ) : (
+                <>
+                  Shift kamu <strong>Shift {candidatesQuery.data!.requesterShift}</strong>. Tidak ada
+                  rekan satu role dengan shift berbeda pada tanggal itu.
+                </>
+              )}
             </Alert>
           ) : (
             <>
               <p className="text-sm text-text-secondary">
-                Shift kamu: <strong>Shift {candidatesQuery.data.requesterShift}</strong>. Pilih rekan
-                (shift berbeda) untuk ditukar:
+                {isLiburSwap ? (
+                  <>
+                    Kamu libur <strong>{formatDate(swapDate)}</strong>. Pilih hari libur rekan yang
+                    mau kamu ambil sebagai gantinya:
+                  </>
+                ) : (
+                  <>
+                    Shift kamu: <strong>Shift {candidatesQuery.data!.requesterShift}</strong>. Pilih
+                    rekan (shift berbeda) untuk ditukar:
+                  </>
+                )}
               </p>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="swap-target">Rekan</Label>
+                <Label htmlFor="swap-target">{isLiburSwap ? 'Rekan & hari liburnya' : 'Rekan'}</Label>
                 <Select
                   id="swap-target"
-                  value={targetUserId}
-                  onChange={(e) => setTargetUserId(e.target.value)}
+                  value={targetSel}
+                  onChange={(e) => setTargetSel(e.target.value)}
                 >
                   <option value="">— pilih rekan —</option>
-                  {candidatesQuery.data.candidates.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} (Shift {c.shift})
-                    </option>
-                  ))}
+                  {candidatesQuery.data!.candidates.map((c) =>
+                    isLiburSwap ? (
+                      <option key={`${c.id}|${c.targetDate}`} value={`${c.id}|${c.targetDate}`}>
+                        {c.name} — libur {formatDate(c.targetDate!)} (kamu masuk Shift {c.shift})
+                      </option>
+                    ) : (
+                      <option key={c.id} value={c.id}>
+                        {c.name} (Shift {c.shift})
+                      </option>
+                    )
+                  )}
                 </Select>
               </div>
+              {isLiburSwap &&
+                targetSel &&
+                (() => {
+                  const picked = candidatesQuery.data!.candidates.find(
+                    (c) => `${c.id}|${c.targetDate}` === targetSel
+                  );
+                  if (!picked) return null;
+                  return (
+                    <Alert variant="info">
+                      Kalau disetujui: kamu <strong>masuk Shift {picked.shift}</strong> pada{' '}
+                      {formatDate(swapDate)} dan <strong>libur</strong> pada{' '}
+                      {formatDate(picked.targetDate!)}. {picked.name} kebalikannya —{' '}
+                      <strong>libur</strong> {formatDate(swapDate)} dan{' '}
+                      <strong>masuk Shift {picked.targetShift}</strong> pada{' '}
+                      {formatDate(picked.targetDate!)}.
+                    </Alert>
+                  );
+                })()}
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor="swap-reason">Alasan (opsional)</Label>
                 <Textarea
@@ -479,7 +577,7 @@ export function MySchedule() {
             <Button
               onClick={submitSwap}
               isLoading={createSwap.isPending}
-              disabled={!targetUserId || !candidatesQuery.data?.candidates.length}
+              disabled={!targetSel || !candidatesQuery.data?.candidates.length}
             >
               Kirim Pengajuan
             </Button>

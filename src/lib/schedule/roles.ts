@@ -37,3 +37,16 @@ export function shiftCycleForRole(role: string): (ScheduleShift | undefined)[] {
 export function isShiftAllowedForRole(role: string, shift: ScheduleShift): boolean {
   return shiftOptionsForRole(role).includes(shift);
 }
+
+/**
+ * Shift kerja satu-satunya milik sebuah role, bila memang cuma punya satu
+ * (teknisi → '1'). Role yang beroper shift mengembalikan null.
+ *
+ * Dipakai tukar HARI LIBUR: saat seseorang melepas liburnya, sistem harus tahu
+ * shift apa yang menggantikannya. Itu hanya bisa dipastikan kalau role-nya cuma
+ * punya satu shift kerja — makanya tukar libur dibatasi ke role seperti itu.
+ */
+export function soleWorkShiftForRole(role: string): ScheduleShift | null {
+  const work = shiftOptionsForRole(role).filter((s) => s !== 'libur');
+  return work.length === 1 ? work[0] : null;
+}

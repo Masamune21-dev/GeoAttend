@@ -127,14 +127,19 @@ export type SwapStatus =
   | 'rejected'
   | 'cancelled';
 
+/** 'shift' = tukar shift satu tanggal; 'libur' = tukar hari libur di dua tanggal. */
+export type SwapKind = 'shift' | 'libur';
+
 export interface SwapRequestResponse {
   id: string;
+  kind: SwapKind;
   requesterId: string;
   requesterName: string;
   targetId: string;
   targetName: string;
-  date: string; // "yyyy-MM-dd"
-  requesterShift: string; // '1' | '2'
+  date: string; // "yyyy-MM-dd" — kind='libur': tanggal libur pengaju
+  targetDate: string | null; // kind='libur': tanggal libur rekan
+  requesterShift: string; // '1' | '2' | 'libur'
   targetShift: string;
   status: SwapStatus;
   reason: string | null;
@@ -146,7 +151,12 @@ export interface SwapRequestResponse {
 export interface SwapCandidate {
   id: string;
   name: string;
+  /** Shift rekan pada tanggal diajukan — mode libur: yang akan diambil pengaju. */
   shift: string; // '1' | '2'
+  /** Hanya mode libur: tanggal libur rekan yang ditawarkan. */
+  targetDate?: string;
+  /** Hanya mode libur: shift pengaju di `targetDate`, yang akan diambil rekan. */
+  targetShift?: string;
 }
 
 export interface PiketAssignment {

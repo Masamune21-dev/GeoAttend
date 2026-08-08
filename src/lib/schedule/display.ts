@@ -89,3 +89,9 @@ export function isMoppingDay(dateStr: string): boolean {
 }
 
 export const MOPPING_LABEL = 'Harus ngepel';
+
+/** "2026-09-07" → "Sen, 7 September 2026". */
+export function formatSwapDate(dateStr: string): string {
+  const day = Number(dateStr.slice(-2));
+  return `${WEEKDAY_SHORT[weekdayOf(dateStr)]}, ${day} ${monthLabel(dateStr.slice(0, 7))}`;
+}

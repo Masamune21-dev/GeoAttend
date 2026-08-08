@@ -407,11 +407,23 @@ export type SwapStatus =
   | 'rejected'
   | 'cancelled';
 
-export const CreateSwapSchema = z.object({
-  date: z.string().regex(DATE_REGEX, 'Format tanggal harus yyyy-MM-dd'),
-  targetUserId: z.string().min(1),
-  reason: z.string().max(500).optional(),
-});
+/** Jenis tukar: shift pada satu tanggal, atau hari libur pada dua tanggal. */
+export type SwapKind = 'shift' | 'libur';
+
+export const CreateSwapSchema = z
+  .object({
+    /** Default 'shift' supaya klien lama tetap jalan. */
+    kind: z.enum(['shift', 'libur']).optional(),
+    date: z.string().regex(DATE_REGEX, 'Format tanggal harus yyyy-MM-dd'),
+    /** Wajib untuk kind='libur': tanggal libur rekan yang mau diambil. */
+    targetDate: z.string().regex(DATE_REGEX, 'Format tanggal harus yyyy-MM-dd').optional(),
+    targetUserId: z.string().min(1),
+    reason: z.string().max(500).optional(),
+  })
+  .refine((v) => v.kind !== 'libur' || !!v.targetDate, {
+    message: 'Tanggal libur rekan wajib diisi',
+    path: ['targetDate'],
+  });
 export type CreateSwapInput = z.infer<typeof CreateSwapSchema>;
 
 export const ReviewSwapSchema = z.object({
@@ -422,12 +434,20 @@ export type ReviewSwapInput = z.infer<typeof ReviewSwapSchema>;
 
 export interface SwapRequestResponse {
   id: string;
+  kind: SwapKind;
   requesterId: string;
   requesterName: string;
   targetId: string;
   targetName: string;
-  date: string; // "yyyy-MM-dd"
+  date: string; // "yyyy-MM-dd" — kind='libur': tanggal libur pengaju
+  targetDate: string | null; // kind='libur': tanggal libur rekan
+  /**
+   * kind='shift': shift pengaju di `date` (yang dilepas).
+   * kind='libur': shift yang AKAN DIAMBIL pengaju di `date` — yaitu shift rekan
+   * pada tanggal itu, karena yang melepas libur mengambil alih shift rekannya.
+   */
   requesterShift: string; // '1' | '2'
+  /** Cerminannya untuk rekan, pada `targetDate` bila kind='libur'. */
   targetShift: string;
   status: SwapStatus;
   reason: string | null;
@@ -439,7 +459,12 @@ export interface SwapRequestResponse {
 export interface SwapCandidate {
   id: string;
   name: string;
+  /** Shift rekan pada tanggal yang diajukan — mode libur: yang akan diambil pengaju. */
   shift: string; // '1' | '2'
+  /** Hanya mode libur: tanggal libur rekan yang ditawarkan untuk ditukar. */
+  targetDate?: string;
+  /** Hanya mode libur: shift pengaju di `targetDate`, yang akan diambil rekan. */
+  targetShift?: string;
 }
 
 // --- Piket Kebersihan ---

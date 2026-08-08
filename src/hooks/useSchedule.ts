@@ -9,6 +9,7 @@ import type {
   ScheduleResponse,
   ScheduleUser,
   SwapCandidate,
+  SwapKind,
   SwapRequestResponse,
   TechnicianTeam,
   UpdateScheduleParticipantsInput,
@@ -30,9 +31,10 @@ async function fetchJson<T>(url: string, init?: RequestInit): Promise<T> {
 }
 
 /** Jadwal shift satu bulan. Admin tanpa userId → grid penuh; userId='self' → milik sendiri. */
-export function useSchedule(month: string, userId?: string) {
+export function useSchedule(month: string, userId?: string, enabled = true) {
   return useQuery({
     queryKey: ['schedules', month, userId ?? 'all'],
+    enabled,
     queryFn: () => {
       const params = new URLSearchParams({ month });
       if (userId) params.set('userId', userId);
@@ -126,14 +128,18 @@ export function useSwaps(filters: SwapFilters = {}) {
   });
 }
 
-/** Kandidat rekan tukar (satu role, beda shift) untuk sebuah tanggal. */
-export function useSwapCandidates(date: string | null) {
+/**
+ * Kandidat rekan tukar untuk sebuah tanggal.
+ * - kind='shift': rekan satu role dengan shift berbeda di tanggal itu.
+ * - kind='libur': pasangan (rekan, tanggal libur rekan) yang bisa ditukar.
+ */
+export function useSwapCandidates(date: string | null, kind: SwapKind = 'shift') {
   return useQuery({
-    queryKey: ['swap-candidates', date],
+    queryKey: ['swap-candidates', date, kind],
     enabled: !!date,
     queryFn: () =>
       fetchJson<{ requesterShift: string | null; candidates: SwapCandidate[] }>(
-        `/api/swaps/candidates?date=${date}`
+        `/api/swaps/candidates?date=${date}&kind=${kind}`
       ),
     staleTime: 10_000,
   });

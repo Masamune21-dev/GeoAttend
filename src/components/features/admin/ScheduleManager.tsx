@@ -2,7 +2,7 @@
 
 import { Fragment, useEffect, useMemo, useState } from 'react';
 import { toast } from 'sonner';
-import { ChevronLeft, ChevronRight, Droplets, Save, Users, Wand2 } from 'lucide-react';
+import { CalendarClock, ChevronLeft, ChevronRight, Droplets, Save, Users, Wand2 } from 'lucide-react';
 import type { ScheduleShift, ScheduleUser, TechnicianTeam } from '@/types/api';
 import {
   useSchedule,
@@ -15,6 +15,7 @@ import {
 } from '@/hooks/useSchedule';
 import {
   monthDates,
+  detectOffWeekday,
   generateRotation,
   generateOffDaysOnly,
   generatePiket,
@@ -62,6 +63,7 @@ export function ScheduleManager() {
   const [piketDirty, setPiketDirty] = useState(false);
   const [participantsOpen, setParticipantsOpen] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [continueOpen, setContinueOpen] = useState(false);
 
   const participantsQuery = useScheduleParticipants(participantsOpen);
   const saveParticipants = useSaveScheduleParticipants();
@@ -70,6 +72,10 @@ export function ScheduleManager() {
   const dates = useMemo(() => monthDates(month), [month]);
   const users = useMemo(() => data?.users ?? [], [data]);
   const technicians = useMemo(() => users.filter((u) => u.role === 'teknisi'), [users]);
+
+  // Bulan sebelumnya hanya diambil saat dialog "lanjutkan" dibuka
+  const prevMonth = useMemo(() => addMonth(month, -1), [month]);
+  const prevQuery = useSchedule(prevMonth, undefined, continueOpen);
 
   // Sinkronkan grid lokal dari server tiap ganti bulan / data baru
   useEffect(() => {
@@ -146,6 +152,50 @@ export function ScheduleManager() {
     setDirty(true);
     setGenOpen(false);
     toast.success('Rotasi digenerate — silakan sunting bila perlu, lalu Simpan');
+  };
+
+  /**
+   * Rencana "lanjutkan jadwal teknisi": hari libur mingguan tiap teknisi dibaca
+   * dari bulan sebelumnya, lalu diteruskan ke bulan yang sedang dibuka.
+   *
+   * Hanya teknisi — admin & NOC beroper shift dengan pola yang tidak bisa
+   * disimpulkan otomatis, jadi tetap diisi lewat Generate Rotasi atau manual.
+   */
+  const continuePlan = useMemo(() => {
+    const prevDates = monthDates(prevMonth);
+    const prevByUser = new Map<string, Map<string, ScheduleShift>>();
+    for (const e of prevQuery.data?.entries ?? []) {
+      const map = prevByUser.get(e.userId) ?? new Map<string, ScheduleShift>();
+      map.set(e.date, e.shift);
+      prevByUser.set(e.userId, map);
+    }
+    return technicians.map((u) => {
+      const map = prevByUser.get(u.id);
+      const off = map ? detectOffWeekday(prevDates, (d) => map.get(d)) : null;
+      const filled = dates.some((d) => cells[cellKey(u.id, d)]);
+      return { user: u, off, filled };
+    });
+  }, [prevQuery.data, prevMonth, technicians, dates, cells]);
+
+  const continueReady = continuePlan.filter((p) => p.off !== null);
+  const continueOverwrites = continueReady.filter((p) => p.filled);
+
+  const applyContinue = () => {
+    setCells((prev) => {
+      const next = { ...prev };
+      for (const p of continueReady) {
+        const rotation = generateOffDaysOnly(month, [p.off!]);
+        for (const [date, shift] of Object.entries(rotation)) {
+          next[cellKey(p.user.id, date)] = shift;
+        }
+      }
+      return next;
+    });
+    setDirty(true);
+    setContinueOpen(false);
+    toast.success(
+      `Jadwal ${continueReady.length} teknisi diteruskan dari ${monthLabel(prevMonth)} — cek lalu Simpan`
+    );
   };
 
   const handleSave = () => {
@@ -252,6 +302,15 @@ export function ScheduleManager() {
           <Button variant="outline" onClick={openParticipants}>
             <Users className="h-4 w-4" aria-hidden="true" />
             Kelola Peserta
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => setContinueOpen(true)}
+            disabled={technicians.length === 0}
+            title={`Teruskan hari libur teknisi dari ${monthLabel(prevMonth)}`}
+          >
+            <CalendarClock className="h-4 w-4" aria-hidden="true" />
+            Lanjutkan Teknisi
           </Button>
           <Button variant="outline" onClick={openGenerate} disabled={users.length === 0}>
             <Wand2 className="h-4 w-4" aria-hidden="true" />
@@ -540,6 +599,87 @@ export function ScheduleManager() {
                 Simpan Peserta
               </Button>
             </div>
+          </div>
+        </div>
+      </Dialog>
+
+      {/* Teruskan hari libur teknisi dari bulan sebelumnya */}
+      <Dialog
+        open={continueOpen}
+        onClose={() => setContinueOpen(false)}
+        title={`Lanjutkan Jadwal Teknisi dari ${monthLabel(prevMonth)}`}
+      >
+        <div className="flex flex-col gap-3">
+          <p className="text-sm text-text-secondary">
+            Hari libur mingguan tiap teknisi dibaca dari{' '}
+            <span className="font-medium">{monthLabel(prevMonth)}</span> (3 libur terakhir, jadi
+            kalau ada yang pindah hari libur atau tukar libur, yang dipakai kebiasaan terbarunya)
+            lalu diteruskan ke <span className="font-medium">{monthLabel(month)}</span>. Admin &amp;
+            NOC tidak ikut — pola oper shift mereka tidak bisa disimpulkan otomatis.
+          </p>
+
+          {prevQuery.isLoading ? (
+            <Skeleton className="h-40 w-full" />
+          ) : continueReady.length === 0 ? (
+            <p className="rounded-md border border-border bg-secondary p-3 text-sm text-text-secondary">
+              Tidak ada teknisi yang punya jadwal libur di {monthLabel(prevMonth)}, jadi tidak ada
+              yang bisa diteruskan.
+            </p>
+          ) : (
+            <>
+              {continueOverwrites.length > 0 && (
+                <div className="rounded-md border border-amber-300 bg-amber-50 p-3 text-sm text-amber-900">
+                  <span className="font-semibold">{continueOverwrites.length} teknisi</span> sudah
+                  punya isian di {monthLabel(month)} dan akan{' '}
+                  <span className="font-semibold">ditimpa</span>:{' '}
+                  {continueOverwrites.map((p) => p.user.name).join(', ')}. Hasilnya baru permanen
+                  setelah kamu klik Simpan.
+                </div>
+              )}
+              <div className="max-h-[45vh] overflow-y-auto rounded-md border border-border">
+                <table className="w-full text-sm">
+                  <thead>
+                    <tr className="bg-secondary text-left text-xs uppercase tracking-wide text-text-secondary">
+                      <th className="px-3 py-1.5 font-medium">Teknisi</th>
+                      <th className="px-3 py-1.5 font-medium">Libur</th>
+                      <th className="px-3 py-1.5 font-medium">Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {continuePlan.map((p) => (
+                      <tr key={p.user.id} className="border-t border-border/60">
+                        <td className="px-3 py-1.5 font-medium text-text-primary">{p.user.name}</td>
+                        <td className="px-3 py-1.5">
+                          {p.off === null ? (
+                            <span className="text-text-secondary">—</span>
+                          ) : (
+                            <span className="rounded-sm bg-red-200 px-1.5 py-0.5 text-xs font-semibold text-red-800">
+                              {WEEKDAY_SHORT[p.off]}
+                            </span>
+                          )}
+                        </td>
+                        <td className="px-3 py-1.5 text-xs text-text-secondary">
+                          {p.off === null
+                            ? `tidak ada libur di ${monthLabel(prevMonth)} — dilewati`
+                            : p.filled
+                              ? 'akan ditimpa'
+                              : 'akan diisi'}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </>
+          )}
+
+          <div className="flex justify-end gap-2">
+            <Button variant="outline" onClick={() => setContinueOpen(false)}>
+              Batal
+            </Button>
+            <Button onClick={applyContinue} disabled={continueReady.length === 0}>
+              Terapkan ke {continueReady.length} teknisi
+            </Button>
           </div>
         </div>
       </Dialog>

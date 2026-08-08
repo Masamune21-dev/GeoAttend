@@ -35,11 +35,11 @@ export function SwapApprovals() {
       <CardHeader>
         <CardTitle className="flex items-center gap-2 text-base">
           <ArrowLeftRight className="h-4 w-4" aria-hidden="true" />
-          Tukar Shift
+          Tukar Shift &amp; Libur
         </CardTitle>
         <CardDescription>
           Sudah disetujui rekan, menunggu persetujuan administrator. Menyetujui akan menukar jadwal
-          kedua karyawan.
+          kedua karyawan — tukar libur menyentuh dua tanggal sekaligus.
         </CardDescription>
       </CardHeader>
       <CardContent className="overflow-x-auto">
@@ -59,9 +59,22 @@ export function SwapApprovals() {
               <tr key={s.id} className="border-b border-border/60 last:border-0 hover:bg-background">
                 <td className="py-2.5 pr-3 font-medium text-text-primary">{s.requesterName}</td>
                 <td className="py-2.5 pr-3 text-text-primary">{s.targetName}</td>
-                <td className="py-2.5 pr-3 text-text-primary">{fmtDate(s.date)}</td>
+                <td className="py-2.5 pr-3 text-text-primary">
+                  {s.kind === 'libur' && s.targetDate ? (
+                    <span className="block leading-tight">
+                      {fmtDate(s.date)}
+                      <span className="block text-xs text-text-secondary">
+                        ↔ {fmtDate(s.targetDate)}
+                      </span>
+                    </span>
+                  ) : (
+                    fmtDate(s.date)
+                  )}
+                </td>
                 <td className="py-2.5 pr-3 text-text-secondary">
-                  {s.requesterName.split(' ')[0]}: S{s.requesterShift}→S{s.targetShift}
+                  {s.kind === 'libur' && s.targetDate
+                    ? `Libur: ${s.requesterName.split(' ')[0]} masuk S${s.requesterShift} tgl atas & libur tgl bawah; ${s.targetName.split(' ')[0]} kebalikannya (masuk S${s.targetShift})`
+                    : `${s.requesterName.split(' ')[0]}: S${s.requesterShift}→S${s.targetShift}`}
                 </td>
                 <td className="max-w-40 py-2.5 pr-3">
                   <span className="block truncate text-text-secondary" title={s.reason ?? ''}>

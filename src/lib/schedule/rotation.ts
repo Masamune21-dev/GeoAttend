@@ -87,6 +87,48 @@ export function generateOffDaysOnly(
 }
 
 /**
+ * Tebak hari libur mingguan seseorang dari jadwal yang sudah ada.
+ *
+ * Dipakai untuk meneruskan jadwal ke bulan berikutnya tanpa admin mengisi ulang
+ * hari libur satu per satu. Yang dibaca hanya entri bershift `libur`.
+ *
+ * Dua hal yang sengaja diperhatikan:
+ * - **Yang terbaru menang.** Kalau seseorang pindah hari libur di tengah bulan
+ *   (mis. dari Minggu ke Jumat), yang diteruskan adalah kebiasaan barunya —
+ *   makanya penghitungan dibatasi `recentWeeks` terakhir, bukan sebulan penuh.
+ * - **Tukar libur tidak ikut menular.** Tukar sehari-dua hari kalah suara oleh
+ *   pola mayoritas, jadi tidak terbawa jadi jadwal tetap bulan depan.
+ *
+ * Mengembalikan getDay() (0=Minggu … 6=Sabtu), atau null bila tidak ada libur.
+ */
+export function detectOffWeekday(
+  dates: string[],
+  shiftOf: (date: string) => ScheduleShift | undefined,
+  recentWeeks = 3
+): number | null {
+  const liburDates = dates.filter((d) => shiftOf(d) === 'libur').sort();
+  if (liburDates.length === 0) return null;
+
+  const recent = liburDates.slice(-recentWeeks);
+  const votes: Record<number, number> = {};
+  for (const d of recent) {
+    const wd = new Date(`${d}T00:00:00`).getDay();
+    votes[wd] = (votes[wd] ?? 0) + 1;
+  }
+
+  // Suara terbanyak; bila seri, hari libur PALING BARU yang menang
+  let best = new Date(`${recent[recent.length - 1]}T00:00:00`).getDay();
+  let bestCount = votes[best] ?? 0;
+  for (const [wd, count] of Object.entries(votes)) {
+    if (count > bestCount) {
+      best = Number(wd);
+      bestCount = count;
+    }
+  }
+  return best;
+}
+
+/**
  * Isi piket kebersihan sebulan secara round-robin: satu orang per hari,
  * bergiliran mengikuti urutan `userIds` (mulai dari `startIndex`).
  */

@@ -17,6 +17,7 @@ import type {
   ScheduleResponse,
   ScheduleShift,
   SwapCandidate,
+  SwapKind,
   SwapRequestResponse,
 } from '../api/types';
 import { useSession } from '../auth/session';
@@ -34,6 +35,8 @@ import {
   SHIFT_BADGE,
   SHIFT_DOT,
   SWAP_META,
+  SWAP_KIND_LABEL,
+  isLiburOnlyRole,
 } from '../lib/schedule';
 import {
   Avatar,
@@ -80,9 +83,17 @@ export function ScheduleScreen() {
   const [swapDate, setSwapDate] = useState('');
   const [requesterShift, setRequesterShift] = useState<string | null>(null);
   const [candidates, setCandidates] = useState<SwapCandidate[]>([]);
+  /** Mode libur: "userId|tanggalLiburRekan" — satu rekan bisa punya beberapa pilihan tanggal. */
   const [targetId, setTargetId] = useState('');
   const [reason, setReason] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  /** Teknisi terkunci ke tukar libur; admin & NOC memilih sendiri di sheet. */
+  const liburOnly = isLiburOnlyRole(user?.role);
+  const [swapKind, setSwapKind] = useState<SwapKind>('shift');
+  const effectiveKind: SwapKind = liburOnly ? 'libur' : swapKind;
+  const isLiburSwap = effectiveKind === 'libur';
+  const swapTitle = `Ajukan ${SWAP_KIND_LABEL[effectiveKind]}`;
 
   const loadData = useCallback(async () => {
     const [sched, sw, pk] = await Promise.all([
@@ -120,7 +131,7 @@ export function ScheduleScreen() {
     }
     let active = true;
     api<{ requesterShift: string | null; candidates: SwapCandidate[] }>(
-      `/api/swaps/candidates?date=${swapDate}`
+      `/api/swaps/candidates?date=${swapDate}&kind=${effectiveKind}`
     )
       .then((r) => {
         if (!active) return;
@@ -135,7 +146,7 @@ export function ScheduleScreen() {
     return () => {
       active = false;
     };
-  }, [swapOpen, swapDate, today]);
+  }, [swapOpen, swapDate, today, effectiveKind]);
 
   const dates = useMemo(() => monthDates(month), [month]);
   const hasSchedule = Object.keys(entries).length > 0;
@@ -147,6 +158,11 @@ export function ScheduleScreen() {
     [piket, myId]
   );
   const myPiketDates = useMemo(() => new Set(myPiket.map((p) => p.date)), [myPiket]);
+
+  /** Kandidat yang sedang dipilih di sheet (mode libur). */
+  const picked = isLiburSwap
+    ? candidates.find((c) => `${c.id}|${c.targetDate}` === targetId)
+    : undefined;
 
   /** Baris "Jadwal Saya": mulai hari ini bila bulan berjalan, selain itu dari tanggal 1. */
   const listDates = useMemo(() => {
@@ -175,12 +191,15 @@ export function ScheduleScreen() {
       return;
     }
     setSubmitting(true);
+    const [targetUserId, pickedDate] = targetId.split('|');
     try {
       await api('/api/swaps', {
         method: 'POST',
         body: JSON.stringify({
+          kind: effectiveKind,
           date: swapDate,
-          targetUserId: targetId,
+          targetDate: isLiburSwap ? pickedDate : undefined,
+          targetUserId,
           reason: reason.trim() || undefined,
         }),
       });
@@ -319,7 +338,7 @@ export function ScheduleScreen() {
           </View>
         </Card>
 
-        <Button title="Ajukan Tukar Shift" icon={ArrowLeftRight} variant="outline" onPress={openSwap} />
+        <Button title={swapTitle} icon={ArrowLeftRight} variant="outline" onPress={openSwap} />
 
         {/* Permintaan tukar untuk saya */}
         {incoming.length > 0 && (
@@ -328,8 +347,9 @@ export function ScheduleScreen() {
             {incoming.map((s) => (
               <Card key={s.id} style={{ gap: spacing.sm }}>
                 <Text style={styles.body}>
-                  {s.requesterName} minta tukar {formatShortDate(s.date)} — kamu ke Shift{' '}
-                  {s.requesterShift}, dia ke Shift {s.targetShift}.
+                  {s.kind === 'libur' && s.targetDate
+                    ? `${s.requesterName} minta tukar hari libur — kamu libur ${formatShortDate(s.date)}, gantinya masuk Shift ${s.targetShift} pada ${formatShortDate(s.targetDate)}.`
+                    : `${s.requesterName} minta tukar ${formatShortDate(s.date)} — kamu ke Shift ${s.requesterShift}, dia ke Shift ${s.targetShift}.`}
                 </Text>
                 {s.reason ? <Text style={styles.subtle}>“{s.reason}”</Text> : null}
                 <View style={{ flexDirection: 'row', gap: spacing.sm }}>
@@ -481,7 +501,9 @@ export function ScheduleScreen() {
                     <Badge text={meta.label} tone={meta.tone} />
                   </View>
                   <Text style={styles.subtle}>
-                    {formatShortDate(s.date)} · S{s.requesterShift} ↔ S{s.targetShift}
+                    {s.kind === 'libur' && s.targetDate
+                      ? `Masuk S${s.requesterShift} ${formatShortDate(s.date)} · libur ${formatShortDate(s.targetDate)}`
+                      : `${formatShortDate(s.date)} · S${s.requesterShift} ↔ S${s.targetShift}`}
                   </Text>
                   {s.reviewNote ? <Text style={styles.subtle}>Catatan: {s.reviewNote}</Text> : null}
                   {cancellable && (
@@ -497,9 +519,35 @@ export function ScheduleScreen() {
       </ScrollView>
 
       {/* Sheet ajukan tukar */}
-      <Sheet visible={swapOpen} title="Ajukan Tukar Shift" onClose={() => setSwapOpen(false)}>
+      <Sheet visible={swapOpen} title={swapTitle} onClose={() => setSwapOpen(false)}>
+        {!liburOnly && (
+          <View style={{ gap: spacing.xs }}>
+            <Text style={styles.label}>Yang ditukar</Text>
+            <View style={{ flexDirection: 'row', gap: spacing.sm }}>
+              {(['shift', 'libur'] as const).map((k) => (
+                <Pressable
+                  key={k}
+                  onPress={() => {
+                    setSwapKind(k);
+                    setTargetId('');
+                  }}
+                  style={[styles.kindTab, swapKind === k && styles.kindTabActive]}
+                >
+                  <Text
+                    style={{
+                      fontWeight: '600',
+                      color: swapKind === k ? colors.primary : colors.textSecondary,
+                    }}
+                  >
+                    {SWAP_KIND_LABEL[k]}
+                  </Text>
+                </Pressable>
+              ))}
+            </View>
+          </View>
+        )}
         <Field
-          label="Tanggal (ke depan)"
+          label={isLiburSwap ? 'Hari libur kamu yang mau dilepas' : 'Tanggal (ke depan)'}
           value={swapDate}
           onChangeText={(v) => {
             setSwapDate(v);
@@ -508,37 +556,61 @@ export function ScheduleScreen() {
           placeholder="YYYY-MM-DD"
           autoCapitalize="none"
         />
-        {requesterShift == null ? (
+        {isLiburSwap && requesterShift !== 'libur' ? (
+          <Text style={styles.subtle}>
+            Isi tanggal saat kamu terjadwal libur untuk melihat hari libur rekan yang bisa ditukar.
+          </Text>
+        ) : !isLiburSwap && requesterShift == null ? (
           <Text style={styles.subtle}>
             Isi tanggal terjadwal (kamu tidak libur) untuk melihat rekan yang bisa ditukar.
           </Text>
         ) : candidates.length === 0 ? (
           <Text style={styles.subtle}>
-            Shift kamu Shift {requesterShift}. Tidak ada rekan satu role dengan shift berbeda pada
-            tanggal itu.
+            {isLiburSwap
+              ? 'Tidak ada rekan satu role yang masuk pada tanggal itu sekaligus punya hari libur lain yang bisa kamu ambil.'
+              : `Shift kamu Shift ${requesterShift}. Tidak ada rekan satu role dengan shift berbeda pada tanggal itu.`}
           </Text>
         ) : (
           <View style={{ gap: spacing.sm }}>
-            <Text style={styles.label}>Shift kamu: Shift {requesterShift}. Pilih rekan:</Text>
-            {candidates.map((c) => (
-              <Pressable
-                key={c.id}
-                onPress={() => setTargetId(c.id)}
-                style={[styles.candidate, targetId === c.id && styles.candidateActive]}
-              >
-                <Avatar name={c.name} size={32} />
-                <Text
-                  style={{
-                    flex: 1,
-                    fontWeight: '600',
-                    color: targetId === c.id ? colors.primary : colors.textPrimary,
-                  }}
+            <Text style={styles.label}>
+              {isLiburSwap
+                ? `Kamu libur ${formatShortDate(swapDate)}. Pilih hari libur rekan sebagai gantinya:`
+                : `Shift kamu: Shift ${requesterShift}. Pilih rekan:`}
+            </Text>
+            {candidates.map((c) => {
+              const value = isLiburSwap ? `${c.id}|${c.targetDate}` : c.id;
+              const active = targetId === value;
+              return (
+                <Pressable
+                  key={value}
+                  onPress={() => setTargetId(value)}
+                  style={[styles.candidate, active && styles.candidateActive]}
                 >
-                  {c.name}
-                </Text>
-                <Text style={styles.subtle}>Shift {c.shift}</Text>
-              </Pressable>
-            ))}
+                  <Avatar name={c.name} size={32} />
+                  <Text
+                    style={{
+                      flex: 1,
+                      fontWeight: '600',
+                      color: active ? colors.primary : colors.textPrimary,
+                    }}
+                  >
+                    {c.name}
+                  </Text>
+                  <Text style={styles.subtle}>
+                    {isLiburSwap
+                      ? `Libur ${formatShortDate(c.targetDate!)} · kamu S${c.shift}`
+                      : `Shift ${c.shift}`}
+                  </Text>
+                </Pressable>
+              );
+            })}
+            {isLiburSwap && picked ? (
+              <Text style={styles.subtle}>
+                Kalau disetujui: kamu masuk Shift {picked.shift} pada {formatShortDate(swapDate)}{' '}
+                dan libur {formatShortDate(picked.targetDate!)}. {picked.name} kebalikannya — libur{' '}
+                {formatShortDate(swapDate)} dan masuk Shift {picked.targetShift}.
+              </Text>
+            ) : null}
           </View>
         )}
         <Field
@@ -635,4 +707,15 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   candidateActive: { borderColor: colors.primary, backgroundColor: colors.primarySubtle },
+
+  kindTab: {
+    flex: 1,
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: colors.border,
+    borderRadius: radius.md,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
+  },
+  kindTabActive: { borderColor: colors.primary, backgroundColor: colors.primarySubtle },
 });

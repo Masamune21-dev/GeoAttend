@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { and, desc, eq, inArray, or } from 'drizzle-orm';
+import { and, desc, eq, gte, inArray, lte, or } from 'drizzle-orm';
 import { alias } from 'drizzle-orm/pg-core';
 import { db } from '@/lib/db';
-import { scheduleEntries, shiftSwapRequests, user } from '@/lib/db/schema';
+import { leaveRequests, scheduleEntries, shiftSwapRequests, user } from '@/lib/db/schema';
 import { getApiSession, isAdmin, unauthorizedResponse } from '@/lib/auth/utils';
-import { CreateSwapSchema, type SwapRequestResponse, type SwapStatus } from '@/types/api';
+import { CreateSwapSchema, type SwapKind, type SwapRequestResponse, type SwapStatus } from '@/types/api';
 import { appToday } from '@/lib/time';
 
 export const dynamic = 'force-dynamic';
@@ -26,11 +26,13 @@ function toResponse(row: SwapRow): SwapRequestResponse {
   const { swap } = row;
   return {
     id: swap.id,
+    kind: (swap.kind as SwapKind) ?? 'shift',
     requesterId: swap.requesterId,
     requesterName: row.requesterName ?? 'Pengguna terhapus',
     targetId: swap.targetId,
     targetName: row.targetName ?? 'Pengguna terhapus',
     date: swap.date,
+    targetDate: swap.targetDate,
     requesterShift: swap.requesterShift,
     targetShift: swap.targetShift,
     status: swap.status as SwapStatus,
@@ -89,8 +91,13 @@ export async function GET(req: NextRequest) {
 }
 
 /**
- * POST /api/swaps — ajukan tukar shift dengan rekan (satu role, beda shift).
- * Hanya untuk tanggal ke depan yang sudah terjadwal untuk kedua orang.
+ * POST /api/swaps — ajukan tukar dengan rekan satu role, untuk tanggal ke depan.
+ *
+ * - kind='shift': satu tanggal, kedua orang terjadwal shift BERBEDA (S1 ↔ S2).
+ * - kind='libur': dua tanggal, saling menukar hari libur. Yang melepas libur
+ *   mengambil alih shift rekannya di tanggal itu, jadi jumlah orang di S1 dan S2
+ *   tiap hari tetap sama persis — cuma bertukar orang. Berlaku untuk semua role:
+ *   teknisi (yang memang tidak pernah bisa tukar shift) maupun admin & NOC.
  */
 export async function POST(req: NextRequest) {
   try {
@@ -111,15 +118,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { date, targetUserId, reason } = parsed.data;
+    const { date, targetDate, targetUserId, reason } = parsed.data;
+    const kind: SwapKind = parsed.data.kind ?? 'shift';
     const selfId = session.user.id;
     const today = appToday();
 
     const fail = (code: string, message: string, statusCode = 422) =>
       NextResponse.json({ code, message, timestamp: new Date().toISOString() }, { status: statusCode });
 
-    if (targetUserId === selfId) return fail('INVALID_SWAP', 'Tidak bisa menukar shift dengan diri sendiri');
-    if (date <= today) return fail('INVALID_SWAP_DATE', 'Tukar shift hanya untuk tanggal ke depan');
+    if (targetUserId === selfId) return fail('INVALID_SWAP', 'Tidak bisa menukar dengan diri sendiri');
+    if (date <= today) return fail('INVALID_SWAP_DATE', 'Tukar hanya untuk tanggal ke depan');
 
     // Rekan tujuan harus ada & satu role
     const [targetUser] = await db
@@ -132,32 +140,114 @@ export async function POST(req: NextRequest) {
       return fail('INVALID_SWAP', 'Rekan harus dari role yang sama');
     }
 
-    // Kedua orang harus terjadwal shift (bukan libur) & shift-nya beda
+    // Tanggal yang tersentuh pengajuan ini (libur menyentuh dua tanggal)
+    const dates = kind === 'libur' ? [date, targetDate!] : [date];
+
+    if (kind === 'libur') {
+      if (targetDate! <= today) {
+        return fail('INVALID_SWAP_DATE', 'Tukar hanya untuk tanggal ke depan');
+      }
+      if (targetDate === date) {
+        return fail('INVALID_SWAP', 'Tanggal libur kamu dan rekan tidak boleh sama');
+      }
+    }
+
+    // Jadwal kedua orang pada semua tanggal yang tersentuh
     const sched = await db
-      .select({ userId: scheduleEntries.userId, shift: scheduleEntries.shift })
+      .select({
+        userId: scheduleEntries.userId,
+        date: scheduleEntries.date,
+        shift: scheduleEntries.shift,
+      })
       .from(scheduleEntries)
-      .where(and(eq(scheduleEntries.date, date), inArray(scheduleEntries.userId, [selfId, targetUserId])));
-    const myShift = sched.find((s) => s.userId === selfId)?.shift;
-    const targetShift = sched.find((s) => s.userId === targetUserId)?.shift;
+      .where(
+        and(
+          inArray(scheduleEntries.date, dates),
+          inArray(scheduleEntries.userId, [selfId, targetUserId])
+        )
+      );
+    const shiftAt = (userId: string, d: string) =>
+      sched.find((s) => s.userId === userId && s.date === d)?.shift ?? null;
 
-    if (myShift !== '1' && myShift !== '2') {
-      return fail('NO_SHIFT', 'Kamu tidak terjadwal shift pada tanggal itu');
-    }
-    if (targetShift !== '1' && targetShift !== '2') {
-      return fail('NO_SHIFT', 'Rekan tidak terjadwal shift pada tanggal itu');
-    }
-    if (myShift === targetShift) {
-      return fail('SAME_SHIFT', 'Rekan harus punya shift yang berbeda');
+    let requesterShift: string;
+    let targetShift: string;
+
+    if (kind === 'libur') {
+      // Tanggal A = libur pengaju: pengaju libur, rekan masuk
+      if (shiftAt(selfId, date) !== 'libur') {
+        return fail('NOT_LIBUR', 'Kamu tidak terjadwal libur pada tanggal itu');
+      }
+      const peerShiftOnA = shiftAt(targetUserId, date);
+      if (peerShiftOnA !== '1' && peerShiftOnA !== '2') {
+        return fail('NO_SHIFT', 'Rekan tidak terjadwal masuk pada tanggal libur kamu');
+      }
+      // Tanggal B = libur rekan: rekan libur, pengaju masuk
+      if (shiftAt(targetUserId, targetDate!) !== 'libur') {
+        return fail('NOT_LIBUR', 'Rekan tidak terjadwal libur pada tanggal itu');
+      }
+      const myShiftOnB = shiftAt(selfId, targetDate!);
+      if (myShiftOnB !== '1' && myShiftOnB !== '2') {
+        return fail('NO_SHIFT', 'Kamu tidak terjadwal masuk pada tanggal libur rekan');
+      }
+      // Yang melepas libur MENGAMBIL ALIH shift rekannya di tanggal itu, sehingga
+      // komposisi S1/S2 tiap hari tidak berubah — cuma orangnya yang bertukar.
+      requesterShift = peerShiftOnA;
+      targetShift = myShiftOnB;
+    } else {
+      const myShift = shiftAt(selfId, date);
+      const tgtShift = shiftAt(targetUserId, date);
+      if (myShift !== '1' && myShift !== '2') {
+        return fail('NO_SHIFT', 'Kamu tidak terjadwal shift pada tanggal itu');
+      }
+      if (tgtShift !== '1' && tgtShift !== '2') {
+        return fail('NO_SHIFT', 'Rekan tidak terjadwal shift pada tanggal itu');
+      }
+      if (myShift === tgtShift) {
+        return fail('SAME_SHIFT', 'Rekan harus punya shift yang berbeda');
+      }
+      requesterShift = myShift;
+      targetShift = tgtShift;
     }
 
-    // Tidak boleh ada pengajuan aktif yang menyangkut salah satu pihak di tanggal itu
+    // Izin/cuti yang sudah disetujui pada tanggal terkait bikin hasil tukar mustahil dijalani
+    const sortedDates = [...dates].sort();
+    const leaves = await db
+      .select({
+        userId: leaveRequests.userId,
+        startDate: leaveRequests.startDate,
+        endDate: leaveRequests.endDate,
+      })
+      .from(leaveRequests)
+      .where(
+        and(
+          eq(leaveRequests.status, 'approved'),
+          inArray(leaveRequests.userId, [selfId, targetUserId]),
+          lte(leaveRequests.startDate, sortedDates[sortedDates.length - 1]),
+          gte(leaveRequests.endDate, sortedDates[0])
+        )
+      );
+    const clash = leaves.find((l) => dates.some((d) => d >= l.startDate && d <= l.endDate));
+    if (clash) {
+      return fail(
+        'LEAVE_EXISTS',
+        clash.userId === selfId
+          ? 'Kamu punya izin/cuti disetujui pada tanggal itu'
+          : 'Rekan punya izin/cuti disetujui pada tanggal itu',
+        409
+      );
+    }
+
+    // Tidak boleh ada pengajuan aktif yang menyangkut salah satu pihak di tanggal mana pun
     const conflict = await db
       .select({ id: shiftSwapRequests.id })
       .from(shiftSwapRequests)
       .where(
         and(
-          eq(shiftSwapRequests.date, date),
           inArray(shiftSwapRequests.status, ACTIVE_STATUSES),
+          or(
+            inArray(shiftSwapRequests.date, dates),
+            inArray(shiftSwapRequests.targetDate, dates)
+          ),
           or(
             inArray(shiftSwapRequests.requesterId, [selfId, targetUserId]),
             inArray(shiftSwapRequests.targetId, [selfId, targetUserId])
@@ -172,10 +262,12 @@ export async function POST(req: NextRequest) {
     const inserted = await db
       .insert(shiftSwapRequests)
       .values({
+        kind,
         requesterId: selfId,
         targetId: targetUserId,
         date,
-        requesterShift: myShift,
+        targetDate: kind === 'libur' ? targetDate! : null,
+        requesterShift,
         targetShift,
         status: 'pending_peer',
         reason: reason?.trim() || null,

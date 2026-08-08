@@ -100,34 +100,75 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
       return NextResponse.json({ data: updated[0] });
     }
 
-    // action === 'approve' → tukar entri jadwal (transaksi), setelah cek jadwal tak berubah
+    // action === 'approve' → tulis entri jadwal (transaksi), setelah cek jadwal tak berubah
+    const isLibur = swap.kind === 'libur';
+    const dates = isLibur && swap.targetDate ? [swap.date, swap.targetDate] : [swap.date];
+
+    if (isLibur && !swap.targetDate) {
+      return conflict('Pengajuan tukar libur tidak punya tanggal rekan; ajukan ulang');
+    }
+
     const current = await db
-      .select({ userId: scheduleEntries.userId, shift: scheduleEntries.shift })
+      .select({
+        userId: scheduleEntries.userId,
+        date: scheduleEntries.date,
+        shift: scheduleEntries.shift,
+      })
       .from(scheduleEntries)
       .where(
         and(
-          eq(scheduleEntries.date, swap.date),
+          inArray(scheduleEntries.date, dates),
           inArray(scheduleEntries.userId, [swap.requesterId, swap.targetId])
         )
       );
-    const reqNow = current.find((c) => c.userId === swap.requesterId)?.shift;
-    const tgtNow = current.find((c) => c.userId === swap.targetId)?.shift;
-    if (reqNow !== swap.requesterShift || tgtNow !== swap.targetShift) {
-      return conflict('Jadwal sudah berubah sejak pengajuan; tukar tidak bisa diterapkan');
+    const shiftAt = (userId: string, date: string) =>
+      current.find((c) => c.userId === userId && c.date === date)?.shift ?? null;
+
+    /** Entri yang akan ditulis bila pengajuan disetujui. */
+    let writes: { userId: string; date: string; shift: string }[];
+
+    if (isLibur) {
+      const dateA = swap.date; // libur pengaju
+      const dateB = swap.targetDate!; // libur rekan
+      // requesterShift = shift rekan di A (yang diambil alih pengaju),
+      // targetShift = shift pengaju di B (yang diambil alih rekan).
+      const unchanged =
+        shiftAt(swap.requesterId, dateA) === 'libur' &&
+        shiftAt(swap.targetId, dateA) === swap.requesterShift &&
+        shiftAt(swap.targetId, dateB) === 'libur' &&
+        shiftAt(swap.requesterId, dateB) === swap.targetShift;
+      if (!unchanged) {
+        return conflict('Jadwal sudah berubah sejak pengajuan; tukar tidak bisa diterapkan');
+      }
+
+      writes = [
+        { userId: swap.requesterId, date: dateA, shift: swap.requesterShift },
+        { userId: swap.targetId, date: dateA, shift: 'libur' },
+        { userId: swap.requesterId, date: dateB, shift: 'libur' },
+        { userId: swap.targetId, date: dateB, shift: swap.targetShift },
+      ];
+    } else {
+      if (
+        shiftAt(swap.requesterId, swap.date) !== swap.requesterShift ||
+        shiftAt(swap.targetId, swap.date) !== swap.targetShift
+      ) {
+        return conflict('Jadwal sudah berubah sejak pengajuan; tukar tidak bisa diterapkan');
+      }
+      // requester dapat shift target, target dapat shift requester
+      writes = [
+        { userId: swap.requesterId, date: swap.date, shift: swap.targetShift },
+        { userId: swap.targetId, date: swap.date, shift: swap.requesterShift },
+      ];
     }
 
     await db.transaction(async (tx) => {
-      // requester dapat shift target, target dapat shift requester
-      for (const [userId, shift] of [
-        [swap.requesterId, swap.targetShift],
-        [swap.targetId, swap.requesterShift],
-      ] as const) {
+      for (const w of writes) {
         await tx
           .insert(scheduleEntries)
-          .values({ userId, date: swap.date, shift })
+          .values(w)
           .onConflictDoUpdate({
             target: [scheduleEntries.userId, scheduleEntries.date],
-            set: { shift, updatedAt: new Date() },
+            set: { shift: w.shift, updatedAt: new Date() },
           });
       }
       await tx
