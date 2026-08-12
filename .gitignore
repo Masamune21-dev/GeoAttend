@@ -43,4 +43,11 @@ next-env.d.ts
 /mobile/android
 /mobile/ios
 
+# Service account key Firebase (FCM V1). Kunci ini di-upload ke EAS, BUKAN
+# disimpan di repo — sekali ter-commit, siapa pun yang bisa membaca repo bisa
+# mengirim push atas nama aplikasi. Catatan: mobile/google-services.json justru
+# HARUS di-commit (ikut dibundel ke APK, bukan rahasia).
+*firebase-adminsdk*.json
+*-service-account*.json
+
 # drizzle

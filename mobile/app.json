@@ -17,6 +17,7 @@
     },
     "android": {
       "package": "net.kusumavision.geoattend",
+      "googleServicesFile": "./google-services.json",
       "adaptiveIcon": {
         "backgroundColor": "#2563EB",
         "foregroundImage": "./assets/android-icon-foreground.png",

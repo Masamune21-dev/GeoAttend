@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "636981447186",
+    "project_id": "absensi-f66e1",
+    "storage_bucket": "absensi-f66e1.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:636981447186:android:5e57ca0cb44c82a89aa6cb",
+        "android_client_info": {
+          "package_name": "net.kusumavision.geoattend"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCzwe_62NlWIfai1epdXX3gnZUZOwwq64U"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
