@@ -145,7 +145,9 @@ KusumaVisionAbsensi/
 
 ## 📌 Roadmap / Pengembangan Mendatang
 
-- [ ] Support iOS Push Notifications (APNs) & Android FCM push alerts.
+- [x] Android push notification (Expo Push + FCM) — notifikasi persetujuan untuk administrator.
+- [ ] Pengingat absen terjadwal (worker yang membaca jadwal shift).
+- [ ] Support iOS Push Notifications (APNs).
 - [ ] Offline queue absensi (penyimpanan antrian offline di perangkat saat sinyal buruk).
 - [ ] Face Recognition auto-match server-side.
 - [ ] Retensi otomatis pembersihan foto tua > 90 hari.

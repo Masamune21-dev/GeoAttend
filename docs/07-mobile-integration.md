@@ -77,10 +77,11 @@ otomatis mengerti bearer).
 Wajib: tampilkan indikator jelas di app bahwa pelacakan aktif, dan hanya selama
 status hadir (sesuai aturan server).
 
-## Push Notification (opsional, fase lanjut)
+## Push Notification
 
-Ide: pengingat absen masuk/pulang sesuai jam shift role user. Perlu penambahan
-server: simpan FCM/APNs token per user + cron pengirim — belum tersedia di backend saat ini.
+**Sudah dibangun** (Android, sejak app 1.10.0) — lihat [08 — Aplikasi Mobile §10](08-mobile-app.md) dan bagian Push Notification di [02 — Referensi API](02-api.md). Jalurnya Expo Push Service, bukan FCM langsung: server menyimpan Expo push token per perangkat, service account FCM ada di EAS.
+
+Pemicunya baru kejadian yang menunggu keputusan administrator (pengajuan izin/cuti, tukar shift yang naik ke meja admin). **Belum ada** penjadwal pengingat absen masuk/pulang — itu perlu worker terjadwal yang membaca jadwal shift, belum dibangun.
 
 ## Checklist Kesiapan Backend (sudah ✅)
 
@@ -89,4 +90,4 @@ server: simpan FCM/APNs token per user + cron pengirim — belum tersedia di bac
 - [x] Endpoint tracking dengan guard status hadir
 - [x] Foto via base64 (tanpa kebutuhan multipart)
 - [ ] Plugin `bearer` diaktifkan (1 baris, saat mulai develop mobile)
-- [ ] (Opsional) Push notification infrastructure
+- [x] Push notification infrastructure (Expo Push + tabel `push_tokens`)

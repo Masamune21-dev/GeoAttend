@@ -13,6 +13,8 @@ import { StockScreen } from './src/screens/StockScreen';
 import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ScheduleScreen } from './src/screens/ScheduleScreen';
 import { LeavesScreen } from './src/screens/LeavesScreen';
+import { ApprovalsScreen } from './src/screens/ApprovalsScreen';
+import { useNotificationRouting } from './src/push/routing';
 import { TabBar } from './src/components/TabBar';
 import { AppAlertHost } from './src/components/AppAlert';
 import { colors } from './src/theme';
@@ -40,6 +42,11 @@ function Tabs() {
 function Root() {
   const { user, initializing } = useSession();
 
+  // Hook harus dipanggil tanpa syarat (aturan hooks); penjagaannya lewat
+  // argumen — routing baru aktif setelah ada sesi, karena tujuannya layar
+  // yang butuh login.
+  useNotificationRouting(Boolean(user));
+
   if (initializing) {
     return (
       <View style={{ flex: 1, alignItems: 'center', justifyContent: 'center', backgroundColor: colors.background }}>
@@ -55,6 +62,7 @@ function Root() {
       <Stack.Screen name="Tabs" component={Tabs} />
       <Stack.Screen name="Jadwal" component={ScheduleScreen} />
       <Stack.Screen name="Izin" component={LeavesScreen} />
+      <Stack.Screen name="Persetujuan" component={ApprovalsScreen} />
     </Stack.Navigator>
   );
 }

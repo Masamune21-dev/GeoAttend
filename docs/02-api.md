@@ -306,3 +306,18 @@ Perhentian dideteksi dari data penuh (radius 100 m, minimal 10 menit); penipisan
 | GET | `/api/health` | Publik | `{status:"ok", db:"connected"}` — untuk uptime monitor |
 
 Proteksi path traversal aktif di endpoint uploads (path di-resolve dan wajib berada di dalam `UPLOAD_DIR`).
+
+## Push Notification
+
+| Method | Path | Auth | Keterangan |
+| :--- | :--- | :--- | :--- |
+| POST | `/api/push/register` | Login | Body `{token, platform:'android'\|'ios', appVersion?}`. Upsert — aman dipanggil tiap app dibuka |
+| DELETE | `/api/push/register` | Login | Token dari query `?token=` **atau** body. Hanya menghapus token milik pemanggil |
+
+`token` wajib berbentuk Expo push token (`ExponentPushToken[...]`); selain itu ditolak `400 VALIDATION_ERROR`.
+
+Konflik di-resolve pada kolom `token`, bukan pasangan `(user, token)`. Satu HP yang berganti pemilik akan menimpa `user_id` lama sehingga notifikasi ikut pindah — kalau tidak, HP itu terus menerima notifikasi karyawan sebelumnya.
+
+Pengiriman memakai **Expo Push Service** ([`src/lib/push`](../src/lib/push/index.ts)), bukan FCM langsung: service account key tersimpan di EAS dan Expo yang bicara ke FCM atas nama aplikasi, jadi server tidak menyimpan kredensial Google sama sekali. Token yang dijawab `DeviceNotRegistered` dihapus otomatis.
+
+Semua pemanggilan dari route lain bersifat **fire-and-forget** (`dispatchPush`) dan tidak pernah melempar — Expo yang lambat atau mati tidak boleh membatalkan pengajuan yang sedang disimpan.

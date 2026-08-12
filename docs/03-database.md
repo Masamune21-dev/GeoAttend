@@ -157,6 +157,28 @@ Untuk pengembangan, jejak sintetis bisa dibangkitkan tanpa berkendara:
 npm run db:seed-trail -- --email budi@contoh.com --date 2026-07-29
 ```
 
+### push_tokens
+| Kolom | Tipe | Keterangan |
+| :--- | :--- | :--- |
+| token | text **PK** | Expo push token (`ExponentPushToken[...]`) |
+| user_id | text FK→users (cascade) | Pemilik perangkat saat ini |
+| platform | varchar(10) | `android` \| `ios` |
+| app_version | varchar(20) null | Versi app pendaftar — pelacak HP yang belum di-update |
+| created_at | timestamp | |
+| last_seen_at | timestamp | Disegarkan tiap app mendaftarkan ulang token |
+
+Index: `push_tokens_user_idx` (`user_id`) — dipakai saat mengumpulkan perangkat penerima.
+
+**Token yang jadi primary key, bukan pasangan `(user_id, token)`.** Token Expo
+melekat ke instalasi aplikasi, bukan akun: satu HP yang berganti pemilik
+(karyawan logout, rekannya login) tetap memakai token yang sama. Dengan token
+sebagai PK, registrasi ulang cukup meng-upsert `user_id` sehingga notifikasi
+ikut pindah pemilik. Kalau PK-nya gabungan, HP itu akan menerima notifikasi
+milik dua orang sekaligus.
+
+Baris dihapus saat logout, dan otomatis saat Expo menjawab `DeviceNotRegistered`
+(aplikasi di-uninstall / token dicabut).
+
 ## Alur Migrasi
 
 ```bash

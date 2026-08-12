@@ -13,6 +13,7 @@ import { StatusBar } from 'expo-status-bar';
 import {
   ArrowLeftRight,
   CalendarCheck,
+  ClipboardCheck,
   Clock,
   FileText,
   LogOut,
@@ -40,6 +41,7 @@ import {
   Card,
   IconTile,
   PersonChip,
+  PressableCard,
   SectionHeader,
   type IconType,
 } from '../components/ui';
@@ -74,8 +76,11 @@ export function DashboardScreen() {
   const [records, setRecords] = useState<AttendanceRecordResponse[]>([]);
   const [roster, setRoster] = useState<DayRosterResponse | null>(null);
   const [piket, setPiket] = useState<PiketResponse['assignments']>([]);
+  const [pendingApprovals, setPendingApprovals] = useState(0);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
+
+  const isAdministrator = user?.role === 'administrator';
 
   // Jam dinding di header — cukup diperbarui tiap 20 detik.
   useEffect(() => {
@@ -101,7 +106,17 @@ export function DashboardScreen() {
     setRecords(recentRes.data);
     setRoster(rosterRes);
     setPiket(piketRes.assignments);
-  }, []);
+
+    // Hanya administrator yang boleh melihat antrean ini — karyawan lain akan
+    // menerima 403 / daftar miliknya sendiri, jadi jangan diminta sama sekali.
+    if (isAdministrator) {
+      const [leaveRes, swapRes] = await Promise.all([
+        api<{ data: unknown[] }>('/api/leaves?status=pending').catch(() => ({ data: [] })),
+        api<{ data: unknown[] }>('/api/swaps?status=pending_admin').catch(() => ({ data: [] })),
+      ]);
+      setPendingApprovals(leaveRes.data.length + swapRes.data.length);
+    }
+  }, [isAdministrator]);
 
   useEffect(() => {
     loadData()
@@ -247,6 +262,32 @@ export function DashboardScreen() {
         </View>
 
         <View style={{ padding: spacing.xl, gap: spacing.xxl }}>
+          {/* Antrean persetujuan — hanya pengelola sistem. Sengaja kartu
+              tersendiri, bukan ikon kelima di baris aksi cepat: baris itu
+              berjajar tanpa wrap dengan lebar tetap 72, jadi ikon kelima
+              meluber di layar sempit. Kartu juga bisa menampilkan jumlahnya. */}
+          {isAdministrator && (
+            <PressableCard
+              onPress={() => navigation.navigate('Persetujuan')}
+              style={styles.approvalCard}
+            >
+              <IconTile
+                icon={ClipboardCheck}
+                tone={pendingApprovals > 0 ? 'warning' : 'primary'}
+                size={44}
+              />
+              <View style={{ flex: 1, minWidth: 0, gap: 2 }}>
+                <Text style={styles.approvalTitle}>Persetujuan</Text>
+                <Text style={styles.approvalHint} numberOfLines={1}>
+                  {pendingApprovals > 0
+                    ? `${pendingApprovals} pengajuan menunggu keputusan`
+                    : 'Tidak ada yang menunggu'}
+                </Text>
+              </View>
+              {pendingApprovals > 0 && <Badge text={String(pendingApprovals)} tone="warning" />}
+            </PressableCard>
+          )}
+
           {/* Aksi cepat */}
           <View style={styles.quickRow}>
             {quickActions.map((action) => (
@@ -399,6 +440,10 @@ const styles = StyleSheet.create({
   },
   heroCtaText: { fontSize: 16, fontWeight: '700', color: colors.primary },
   heroHint: { fontSize: 12, color: colors.onPrimarySubtle, textAlign: 'center' },
+
+  approvalCard: { flexDirection: 'row', alignItems: 'center', gap: spacing.md },
+  approvalTitle: { fontSize: 14, fontWeight: '700', color: colors.textPrimary },
+  approvalHint: { fontSize: 12, color: colors.textSecondary },
 
   quickRow: { flexDirection: 'row', justifyContent: 'space-between' },
   quickItem: { alignItems: 'center', gap: 6, width: 72 },

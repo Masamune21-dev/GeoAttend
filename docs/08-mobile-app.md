@@ -75,9 +75,13 @@ mobile/
     │   ├── CheckInScreen.tsx   # Absen: status lokasi + kamera + kirim
     │   ├── ScheduleScreen.tsx  # Jadwal shift, tukar shift, piket
     │   ├── LeavesScreen.tsx    # Izin & libur
+    │   ├── ApprovalsScreen.tsx # Persetujuan izin & tukar shift (administrator)
     │   ├── HistoryScreen.tsx   # Riwayat absensi & stok
     │   ├── StockScreen.tsx     # Katalog stok + catat masuk/keluar
     │   └── ProfileScreen.tsx   # Profil, foto, rekap PDF, keluar
+    ├── push/
+    │   ├── registration.ts    # Izin, ambil Expo push token, daftar/cabut ke server
+    │   └── routing.ts         # Handler foreground + buka layar saat notif disentuh
     ├── theme.ts                # Token warna/spacing/radius (selaras DESIGN.md)
     └── tracking/
         └── locationTask.ts     # Task background pelacakan posisi + start/stop
@@ -89,16 +93,18 @@ mobile/
 
 ### 4.1 `app.json` (Expo)
 
-- **Identitas:** `name` GeoAttend, `version` 1.3.0, paket Android & bundle iOS
-  `net.kusumavision.geoattend`.
+- **Identitas:** `name` GeoAttend, paket Android & bundle iOS
+  `net.kusumavision.geoattend`. Versi saat ini **1.10.0**.
 - **Izin Android:** `CAMERA`, `ACCESS_COARSE/FINE/BACKGROUND_LOCATION`,
   `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`, `RECEIVE_BOOT_COMPLETED`,
   `WAKE_LOCK`, `POST_NOTIFICATIONS`.
 - **Plugin:** `expo-secure-store`, `expo-camera`, `expo-location`
   (`isAndroidBackgroundLocationEnabled: true`, foreground service aktif),
   `expo-image-picker`, `expo-build-properties` (ProGuard + shrink resources di
-  rilis).
+  rilis), `expo-notifications` (ikon monokrom + warna merek).
 - **EAS projectId** dan `owner: masamune21s-team` untuk build cloud.
+- **`googleServicesFile`** menunjuk ke `./google-services.json` (wajib ada saat
+  build, lihat §10).
 
 ### 4.2 `eas.json` (profil build)
 
@@ -180,6 +186,13 @@ dibatalkan) — hanya diperlukan bila server bukan default.
 | **Izin** ([LeavesScreen](../mobile/src/screens/LeavesScreen.tsx)) | Tandai libur hari ini (disembunyikan bila jadwal hari itu sudah Libur — otomatis masuk rekap), ajukan sakit/izin/cuti, batalkan pengajuan | `GET /api/leaves?userId=self`, `GET /api/schedules?userId=self`, `POST /api/leaves`, `DELETE /api/leaves/:id` |
 | **Riwayat** ([HistoryScreen](../mobile/src/screens/HistoryScreen.tsx)) | Daftar absensi (masuk/pulang, jarak, dalam/luar area, catatan) | `GET /api/attendance?userId=self&limit=100` |
 | **Profil** ([ProfileScreen](../mobile/src/screens/ProfileScreen.tsx)) | Foto avatar & sampul, **ubah nama**, **ganti kata sandi**, info server/versi, keluar | `POST /api/profile/avatar`, `POST /api/profile/cover`, `POST /api/auth/update-user`, `POST /api/auth/change-password`, `POST /api/auth/sign-out` |
+| **Persetujuan** ([ApprovalsScreen](../mobile/src/screens/ApprovalsScreen.tsx)) — *administrator saja* | Antrean pengajuan yang menunggu keputusan: izin/cuti dan tukar shift. Setujui/tolak dengan catatan (wajib saat menolak) | `GET /api/leaves?status=pending`, `PATCH /api/leaves/:id`, `GET /api/swaps?status=pending_admin`, `PATCH /api/swaps/:id` |
+
+Layar **Persetujuan** dibuka dari kartu di Dashboard yang hanya dirender bila
+`user.role === 'administrator'` (lengkap dengan jumlah antrean), dan dari
+notifikasi push yang disentuh. Sengaja **bukan** tab keenam: tab bar memakai
+lima slot dengan tombol "Absen" mengambang di tengah, dan jumlah slot ganjil
+itulah yang menjaga tombolnya tetap simetris.
 
 ---
 
@@ -237,7 +250,52 @@ menyala terus walau pengguna di tab lain. Cadence 10 dtk.
 
 ---
 
-## 10. Tema & Komponen UI
+## 10. Push Notification — [`src/push/`](../mobile/src/push/)
+
+### 10.1 Jalur pengiriman
+
+Server → **Expo Push Service** → FCM → perangkat. Server tidak menyimpan
+kredensial Google: service account key FCM V1 tersimpan di **EAS**, dan Expo
+yang bicara ke FCM atas nama aplikasi. Yang ada di repo hanya
+[`google-services.json`](../mobile/google-services.json) — konfigurasi klien
+yang memang ikut dibundel ke dalam APK, bukan rahasia.
+
+### 10.2 Registrasi token — [`registration.ts`](../mobile/src/push/registration.ts)
+
+- `registerPushToken()` dipanggil dari `refresh()` di
+  [`session.tsx`](../mobile/src/auth/session.tsx) — jadi tiap app dibuka dan
+  tiap sesi disegarkan, **bukan** sekali saat login. Expo bisa mengganti token
+  kapan saja (pemulihan backup, clear data, reinstall); endpoint servernya
+  upsert sehingga aman dipanggil berulang.
+- Izin hanya diminta bila belum pernah diputuskan. Android tidak menampilkan
+  dialog kedua kali setelah ditolak, jadi memanggil ulang hanya menghasilkan
+  penolakan diam-diam — pengguna yang berubah pikiran mengaturnya dari setelan
+  sistem, dan registrasi lolos pada pembukaan berikutnya.
+- Channel Android `default` dibuat lebih dulu. Server mengirim
+  `channelId: 'default'`; tanpa channel itu Android memakai channel cadangan
+  tanpa suara yang tidak bisa diatur pengguna.
+- Emulator dilewati (`Device.isDevice`) — tidak ada jalur FCM di sana.
+- `unregisterPushToken()` dipanggil saat logout, **sebelum** token sesi dihapus
+  (endpoint pencabutan butuh autentikasi). Tanpa ini HP terus menerima
+  notifikasi milik pengguna sebelumnya.
+- Sama seperti `startTracking()`, tidak ada fungsi di sini yang melempar: HP
+  yang menolak izin tetap harus bisa dipakai absen seperti biasa.
+
+### 10.3 Notifikasi disentuh — [`routing.ts`](../mobile/src/push/routing.ts)
+
+- `setNotificationHandler` memaksa notifikasi tetap tampil saat app di
+  foreground — kalau tidak, administrator yang kebetulan sedang membuka app
+  justru melewatkan pengajuan yang baru masuk.
+- `useNotificationRouting()` menangani **dua jalur**: app yang sudah berjalan
+  (listener) dan app yang baru dinyalakan oleh sentuhan notifikasi
+  (`getLastNotificationResponseAsync`). Jalur kedua yang paling sering terlewat,
+  padahal justru itu yang biasa dilakukan pengguna.
+- Pemetaan tujuan dari `data.kind` yang dikirim server: `leave_request` → tab
+  Izin, `shift_swap` → tab Tukar Shift, keduanya di layar **Persetujuan**.
+
+---
+
+## 11. Tema & Komponen UI
 
 - [`theme.ts`](../mobile/src/theme.ts): token `colors`/`spacing`/`radius` yang
   selaras dengan web (Tailwind slate + blue) — lihat [DESIGN.md](../DESIGN.md).
@@ -298,7 +356,7 @@ sehingga `adjustResize` tak berefek:
 
 ---
 
-## 11. Build & Rilis (EAS)
+## 12. Build & Rilis (EAS)
 
 Server produksi (web) dideploy terpisah — lihat [05 — Deployment](05-deployment.md).
 Bagian ini khusus APK.
@@ -340,12 +398,13 @@ npx eas-cli build:view <BUILD_ID>
 
 ---
 
-## 12. Batasan yang Diketahui
+## 13. Batasan yang Diketahui
 
 - **Input tanggal** (izin & tukar shift) masih manual `YYYY-MM-DD`, belum date
   picker native.
 - **Ubah email** tetap hanya lewat administrator (nama & kata sandi kini bisa dari
   profil mobile).
-- **Push notification** (pengingat absen) belum ada — perlu infrastruktur FCM di
-  server.
-- **iOS** belum dibangun (lihat §11).
+- **Pengingat absen terjadwal** belum ada. Push notification sudah jalan (§10),
+  tapi baru untuk kejadian yang butuh keputusan administrator — belum ada
+  penjadwal yang mengingatkan karyawan absen masuk/pulang.
+- **iOS** belum dibangun (lihat §12).

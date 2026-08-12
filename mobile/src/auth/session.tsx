@@ -16,6 +16,7 @@ import {
 } from '../api/client';
 import type { SessionUser } from '../api/types';
 import { stopTracking } from '../tracking/locationTask';
+import { registerPushToken, unregisterPushToken } from '../push/registration';
 
 export interface SignUpInput {
   name: string;
@@ -54,6 +55,9 @@ export function SessionProvider({ children }: { children: ReactNode }) {
       const data = await api<GetSessionResponse | null>('/api/auth/get-session');
       setUser(data?.user ?? null);
       if (!data?.user) await setToken(null);
+      // Tanpa await: token push tidak boleh menahan tampilnya layar utama.
+      // Aman dipanggil berulang — endpoint server bersifat upsert.
+      else void registerPushToken();
     } catch (err) {
       // Token kedaluwarsa/dicabut → paksa login ulang; error jaringan → biarkan
       if (err instanceof ApiRequestError && err.status === 401) {
@@ -130,6 +134,10 @@ export function SessionProvider({ children }: { children: ReactNode }) {
 
   const signOut = useCallback(async () => {
     await stopTracking().catch(() => undefined);
+    // Dicabut SEBELUM token sesi dihapus — endpoint pencabutan butuh
+    // autentikasi. Kalau dilewati, HP ini terus menerima notifikasi milik
+    // pengguna yang baru saja keluar.
+    await unregisterPushToken();
     await api('/api/auth/sign-out', { method: 'POST', body: '{}' }).catch(() => undefined);
     await setToken(null);
     setUser(null);

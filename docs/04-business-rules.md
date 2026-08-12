@@ -223,6 +223,17 @@ menampilkan berapa kali dipanggil.
 - Titik yang ditandai `is_mocked` (aplikasi fake GPS terdeteksi di Android) diberi peringatan di dialog
 - **Retensi 90 hari**, lalu dihapus otomatis. Jejak tidak ikut backup dan tidak pernah muncul di ekspor CSV/PDF rekap
 
+## Notifikasi Push
+
+- Ditujukan ke **administrator** (pengelola sistem), untuk hal yang menunggu keputusannya. Bukan ke role kerja `admin`
+- Dua pemicu saat ini:
+  - **Pengajuan izin/cuti baru** — kecuali penanda `libur` yang langsung `approved` (self-service), karena tidak ada yang perlu diputuskan
+  - **Tukar shift/libur yang naik ke `pending_admin`** — yaitu setelah rekan tujuan menyetujui, **bukan** saat pengajuan dibuat. Selama masih `pending_peer`, rekan bisa menolak duluan dan pengajuan itu tidak pernah sampai ke meja administrator
+- Administrator yang mengajukan sesuatu untuk dirinya sendiri tidak menerima notifikasi atas aksinya sendiri
+- Notifikasi bersifat **pelengkap, bukan bagian dari transaksi**: kegagalan pengiriman dicatat di log dan diabaikan, pengajuannya tetap tersimpan
+- Isi kalimat dirakit di **server** ([`src/lib/push/events.ts`](../src/lib/push/events.ts)), bukan di aplikasi — app mobile tidak punya OTA, jadi teks yang ditentukan di sisi klien baru berubah setelah karyawan memasang APK baru
+- Notifikasi yang disentuh membuka layar **Persetujuan** di aplikasi, langsung pada tab yang sesuai (`data.kind`)
+
 ## Privasi & Keamanan Data
 
 - Foto absensi/avatar hanya bisa diakses pengguna login (endpoint terautentikasi)
