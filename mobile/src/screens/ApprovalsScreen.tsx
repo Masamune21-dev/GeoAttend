@@ -19,12 +19,12 @@ import {
 } from '../components/ui';
 import { appAlert } from '../components/AppAlert';
 import { colors, radius, spacing } from '../theme';
-import type { RootStackParamList } from '../navigation';
+import type { AdminTabParamList } from '../navigation';
 
 /**
  * Pusat persetujuan administrator: satu tempat untuk semua yang menunggu
- * keputusan. Dibuka dari kartu Dashboard yang hanya tampil bagi role
- * `administrator`, dan dari notifikasi push yang disentuh.
+ * keputusan. Salah satu tab di kerangka administrator, juga dituju oleh kartu
+ * ringkasan di Dashboard dan oleh notifikasi push yang disentuh.
  *
  * Tidak memakai endpoint baru — persis endpoint yang sudah dipakai web.
  */
@@ -58,7 +58,7 @@ function formatRange(startDate: string, endDate: string): string {
 
 export function ApprovalsScreen() {
   const navigation = useNavigation();
-  const route = useRoute<RouteProp<RootStackParamList, 'Persetujuan'>>();
+  const route = useRoute<RouteProp<AdminTabParamList, 'Persetujuan'>>();
   const insets = useSafeAreaInsets();
   const { user } = useSession();
 
@@ -152,11 +152,13 @@ export function ApprovalsScreen() {
         <ScreenHeader
           title="Persetujuan"
           left={
-            <HeaderIconButton
-              icon={ChevronLeft}
-              onPress={() => navigation.goBack()}
-              accessibilityLabel="Kembali"
-            />
+            navigation.canGoBack() ? (
+              <HeaderIconButton
+                icon={ChevronLeft}
+                onPress={() => navigation.goBack()}
+                accessibilityLabel="Kembali"
+              />
+            ) : undefined
           }
         />
         <View style={{ padding: spacing.xl }}>
@@ -178,11 +180,15 @@ export function ApprovalsScreen() {
         title="Persetujuan"
         subtitle="Pengajuan yang menunggu keputusan Anda"
         left={
-          <HeaderIconButton
-            icon={ChevronLeft}
-            onPress={() => navigation.goBack()}
-            accessibilityLabel="Kembali"
-          />
+          // Sebagai TAB layar ini tidak punya tujuan kembali — tombolnya hanya
+          // digambar saat benar-benar dibuka bertumpuk di atas layar lain.
+          navigation.canGoBack() ? (
+            <HeaderIconButton
+              icon={ChevronLeft}
+              onPress={() => navigation.goBack()}
+              accessibilityLabel="Kembali"
+            />
+          ) : undefined
         }
       />
 

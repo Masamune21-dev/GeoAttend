@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useRef } from 'react';
 import * as Notifications from 'expo-notifications';
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
@@ -34,36 +34,30 @@ function destinationOf(data: unknown): { tab: 'izin' | 'tukar' } | null {
 /**
  * Buka layar yang tepat saat notifikasi disentuh.
  *
- * Menangani dua jalur sekaligus: app yang sudah berjalan (listener) dan app
- * yang baru dinyalakan oleh sentuhan notifikasi itu sendiri
- * (`getLastNotificationResponseAsync`) — jalur kedua ini yang paling sering
- * terlewat, padahal justru itu yang biasa dilakukan pengguna.
+ * `useLastNotificationResponse` menangani dua jalur sekaligus: app yang sudah
+ * berjalan, dan app yang baru dinyalakan oleh sentuhan notifikasi itu sendiri.
+ * Jalur kedua yang paling sering terlewat kalau hanya memasang listener,
+ * padahal justru itu yang biasa dilakukan pengguna.
+ *
+ * Hook itu mengembalikan respons yang **sama** pada tiap render selama belum
+ * ada notifikasi baru, jadi identifier yang sudah ditangani harus diingat —
+ * tanpa itu navigasi terpicu ulang setiap kali komponen dirender.
  */
 export function useNotificationRouting(enabled: boolean): void {
   const navigation = useNavigation<Nav>();
+  const response = Notifications.useLastNotificationResponse();
+  const handledId = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!enabled) return;
+    if (!enabled || !response) return;
 
-    const go = (data: unknown) => {
-      const target = destinationOf(data);
-      if (target) navigation.navigate('Persetujuan', target);
-    };
+    const id = response.notification.request.identifier;
+    if (handledId.current === id) return;
+    handledId.current = id;
 
-    let cancelled = false;
-    Notifications.getLastNotificationResponseAsync()
-      .then((response) => {
-        if (!cancelled && response) go(response.notification.request.content.data);
-      })
-      .catch(() => undefined);
-
-    const subscription = Notifications.addNotificationResponseReceivedListener((response) => {
-      go(response.notification.request.content.data);
-    });
-
-    return () => {
-      cancelled = true;
-      subscription.remove();
-    };
-  }, [enabled, navigation]);
+    const target = destinationOf(response.notification.request.content.data);
+    // Persetujuan adalah TAB di kerangka administrator, bukan layar stack —
+    // jadi tujuannya harus disebut bersarang, tidak cukup nama rutenya saja.
+    if (target) navigation.navigate('AdminTabs', { screen: 'Persetujuan', params: target });
+  }, [enabled, response, navigation]);
 }

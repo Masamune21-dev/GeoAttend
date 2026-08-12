@@ -6,7 +6,7 @@ import {
   BottomTabBarHeightContext,
   type BottomTabBarProps,
 } from '@react-navigation/bottom-tabs';
-import { Grid2x2, History, MapPin, Package, UserRound } from 'lucide-react-native';
+import { ClipboardCheck, Grid2x2, History, Map, MapPin, Package, UserRound } from 'lucide-react-native';
 import { colors, radius, shadow, spacing } from '../theme';
 import type { IconType } from './ui';
 
@@ -16,6 +16,9 @@ const ICONS: Record<string, IconType> = {
   Absen: MapPin,
   Stok: Package,
   Profil: UserRound,
+  // Tab administrator
+  Persetujuan: ClipboardCheck,
+  Peta: Map,
 };
 
 const LABELS: Record<string, string> = {
@@ -24,6 +27,8 @@ const LABELS: Record<string, string> = {
   Absen: 'Absen',
   Stok: 'Stok',
   Profil: 'Profil',
+  Persetujuan: 'Persetujuan',
+  Peta: 'Peta Tim',
 };
 
 /** Nama rute yang tampil sebagai tombol bundar mengambang di tengah. */
@@ -53,7 +58,15 @@ export function useTabBarSpace(): number {
   return useContext(BottomTabBarHeightContext) ?? 0;
 }
 
-/** Tab bar kustom: lima tab dengan tombol Absen diangkat di tengah. */
+/**
+ * Tab bar kustom. Dipakai dua kerangka sekaligus:
+ *
+ * - **Karyawan** — ada rute `Absen`, digambar sebagai tombol bundar mengambang
+ *   di tengah, dan bar diberi ruang tembus pandang setinggi OVERHANG di atasnya.
+ * - **Administrator** — tanpa rute `Absen`, jadi tombol mengambang tidak
+ *   digambar DAN ruang OVERHANG-nya ikut ditiadakan; kalau tidak, akan ada
+ *   celah kosong ±34dp yang memakan tampilan tanpa alasan.
+ */
 export function TabBar({ state, navigation }: BottomTabBarProps) {
   const insets = useSafeAreaInsets();
   // Tinggi bar putih dilaporkan ke navigator supaya layar bisa memakainya
@@ -70,7 +83,7 @@ export function TabBar({ state, navigation }: BottomTabBarProps) {
   };
 
   return (
-    <View style={styles.wrap} pointerEvents="box-none">
+    <View style={[styles.wrap, centerIndex < 0 && { paddingTop: 0 }]} pointerEvents="box-none">
       <View
         style={[styles.bar, { paddingBottom: Math.max(insets.bottom, spacing.md) }]}
         onLayout={(e) => reportHeight?.(e.nativeEvent.layout.height)}

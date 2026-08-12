@@ -120,11 +120,15 @@ export function TeamMapScreen() {
             : `${liveCount} dari ${rows.length} sedang live · segar tiap 15 detik`
         }
         left={
-          <HeaderIconButton
-            icon={ChevronLeft}
-            onPress={() => navigation.goBack()}
-            accessibilityLabel="Kembali"
-          />
+          // Sebagai TAB layar ini tidak punya tujuan kembali — tombolnya hanya
+          // digambar saat benar-benar dibuka bertumpuk di atas layar lain.
+          navigation.canGoBack() ? (
+            <HeaderIconButton
+              icon={ChevronLeft}
+              onPress={() => navigation.goBack()}
+              accessibilityLabel="Kembali"
+            />
+          ) : undefined
         }
       />
 

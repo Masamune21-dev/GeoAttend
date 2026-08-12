@@ -1,6 +1,19 @@
 import type { NavigatorScreenParams } from '@react-navigation/native';
 
-/** Tab utama (bar bawah dengan tombol Absen di tengah). */
+/**
+ * Aplikasi punya DUA kerangka yang terpisah penuh, dipilih dari role saat login:
+ *
+ * - **Karyawan** — absen, jadwal, izin, riwayat. Kerangka aslinya.
+ * - **Administrator** — panel pengelolaan saja. Administrator tidak pernah
+ *   absen, tidak punya shift, dan tidak mengajukan izin; menampilkan menu itu
+ *   kepadanya hanya jadi kebisingan.
+ *
+ * Keduanya sengaja dipisah di level navigator, bukan disembunyikan satu per
+ * satu di dalam layar: tab bar, isi beranda, dan daftar rute semuanya berbeda,
+ * dan percabangan tersebar di banyak layar jauh lebih mudah bocor.
+ */
+
+/** Tab karyawan — "Absen" di tengah, digambar sebagai tombol bundar mengambang. */
 export type TabParamList = {
   Dashboard: undefined;
   Riwayat: undefined;
@@ -9,21 +22,23 @@ export type TabParamList = {
   Profil: undefined;
 };
 
-/**
- * Layar penuh di atas tab. Jadwal & Izin tidak lagi menempati slot tab —
- * keduanya dibuka dari kartu aksi cepat di Dashboard.
- *
- * `Persetujuan` sengaja tidak jadi tab keenam: tab bar memakai lima slot dengan
- * tombol "Absen" mengambang di tengah, dan slot ganjil itulah yang menjaga
- * tombolnya tetap simetris.
- */
+/** Tab administrator — rata semua, tanpa tombol mengambang. */
+export type AdminTabParamList = {
+  Dashboard: undefined;
+  Persetujuan: { tab?: 'izin' | 'tukar' } | undefined;
+  Peta: undefined;
+  Stok: undefined;
+  Profil: undefined;
+};
+
 export type RootStackParamList = {
+  /** Kerangka karyawan. */
   Tabs: NavigatorScreenParams<TabParamList> | undefined;
   Jadwal: { openSwap?: boolean } | undefined;
   Izin: { openForm?: boolean } | undefined;
-  Persetujuan: { tab?: 'izin' | 'tukar' } | undefined;
-  /** Panel administrator — dibuka dari daftar menu di Profil. */
-  PetaTim: undefined;
+
+  /** Kerangka administrator. */
+  AdminTabs: NavigatorScreenParams<AdminTabParamList> | undefined;
   KelolaKaryawan: undefined;
 };
 

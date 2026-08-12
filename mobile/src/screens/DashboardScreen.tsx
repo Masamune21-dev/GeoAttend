@@ -240,25 +240,31 @@ export function DashboardScreen() {
             {formatClock(now)} WIB · {formatLongDate(now)}
           </Text>
 
-          <Pressable
-            onPress={goAbsen}
-            style={({ pressed }) => [styles.heroCta, shadow.raised, pressed && { opacity: 0.9 }]}
-          >
-            {session.nextType === 'clock_in' ? (
-              <MapPin size={20} color={colors.primary} strokeWidth={2.2} />
-            ) : (
-              <LogOut size={20} color={colors.primary} strokeWidth={2.2} />
-            )}
-            <Text style={styles.heroCtaText}>{ctaLabel}</Text>
-          </Pressable>
+          {/* Tombol absen & jadwal pribadi tidak berlaku bagi administrator:
+              dia tidak punya shift dan tidak pernah absen. */}
+          {!isAdministrator && (
+            <>
+              <Pressable
+                onPress={goAbsen}
+                style={({ pressed }) => [styles.heroCta, shadow.raised, pressed && { opacity: 0.9 }]}
+              >
+                {session.nextType === 'clock_in' ? (
+                  <MapPin size={20} color={colors.primary} strokeWidth={2.2} />
+                ) : (
+                  <LogOut size={20} color={colors.primary} strokeWidth={2.2} />
+                )}
+                <Text style={styles.heroCtaText}>{ctaLabel}</Text>
+              </Pressable>
 
-          {myShift ? (
-            <Text style={styles.heroHint}>
-              {myShift === 'libur'
-                ? 'Jadwal hari ini: Libur — tidak perlu menandai apa pun.'
-                : `Jadwal hari ini: Shift ${myShift}`}
-            </Text>
-          ) : null}
+              {myShift ? (
+                <Text style={styles.heroHint}>
+                  {myShift === 'libur'
+                    ? 'Jadwal hari ini: Libur — tidak perlu menandai apa pun.'
+                    : `Jadwal hari ini: Shift ${myShift}`}
+                </Text>
+              ) : null}
+            </>
+          )}
         </View>
 
         <View style={{ padding: spacing.xl, gap: spacing.xxl }}>
@@ -268,7 +274,7 @@ export function DashboardScreen() {
               meluber di layar sempit. Kartu juga bisa menampilkan jumlahnya. */}
           {isAdministrator && (
             <PressableCard
-              onPress={() => navigation.navigate('Persetujuan')}
+              onPress={() => navigation.navigate('AdminTabs', { screen: 'Persetujuan' })}
               style={styles.approvalCard}
             >
               <IconTile
@@ -288,7 +294,9 @@ export function DashboardScreen() {
             </PressableCard>
           )}
 
-          {/* Aksi cepat */}
+          {/* Aksi cepat — semuanya urusan pribadi karyawan (jadwal, tukar
+              shift, izin, lembur), jadi tidak ditampilkan ke administrator. */}
+          {!isAdministrator && (
           <View style={styles.quickRow}>
             {quickActions.map((action) => (
               <Pressable
@@ -303,6 +311,7 @@ export function DashboardScreen() {
               </Pressable>
             ))}
           </View>
+          )}
 
           {/* Roster shift hari ini */}
           <View style={{ gap: spacing.md }}>

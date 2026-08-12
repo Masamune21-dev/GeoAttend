@@ -12,10 +12,23 @@ Backend tidak berubah: aplikasi mobile mengonsumsi REST API yang sama dengan web
 
 ## 1. Ringkasan
 
-Aplikasi native untuk karyawan: absen masuk/pulang dengan verifikasi lokasi +
-foto, pelacakan posisi background selama jam kerja, serta jadwal shift, tukar
-shift, piket, izin, dan riwayat. Semua fitur karyawan yang ada di web tersedia di
-mobile; fitur administrator tetap di web.
+Aplikasi punya **dua kerangka yang terpisah penuh**, dipilih dari role saat login:
+
+- **Karyawan** — absen masuk/pulang dengan verifikasi lokasi + foto, pelacakan
+  posisi background selama jam kerja, jadwal shift, tukar shift, piket, izin,
+  dan riwayat.
+- **Administrator** — panel pengelolaan saja: persetujuan, peta posisi tim,
+  kelola karyawan, stok. Tidak ada Absen, Riwayat, Jadwal, maupun Izin.
+  Administrator tidak pernah absen dan tidak punya shift, jadi menu itu selalu
+  kosong baginya.
+
+Pemisahannya di level **navigator**, bukan menu yang disembunyikan satu per satu
+di dalam layar: tab bar, isi beranda, dan daftar rute semuanya berbeda, dan
+percabangan yang tersebar di banyak layar jauh lebih mudah bocor. Rute yang tidak
+terdaftar tidak bisa dibuka sama sekali.
+
+Sebagian fitur administrator tetap hanya di web — grid jadwal bulanan, hapus akun,
+ganti kata sandi orang lain, backup/restore, dan setelan geofence.
 
 Alasan utama versi native (bukan sekadar web di HP): **pelacakan lokasi
 background**. Browser mematikan GPS saat layar mati/app di-background — native
@@ -132,10 +145,17 @@ index.ts
 App.tsx
   └─ SafeAreaProvider → SessionProvider → NavigationContainer → Root
        Root:
-         initializing → spinner
-         !user        → <AuthScreen/>            (belum login)
-         user         → <Tab.Navigator/>          Absen · Jadwal · Izin · Riwayat · Profil
+         initializing        → spinner
+         !user               → <AuthScreen/>     (belum login)
+         role administrator  → <AdminTabs/>      Dashboard · Persetujuan · Peta Tim · Stok · Profil
+                                + stack: KelolaKaryawan
+         role lain           → <Tabs/>           Dashboard · Riwayat · Absen · Stok · Profil
+                                + stack: Jadwal, Izin
 ```
+
+Tab bar administrator **tanpa tombol mengambang**: tombol bundar di tengah hanya
+digambar bila ada rute bernama `Absen`, dan ruang tembus pandang di atas bar
+(`OVERHANG`) ikut ditiadakan agar tidak menyisakan celah kosong.
 
 Penting: `locationTask.ts` **di-import di `index.ts`** agar
 `TaskManager.defineTask` terdaftar sebelum React dirender — kalau tidak, task
@@ -194,9 +214,17 @@ dibatalkan) — hanya diperlukan bila server bukan default.
 | **Peta Tim** ([TeamMapScreen](../mobile/src/screens/TeamMapScreen.tsx)) — *administrator saja* | Posisi karyawan yang sedang hadir di peta + daftar; ambang live 6 menit, polling 15 detik saat layar aktif | `GET /api/locations`, `GET /api/geofence` |
 | **Kelola Karyawan** ([ManageUsersScreen](../mobile/src/screens/ManageUsersScreen.tsx)) — *administrator saja* | Cari/filter akun, ubah role & tim jaga teknisi. Hapus akun & ganti sandi orang lain sengaja tetap di web | `GET /api/users`, `PATCH /api/users/:id` |
 
-Peta Tim & Kelola Karyawan dibuka dari daftar menu di **Profil** (hanya tampil
-bagi administrator) — perkakas yang dicari saat dibutuhkan, bukan informasi
-harian. Layar **Persetujuan** dibuka dari kartu di Dashboard yang hanya dirender bila
+**Persetujuan** dan **Peta Tim** adalah tab tersendiri di kerangka administrator.
+**Kelola Karyawan** dibuka dari daftar menu di Profil — jarang dipakai, jadi tidak
+perlu menempati slot tab. Dashboard administrator juga memuat kartu ringkasan
+antrean persetujuan (dengan jumlahnya) yang menuju tab yang sama.
+
+Isi Dashboard menyesuaikan role: tombol absen, jadwal pribadi, dan baris aksi
+cepat (Jadwal · Tukar Shift · Izin · Lembur) tidak dirender untuk administrator;
+roster shift hari ini dan piket tetap tampil karena itu informasi tim. Kartu rekap
+absensi pribadi di Profil juga disembunyikan — seluruh angkanya akan nol.
+
+Layar **Persetujuan** juga dituju dari kartu di Dashboard yang hanya dirender bila
 `user.role === 'administrator'` (lengkap dengan jumlah antrean), dan dari
 notifikasi push yang disentuh. Sengaja **bukan** tab keenam: tab bar memakai
 lima slot dengan tombol "Absen" mengambang di tengah, dan jumlah slot ganjil

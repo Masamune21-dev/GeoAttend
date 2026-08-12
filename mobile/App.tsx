@@ -16,13 +16,14 @@ import { LeavesScreen } from './src/screens/LeavesScreen';
 import { ApprovalsScreen } from './src/screens/ApprovalsScreen';
 import { TeamMapScreen } from './src/screens/TeamMapScreen';
 import { ManageUsersScreen } from './src/screens/ManageUsersScreen';
-import { useNotificationRouting } from './src/push/routing';
 import { TabBar } from './src/components/TabBar';
 import { AppAlertHost } from './src/components/AppAlert';
+import { useNotificationRouting } from './src/push/routing';
 import { colors } from './src/theme';
-import type { RootStackParamList, TabParamList } from './src/navigation';
+import type { AdminTabParamList, RootStackParamList, TabParamList } from './src/navigation';
 
 const Tab = createBottomTabNavigator<TabParamList>();
+const AdminTab = createBottomTabNavigator<AdminTabParamList>();
 const Stack = createNativeStackNavigator<RootStackParamList>();
 
 /**
@@ -41,13 +42,39 @@ function Tabs() {
   );
 }
 
+/**
+ * Kerangka administrator: panel pengelolaan saja.
+ *
+ * Tidak ada Absen maupun Riwayat — administrator tidak pernah absen, jadi
+ * keduanya selalu kosong dan hanya menyita slot. Karena rute "Absen" tidak ada,
+ * TabBar otomatis menggambar bar rata tanpa tombol mengambang.
+ *
+ * Stok tetap ada: administrator sistem juga pengelola inventaris (lihat
+ * `isStockManager` di web).
+ */
+function AdminTabs() {
+  return (
+    <AdminTab.Navigator
+      screenOptions={{ headerShown: false }}
+      tabBar={(props) => <TabBar {...props} />}
+    >
+      <AdminTab.Screen name="Dashboard" component={DashboardScreen} />
+      <AdminTab.Screen name="Persetujuan" component={ApprovalsScreen} />
+      <AdminTab.Screen name="Peta" component={TeamMapScreen} />
+      <AdminTab.Screen name="Stok" component={StockScreen} />
+      <AdminTab.Screen name="Profil" component={ProfileScreen} />
+    </AdminTab.Navigator>
+  );
+}
+
 function Root() {
   const { user, initializing } = useSession();
+  const isAdministrator = user?.role === 'administrator';
 
   // Hook harus dipanggil tanpa syarat (aturan hooks); penjagaannya lewat
-  // argumen — routing baru aktif setelah ada sesi, karena tujuannya layar
-  // yang butuh login.
-  useNotificationRouting(Boolean(user));
+  // argumen. Notifikasi ini hanya dikirim ke administrator, dan tujuannya ada
+  // di kerangka administrator — jadi routing hanya aktif di sana.
+  useNotificationRouting(isAdministrator);
 
   if (initializing) {
     return (
@@ -59,14 +86,23 @@ function Root() {
 
   if (!user) return <AuthScreen />;
 
+  // Dua kerangka terpisah, bukan satu kerangka dengan menu disembunyikan:
+  // rute yang tidak terdaftar tidak bisa dibuka sama sekali, sengaja maupun
+  // tidak sengaja.
+  if (isAdministrator) {
+    return (
+      <Stack.Navigator screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="AdminTabs" component={AdminTabs} />
+        <Stack.Screen name="KelolaKaryawan" component={ManageUsersScreen} />
+      </Stack.Navigator>
+    );
+  }
+
   return (
     <Stack.Navigator screenOptions={{ headerShown: false }}>
       <Stack.Screen name="Tabs" component={Tabs} />
       <Stack.Screen name="Jadwal" component={ScheduleScreen} />
       <Stack.Screen name="Izin" component={LeavesScreen} />
-      <Stack.Screen name="Persetujuan" component={ApprovalsScreen} />
-      <Stack.Screen name="PetaTim" component={TeamMapScreen} />
-      <Stack.Screen name="KelolaKaryawan" component={ManageUsersScreen} />
     </Stack.Navigator>
   );
 }

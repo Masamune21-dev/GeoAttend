@@ -25,7 +25,6 @@ import {
   ImagePlus,
   KeyRound,
   LogOut,
-  MapPin,
   Settings,
   UserRound,
   Users,
@@ -112,6 +111,7 @@ export function ProfileScreen() {
   const isFocused = useIsFocused();
   const navigation = useNavigation();
   const { user, signOut, refresh } = useSession();
+  const isAdministrator = user?.role === 'administrator';
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   /** Foto yang sedang dilihat besar; null = pratinjau tertutup. */
@@ -126,6 +126,8 @@ export function ProfileScreen() {
   const [exporting, setExporting] = useState(false);
 
   const loadSummary = useCallback(async () => {
+    // Administrator tidak absen — jangan tembak endpointnya sama sekali.
+    if (isAdministrator) return;
     try {
       setRecap(await api<RecapResponse>(`/api/reports/recap?month=${month}&userId=self`));
       setRecapError(false);
@@ -133,7 +135,7 @@ export function ProfileScreen() {
       // Server lama belum punya endpoint ini — kartu rekap disembunyikan saja.
       setRecapError(true);
     }
-  }, [month]);
+  }, [month, isAdministrator]);
 
   useEffect(() => {
     loadSummary().catch(() => undefined);
@@ -392,8 +394,10 @@ export function ProfileScreen() {
         </View>
 
         <View style={{ padding: spacing.xl, gap: spacing.lg }}>
-          {/* Rekap bulan berjalan */}
-          {!recapError && (
+          {/* Rekap bulan berjalan — rekap ABSENSI PRIBADI, jadi tidak berlaku
+              bagi administrator: dia tidak pernah absen sehingga seluruh
+              angkanya nol dan tombol unduhnya menghasilkan PDF kosong. */}
+          {!recapError && !isAdministrator && (
             <View style={{ gap: spacing.md }}>
               <SectionHeader title={`Rekap ${monthTitle(month)}`} icon={CalendarCheck} />
               <View style={{ flexDirection: 'row', gap: spacing.md }}>
@@ -452,24 +456,15 @@ export function ProfileScreen() {
             onPress={openSettings}
           />
 
-          {/* Panel administrator. Ditaruh di Profil, bukan Dashboard: ini
-              perkakas yang dicari saat dibutuhkan, bukan informasi harian.
-              Antrean Persetujuan tetap di Dashboard karena sifatnya mendesak. */}
+          {/* Persetujuan & Peta Tim sudah jadi tab tersendiri di kerangka
+              administrator; yang tersisa di sini hanya yang jarang dibuka. */}
           {user?.role === 'administrator' && (
-            <>
-              <MenuRow
-                icon={MapPin}
-                title="Peta Tim"
-                subtitle="Posisi karyawan yang sedang hadir"
-                onPress={() => navigation.navigate('PetaTim')}
-              />
-              <MenuRow
-                icon={Users}
-                title="Kelola Karyawan"
-                subtitle="Ubah role & tim jaga teknisi"
-                onPress={() => navigation.navigate('KelolaKaryawan')}
-              />
-            </>
+            <MenuRow
+              icon={Users}
+              title="Kelola Karyawan"
+              subtitle="Ubah role & tim jaga teknisi"
+              onPress={() => navigation.navigate('KelolaKaryawan')}
+            />
           )}
 
           <Card style={{ gap: spacing.md }}>
