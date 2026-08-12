@@ -71,10 +71,10 @@ function Root() {
   const { user, initializing } = useSession();
   const isAdministrator = user?.role === 'administrator';
 
-  // Hook harus dipanggil tanpa syarat (aturan hooks); penjagaannya lewat
-  // argumen. Notifikasi ini hanya dikirim ke administrator, dan tujuannya ada
-  // di kerangka administrator — jadi routing hanya aktif di sana.
-  useNotificationRouting(isAdministrator);
+  // Tujuan navigasi berbeda per kerangka, jadi role diteruskan apa adanya:
+  // administrator dibawa ke tab Persetujuan, karyawan ke layar Jadwal untuk
+  // menanggapi permintaan tukar dari rekan.
+  useNotificationRouting(user?.role);
 
   if (initializing) {
     return (

@@ -6,6 +6,7 @@ import { leaveRequests, scheduleEntries, shiftSwapRequests, user } from '@/lib/d
 import { getApiSession, isAdmin, unauthorizedResponse } from '@/lib/auth/utils';
 import { CreateSwapSchema, type SwapKind, type SwapRequestResponse, type SwapStatus } from '@/types/api';
 import { appToday } from '@/lib/time';
+import { notifyPeerSwapRequested } from '@/lib/push/events';
 
 export const dynamic = 'force-dynamic';
 
@@ -273,6 +274,20 @@ export async function POST(req: NextRequest) {
         reason: reason?.trim() || null,
       })
       .returning();
+
+    // Rekan tujuan, bukan administrator: selama status masih pending_peer,
+    // yang ditunggu adalah persetujuan rekan. Administrator baru diberi tahu
+    // setelah rekan setuju (lihat PATCH /api/swaps/[id]).
+    notifyPeerSwapRequested({
+      requesterName: session.user.name,
+      targetId: targetUserId,
+      kind: inserted[0].kind,
+      date: inserted[0].date,
+      targetDate: inserted[0].targetDate,
+      requesterShift: inserted[0].requesterShift,
+      targetShift: inserted[0].targetShift,
+      swapId: inserted[0].id,
+    });
 
     return NextResponse.json(
       toResponse({

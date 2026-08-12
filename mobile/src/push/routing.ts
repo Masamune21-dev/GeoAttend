@@ -6,8 +6,8 @@ import type { RootStackParamList } from '../navigation';
 
 /**
  * Tampilkan notifikasi walau app sedang dibuka. Tanpa ini Android menelannya
- * diam-diam saat aplikasi di foreground, dan administrator yang kebetulan
- * sedang membuka app justru melewatkan pengajuan yang baru masuk.
+ * diam-diam saat aplikasi di foreground, dan penerima yang kebetulan sedang
+ * membuka app justru melewatkan hal yang menunggu dia.
  */
 Notifications.setNotificationHandler({
   handleNotification: async () => ({
@@ -21,18 +21,12 @@ Notifications.setNotificationHandler({
 type Nav = NativeStackNavigationProp<RootStackParamList>;
 
 /**
- * Terjemahkan `data.kind` yang dikirim server jadi tujuan navigasi.
- * Nilainya dirakit di `src/lib/push/events.ts` pada sisi server.
- */
-function destinationOf(data: unknown): { tab: 'izin' | 'tukar' } | null {
-  const kind = (data as { kind?: string } | null | undefined)?.kind;
-  if (kind === 'leave_request') return { tab: 'izin' };
-  if (kind === 'shift_swap') return { tab: 'tukar' };
-  return null;
-}
-
-/**
  * Buka layar yang tepat saat notifikasi disentuh.
+ *
+ * Tujuannya bergantung role karena kedua kerangka punya rute yang berbeda —
+ * `Persetujuan` hanya ada di kerangka administrator, `Jadwal` hanya ada di
+ * kerangka karyawan. Menavigasi ke rute yang tidak terdaftar tidak melakukan
+ * apa-apa, jadi pemetaannya harus benar sejak awal.
  *
  * `useLastNotificationResponse` menangani dua jalur sekaligus: app yang sudah
  * berjalan, dan app yang baru dinyalakan oleh sentuhan notifikasi itu sendiri.
@@ -43,21 +37,37 @@ function destinationOf(data: unknown): { tab: 'izin' | 'tukar' } | null {
  * ada notifikasi baru, jadi identifier yang sudah ditangani harus diingat —
  * tanpa itu navigasi terpicu ulang setiap kali komponen dirender.
  */
-export function useNotificationRouting(enabled: boolean): void {
+export function useNotificationRouting(role: string | null | undefined): void {
   const navigation = useNavigation<Nav>();
   const response = Notifications.useLastNotificationResponse();
   const handledId = useRef<string | null>(null);
 
   useEffect(() => {
-    if (!enabled || !response) return;
+    // Keluar SEBELUM menandai sudah ditangani: saat app dinyalakan oleh
+    // notifikasi, sesi belum termuat pada render pertama sehingga role masih
+    // kosong. Efek ini akan berjalan lagi begitu sesi siap.
+    if (!role || !response) return;
 
     const id = response.notification.request.identifier;
     if (handledId.current === id) return;
     handledId.current = id;
 
-    const target = destinationOf(response.notification.request.content.data);
-    // Persetujuan adalah TAB di kerangka administrator, bukan layar stack —
-    // jadi tujuannya harus disebut bersarang, tidak cukup nama rutenya saja.
-    if (target) navigation.navigate('AdminTabs', { screen: 'Persetujuan', params: target });
-  }, [enabled, response, navigation]);
+    const kind = (response.notification.request.content.data as { kind?: string } | null)?.kind;
+
+    if (role === 'administrator') {
+      // Persetujuan adalah TAB, bukan layar stack — tujuannya harus disebut
+      // bersarang, tidak cukup nama rutenya saja.
+      if (kind === 'leave_request') {
+        navigation.navigate('AdminTabs', { screen: 'Persetujuan', params: { tab: 'izin' } });
+      } else if (kind === 'shift_swap') {
+        navigation.navigate('AdminTabs', { screen: 'Persetujuan', params: { tab: 'tukar' } });
+      }
+      return;
+    }
+
+    // Karyawan: permintaan tukar dari rekan ditindaklanjuti di layar Jadwal.
+    // Tidak memakai `openSwap` — parameter itu membuka form PENGAJUAN baru,
+    // sedangkan yang perlu dilakukan penerima adalah menyetujui yang masuk.
+    if (kind === 'swap_peer') navigation.navigate('Jadwal');
+  }, [role, response, navigation]);
 }

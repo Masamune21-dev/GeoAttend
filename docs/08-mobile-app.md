@@ -110,7 +110,7 @@ mobile/
 ### 4.1 `app.json` (Expo)
 
 - **Identitas:** `name` GeoAttend, paket Android & bundle iOS
-  `net.kusumavision.geoattend`. Versi saat ini **1.11.0**.
+  `net.kusumavision.geoattend`. Versi saat ini **1.12.0**.
 - **Izin Android:** `CAMERA`, `ACCESS_COARSE/FINE/BACKGROUND_LOCATION`,
   `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`, `RECEIVE_BOOT_COMPLETED`,
   `WAKE_LOCK`, `POST_NOTIFICATIONS`.
@@ -326,8 +326,22 @@ yang memang ikut dibundel ke dalam APK, bukan rahasia.
   (listener) dan app yang baru dinyalakan oleh sentuhan notifikasi
   (`getLastNotificationResponseAsync`). Jalur kedua yang paling sering terlewat,
   padahal justru itu yang biasa dilakukan pengguna.
-- Pemetaan tujuan dari `data.kind` yang dikirim server: `leave_request` → tab
-  Izin, `shift_swap` → tab Tukar Shift, keduanya di layar **Persetujuan**.
+- Pemetaan tujuan dari `data.kind` yang dikirim server **bergantung role**,
+  karena kedua kerangka punya rute yang berbeda dan menavigasi ke rute yang
+  tidak terdaftar tidak melakukan apa-apa:
+
+  | `data.kind` | Penerima | Tujuan |
+  | :--- | :--- | :--- |
+  | `leave_request` | administrator | tab **Persetujuan** → Izin & Cuti |
+  | `shift_swap` | administrator | tab **Persetujuan** → Tukar Shift |
+  | `swap_peer` | karyawan | layar **Jadwal** |
+
+- `swap_peer` sengaja **tidak** memakai parameter `openSwap`: parameter itu
+  membuka form pengajuan baru, sedangkan yang perlu dilakukan penerima adalah
+  menyetujui permintaan yang masuk.
+- Efeknya keluar lebih dulu bila `role` belum termuat: saat app dinyalakan oleh
+  notifikasi, sesi belum siap pada render pertama. Penandaan "sudah ditangani"
+  dilakukan **sesudah** pemeriksaan itu supaya notifikasinya tidak hangus.
 
 ---
 

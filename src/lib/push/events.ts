@@ -1,7 +1,7 @@
 import { inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { user } from '@/lib/db/schema';
-import { dispatchPush, sendPushToAdministrators } from '@/lib/push';
+import { dispatchPush, sendPushToAdministrators, sendPushToUsers } from '@/lib/push';
 import { getLeaveTypeLabel } from '@/lib/leaves';
 
 /**
@@ -63,6 +63,40 @@ export function notifyAdminLeaveSubmitted(input: {
         { exceptUserId: input.requesterId }
       ),
     `notifikasi izin baru (${input.leaveId})`
+  );
+}
+
+/**
+ * Rekan tujuan diminta menyetujui tukar shift / tukar libur.
+ *
+ * Ini pemberitahuan ke SATU orang, bukan ke administrator. Alur tukar berhenti
+ * total menunggu rekan menekan setuju — tanpa notifikasi, satu-satunya cara dia
+ * tahu adalah kebetulan membuka layar Jadwal.
+ */
+export function notifyPeerSwapRequested(input: {
+  requesterName: string;
+  targetId: string;
+  kind: string;
+  date: string;
+  targetDate: string | null;
+  requesterShift: string;
+  targetShift: string;
+  swapId: string;
+}): void {
+  const isLibur = input.kind === 'libur';
+  const tanggal =
+    isLibur && input.targetDate
+      ? `${formatTanggal(input.date)} ↔ ${formatTanggal(input.targetDate)}`
+      : formatTanggal(input.date);
+
+  dispatchPush(
+    () =>
+      sendPushToUsers([input.targetId], {
+        title: isLibur ? 'Permintaan tukar hari libur' : 'Permintaan tukar shift',
+        body: `${input.requesterName} mengajak tukar — ${tanggal}. Menunggu persetujuan Anda.`,
+        data: { kind: 'swap_peer', id: input.swapId },
+      }),
+    `notifikasi permintaan tukar ke rekan (${input.swapId})`
   );
 }
 

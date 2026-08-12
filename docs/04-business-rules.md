@@ -225,11 +225,21 @@ menampilkan berapa kali dipanggil.
 
 ## Notifikasi Push
 
-- Ditujukan ke **administrator** (pengelola sistem), untuk hal yang menunggu keputusannya. Bukan ke role kerja `admin`
-- Dua pemicu saat ini:
-  - **Pengajuan izin/cuti baru** — kecuali penanda `libur` yang langsung `approved` (self-service), karena tidak ada yang perlu diputuskan
-  - **Tukar shift/libur yang naik ke `pending_admin`** — yaitu setelah rekan tujuan menyetujui, **bukan** saat pengajuan dibuat. Selama masih `pending_peer`, rekan bisa menolak duluan dan pengajuan itu tidak pernah sampai ke meja administrator
+Prinsipnya: **yang diberi tahu adalah orang yang harus bertindak**, pada saat
+gilirannya tiba — bukan semua orang pada setiap perubahan.
+
+Ke **rekan kerja** (satu orang):
+
+- **Permintaan tukar shift / tukar libur masuk** (`pending_peer`). Alur tukar berhenti total menunggu rekan menekan setuju; tanpa notifikasi satu-satunya cara dia tahu adalah kebetulan membuka layar Jadwal
+
+Ke **administrator** (pengelola sistem — bukan role kerja `admin`):
+
+- **Pengajuan izin/cuti baru** — kecuali penanda `libur` yang langsung `approved` (self-service), karena tidak ada yang perlu diputuskan
+- **Tukar shift/libur yang naik ke `pending_admin`** — yaitu setelah rekan tujuan menyetujui, **bukan** saat pengajuan dibuat. Selama masih `pending_peer` pengajuan itu belum tentu pernah sampai ke mejanya, karena rekan bisa menolak duluan
 - Administrator yang mengajukan sesuatu untuk dirinya sendiri tidak menerima notifikasi atas aksinya sendiri
+
+**Belum ada** notifikasi hasil keputusan (izin disetujui/ditolak, tukar
+disetujui/ditolak) maupun pengingat absen terjadwal.
 - Notifikasi bersifat **pelengkap, bukan bagian dari transaksi**: kegagalan pengiriman dicatat di log dan diabaikan, pengajuannya tetap tersimpan
 - Isi kalimat dirakit di **server** ([`src/lib/push/events.ts`](../src/lib/push/events.ts)), bukan di aplikasi — app mobile tidak punya OTA, jadi teks yang ditentukan di sisi klien baru berubah setelah karyawan memasang APK baru
 - Notifikasi yang disentuh membuka layar **Persetujuan** di aplikasi, langsung pada tab yang sesuai (`data.kind`)
