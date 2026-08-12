@@ -9,6 +9,7 @@ import {
   forbiddenResponse,
 } from '@/lib/auth/utils';
 import { ReviewSwapSchema } from '@/types/api';
+import { notifyAdminSwapAwaitingReview } from '@/lib/push/events';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,6 +77,20 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         })
         .where(eq(shiftSwapRequests.id, params.id))
         .returning({ id: shiftSwapRequests.id, status: shiftSwapRequests.status });
+
+      // Baru sekarang administrator diberi tahu — bukan saat pengajuan dibuat.
+      // Sebelum rekan setuju, pengajuan belum tentu pernah sampai ke mejanya.
+      if (updated[0].status === 'pending_admin') {
+        notifyAdminSwapAwaitingReview({
+          requesterId: swap.requesterId,
+          targetId: swap.targetId,
+          kind: swap.kind,
+          date: swap.date,
+          targetDate: swap.targetDate,
+          swapId: swap.id,
+        });
+      }
+
       return NextResponse.json({ data: updated[0] });
     }
 

@@ -601,3 +601,13 @@ export interface StockOverviewResponse {
   recentMovements: StockMovementResponse[];
   lowStockItems: StockItemResponse[];
 }
+
+// --- Push Notification ---
+export const RegisterPushTokenSchema = z.object({
+  /** Expo push token, bentuk `ExponentPushToken[...]`. */
+  token: z.string().min(1).max(255),
+  platform: z.enum(['android', 'ios']),
+  /** Versi app pendaftar — untuk melacak HP yang belum di-update. */
+  appVersion: z.string().max(20).optional(),
+});
+export type RegisterPushTokenInput = z.infer<typeof RegisterPushTokenSchema>;

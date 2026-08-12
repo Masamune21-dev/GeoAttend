@@ -433,3 +433,35 @@ export const stockMovements = pgTable(
     createdAtIdx: index('stock_movements_created_at_idx').on(table.createdAt),
   })
 );
+
+/**
+ * Token push notification per PERANGKAT (Expo Push Token).
+ *
+ * Token jadi primary key, bukan pasangan (user, token). Sebabnya: satu HP bisa
+ * berganti pemilik — karyawan logout, rekannya login di HP yang sama. Token
+ * Expo tetap sama karena melekat ke instalasi app, bukan ke akun. Dengan token
+ * sebagai PK, registrasi ulang cukup meng-upsert `user_id` sehingga notifikasi
+ * ikut pindah; kalau PK-nya gabungan, HP itu akan menerima notifikasi milik
+ * dua orang sekaligus.
+ *
+ * Baris dihapus saat logout, dan otomatis saat Expo menjawab
+ * `DeviceNotRegistered` (app di-uninstall / token dicabut).
+ */
+export const pushTokens = pgTable(
+  'push_tokens',
+  {
+    token: text('token').primaryKey(),
+    userId: text('user_id')
+      .references(() => user.id, { onDelete: 'cascade' })
+      .notNull(),
+    platform: varchar('platform', { length: 10 }).notNull(), // 'android' | 'ios'
+    /** Versi app saat token didaftarkan — untuk melacak HP yang belum di-update. */
+    appVersion: varchar('app_version', { length: 20 }),
+    createdAt: timestamp('created_at').defaultNow().notNull(),
+    /** Disegarkan tiap app mendaftarkan ulang token (tiap buka app). */
+    lastSeenAt: timestamp('last_seen_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    userIdx: index('push_tokens_user_idx').on(table.userId),
+  })
+);

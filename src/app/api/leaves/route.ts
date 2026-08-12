@@ -7,6 +7,7 @@ import { getApiSession, isAdmin, unauthorizedResponse } from '@/lib/auth/utils';
 import { CreateLeaveSchema, type LeaveRequestResponse } from '@/types/api';
 import { rangesOverlap } from '@/lib/leaves';
 import { appToday } from '@/lib/time';
+import { notifyAdminLeaveSubmitted } from '@/lib/push/events';
 
 export const dynamic = 'force-dynamic';
 
@@ -180,6 +181,19 @@ export async function POST(req: NextRequest) {
         status: input.type === 'libur' ? 'approved' : 'pending',
       })
       .returning();
+
+    // Penanda 'libur' langsung approved (self-service) — tidak ada yang perlu
+    // diputuskan, jadi administrator tidak perlu diganggu.
+    if (inserted[0].status === 'pending') {
+      notifyAdminLeaveSubmitted({
+        requesterId: session.user.id,
+        requesterName: session.user.name,
+        type: inserted[0].type,
+        startDate: inserted[0].startDate,
+        endDate: inserted[0].endDate,
+        leaveId: inserted[0].id,
+      });
+    }
 
     return NextResponse.json(
       toResponse({
