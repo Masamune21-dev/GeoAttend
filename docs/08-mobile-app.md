@@ -61,7 +61,8 @@ mobile/
     │   ├── ui.tsx              # Primitives: Button, Field, Card, Badge, Sheet, PhotoViewer
     │   ├── AppAlert.tsx        # Dialog bertema + appAlert() (pengganti Alert bawaan)
     │   ├── TabBar.tsx          # Tab bar mengambang + useTabBarSpace()
-    │   └── GeofenceMap.tsx     # Peta OSM via WebView
+    │   ├── GeofenceMap.tsx     # Peta OSM via WebView (satu titik + area)
+    │   └── TeamMap.tsx         # Peta OSM via WebView (banyak marker karyawan)
     ├── lib/
     │   ├── geo.ts             # Haversine, format jarak/tanggal/jam
     │   ├── keyboard.ts        # useKeyboardHeight (angkat isi di atas papan ketik)
@@ -76,6 +77,8 @@ mobile/
     │   ├── ScheduleScreen.tsx  # Jadwal shift, tukar shift, piket
     │   ├── LeavesScreen.tsx    # Izin & libur
     │   ├── ApprovalsScreen.tsx # Persetujuan izin & tukar shift (administrator)
+    │   ├── TeamMapScreen.tsx   # Peta posisi tim live (administrator)
+    │   ├── ManageUsersScreen.tsx # Kelola role & tim teknisi (administrator)
     │   ├── HistoryScreen.tsx   # Riwayat absensi & stok
     │   ├── StockScreen.tsx     # Katalog stok + catat masuk/keluar
     │   └── ProfileScreen.tsx   # Profil, foto, rekap PDF, keluar
@@ -94,7 +97,7 @@ mobile/
 ### 4.1 `app.json` (Expo)
 
 - **Identitas:** `name` GeoAttend, paket Android & bundle iOS
-  `net.kusumavision.geoattend`. Versi saat ini **1.10.0**.
+  `net.kusumavision.geoattend`. Versi saat ini **1.11.0**.
 - **Izin Android:** `CAMERA`, `ACCESS_COARSE/FINE/BACKGROUND_LOCATION`,
   `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`, `RECEIVE_BOOT_COMPLETED`,
   `WAKE_LOCK`, `POST_NOTIFICATIONS`.
@@ -188,7 +191,12 @@ dibatalkan) — hanya diperlukan bila server bukan default.
 | **Profil** ([ProfileScreen](../mobile/src/screens/ProfileScreen.tsx)) | Foto avatar & sampul, **ubah nama**, **ganti kata sandi**, info server/versi, keluar | `POST /api/profile/avatar`, `POST /api/profile/cover`, `POST /api/auth/update-user`, `POST /api/auth/change-password`, `POST /api/auth/sign-out` |
 | **Persetujuan** ([ApprovalsScreen](../mobile/src/screens/ApprovalsScreen.tsx)) — *administrator saja* | Antrean pengajuan yang menunggu keputusan: izin/cuti dan tukar shift. Setujui/tolak dengan catatan (wajib saat menolak) | `GET /api/leaves?status=pending`, `PATCH /api/leaves/:id`, `GET /api/swaps?status=pending_admin`, `PATCH /api/swaps/:id` |
 
-Layar **Persetujuan** dibuka dari kartu di Dashboard yang hanya dirender bila
+| **Peta Tim** ([TeamMapScreen](../mobile/src/screens/TeamMapScreen.tsx)) — *administrator saja* | Posisi karyawan yang sedang hadir di peta + daftar; ambang live 6 menit, polling 15 detik saat layar aktif | `GET /api/locations`, `GET /api/geofence` |
+| **Kelola Karyawan** ([ManageUsersScreen](../mobile/src/screens/ManageUsersScreen.tsx)) — *administrator saja* | Cari/filter akun, ubah role & tim jaga teknisi. Hapus akun & ganti sandi orang lain sengaja tetap di web | `GET /api/users`, `PATCH /api/users/:id` |
+
+Peta Tim & Kelola Karyawan dibuka dari daftar menu di **Profil** (hanya tampil
+bagi administrator) — perkakas yang dicari saat dibutuhkan, bukan informasi
+harian. Layar **Persetujuan** dibuka dari kartu di Dashboard yang hanya dirender bila
 `user.role === 'administrator'` (lengkap dengan jumlah antrean), dan dari
 notifikasi push yang disentuh. Sengaja **bukan** tab keenam: tab bar memakai
 lima slot dengan tombol "Absen" mengambang di tengah, dan jumlah slot ganjil

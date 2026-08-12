@@ -14,6 +14,8 @@ import { ProfileScreen } from './src/screens/ProfileScreen';
 import { ScheduleScreen } from './src/screens/ScheduleScreen';
 import { LeavesScreen } from './src/screens/LeavesScreen';
 import { ApprovalsScreen } from './src/screens/ApprovalsScreen';
+import { TeamMapScreen } from './src/screens/TeamMapScreen';
+import { ManageUsersScreen } from './src/screens/ManageUsersScreen';
 import { useNotificationRouting } from './src/push/routing';
 import { TabBar } from './src/components/TabBar';
 import { AppAlertHost } from './src/components/AppAlert';
@@ -63,6 +65,8 @@ function Root() {
       <Stack.Screen name="Jadwal" component={ScheduleScreen} />
       <Stack.Screen name="Izin" component={LeavesScreen} />
       <Stack.Screen name="Persetujuan" component={ApprovalsScreen} />
+      <Stack.Screen name="PetaTim" component={TeamMapScreen} />
+      <Stack.Screen name="KelolaKaryawan" component={ManageUsersScreen} />
     </Stack.Navigator>
   );
 }

@@ -257,3 +257,25 @@ export interface RecapResponse {
   summary: RecapSummary;
   rows: RecapRow[];
 }
+
+/** Posisi live satu karyawan (administrator saja). */
+export interface LiveLocationResponse {
+  userId: string;
+  userName: string;
+  userAvatar: string | null;
+  role: string;
+  latitude: number;
+  longitude: number;
+  accuracyMeters: number | null;
+  updatedAt: string; // ISO 8601
+}
+
+/** Baris daftar karyawan di panel administrator. */
+export interface UserListItem {
+  id: string;
+  name: string;
+  email: string;
+  role: string;
+  image: string | null;
+  technicianTeam: string | null;
+}

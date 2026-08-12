@@ -8,7 +8,7 @@ import {
   Text,
   View,
 } from 'react-native';
-import { useIsFocused } from '@react-navigation/native';
+import { useIsFocused, useNavigation } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { StatusBar } from 'expo-status-bar';
 import Constants from 'expo-constants';
@@ -25,8 +25,10 @@ import {
   ImagePlus,
   KeyRound,
   LogOut,
+  MapPin,
   Settings,
   UserRound,
+  Users,
   Zap,
 } from 'lucide-react-native';
 import { useSession } from '../auth/session';
@@ -108,6 +110,7 @@ export function ProfileScreen() {
   const insets = useSafeAreaInsets();
   const tabBarSpace = useTabBarSpace();
   const isFocused = useIsFocused();
+  const navigation = useNavigation();
   const { user, signOut, refresh } = useSession();
   const [uploadingAvatar, setUploadingAvatar] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -448,6 +451,26 @@ export function ProfileScreen() {
             subtitle="Ubah nama & kata sandi"
             onPress={openSettings}
           />
+
+          {/* Panel administrator. Ditaruh di Profil, bukan Dashboard: ini
+              perkakas yang dicari saat dibutuhkan, bukan informasi harian.
+              Antrean Persetujuan tetap di Dashboard karena sifatnya mendesak. */}
+          {user?.role === 'administrator' && (
+            <>
+              <MenuRow
+                icon={MapPin}
+                title="Peta Tim"
+                subtitle="Posisi karyawan yang sedang hadir"
+                onPress={() => navigation.navigate('PetaTim')}
+              />
+              <MenuRow
+                icon={Users}
+                title="Kelola Karyawan"
+                subtitle="Ubah role & tim jaga teknisi"
+                onPress={() => navigation.navigate('KelolaKaryawan')}
+              />
+            </>
+          )}
 
           <Card style={{ gap: spacing.md }}>
             <Text style={styles.sectionTitle}>Informasi Aplikasi</Text>

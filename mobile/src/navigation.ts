@@ -22,6 +22,9 @@ export type RootStackParamList = {
   Jadwal: { openSwap?: boolean } | undefined;
   Izin: { openForm?: boolean } | undefined;
   Persetujuan: { tab?: 'izin' | 'tukar' } | undefined;
+  /** Panel administrator — dibuka dari daftar menu di Profil. */
+  PetaTim: undefined;
+  KelolaKaryawan: undefined;
 };
 
 declare global {
