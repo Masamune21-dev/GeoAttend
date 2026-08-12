@@ -9,7 +9,11 @@ import {
   forbiddenResponse,
 } from '@/lib/auth/utils';
 import { ReviewSwapSchema } from '@/types/api';
-import { notifyAdminSwapAwaitingReview } from '@/lib/push/events';
+import {
+  notifyAdminSwapAwaitingReview,
+  notifyPartiesSwapReviewed,
+  notifyRequesterSwapPeerRejected,
+} from '@/lib/push/events';
 
 export const dynamic = 'force-dynamic';
 
@@ -89,6 +93,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           targetDate: swap.targetDate,
           swapId: swap.id,
         });
+      } else {
+        // Penolakan rekan mengakhiri alur — pengajuan tidak pernah sampai ke
+        // administrator, jadi ini satu-satunya kesempatan memberi tahu pengaju.
+        notifyRequesterSwapPeerRejected({
+          requesterId: swap.requesterId,
+          targetName: session.user.name,
+          kind: swap.kind,
+          date: swap.date,
+          targetDate: swap.targetDate,
+          reviewNote: note,
+          swapId: swap.id,
+        });
       }
 
       return NextResponse.json({ data: updated[0] });
@@ -112,6 +128,18 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         })
         .where(eq(shiftSwapRequests.id, params.id))
         .returning({ id: shiftSwapRequests.id, status: shiftSwapRequests.status });
+
+      notifyPartiesSwapReviewed({
+        requesterId: swap.requesterId,
+        targetId: swap.targetId,
+        approved: false,
+        kind: swap.kind,
+        date: swap.date,
+        targetDate: swap.targetDate,
+        reviewNote: note,
+        swapId: swap.id,
+      });
+
       return NextResponse.json({ data: updated[0] });
     }
 
@@ -196,6 +224,19 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
           updatedAt: new Date(),
         })
         .where(eq(shiftSwapRequests.id, params.id));
+    });
+
+    // Dikirim SETELAH transaksi berhasil — kalau penulisan jadwal gagal, tidak
+    // boleh ada yang terlanjur dikabari jadwalnya berubah.
+    notifyPartiesSwapReviewed({
+      requesterId: swap.requesterId,
+      targetId: swap.targetId,
+      approved: true,
+      kind: swap.kind,
+      date: swap.date,
+      targetDate: swap.targetDate,
+      reviewNote: note,
+      swapId: swap.id,
     });
 
     return NextResponse.json({ data: { id: swap.id, status: 'approved' } });

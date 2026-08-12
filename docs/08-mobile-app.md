@@ -110,7 +110,7 @@ mobile/
 ### 4.1 `app.json` (Expo)
 
 - **Identitas:** `name` GeoAttend, paket Android & bundle iOS
-  `net.kusumavision.geoattend`. Versi saat ini **1.12.0**.
+  `net.kusumavision.geoattend`. Versi saat ini **1.13.0**.
 - **Izin Android:** `CAMERA`, `ACCESS_COARSE/FINE/BACKGROUND_LOCATION`,
   `FOREGROUND_SERVICE`, `FOREGROUND_SERVICE_LOCATION`, `RECEIVE_BOOT_COMPLETED`,
   `WAKE_LOCK`, `POST_NOTIFICATIONS`.
@@ -335,10 +335,15 @@ yang memang ikut dibundel ke dalam APK, bukan rahasia.
   | `leave_request` | administrator | tab **Persetujuan** → Izin & Cuti |
   | `shift_swap` | administrator | tab **Persetujuan** → Tukar Shift |
   | `swap_peer` | karyawan | layar **Jadwal** |
+  | `swap_result` | karyawan | layar **Jadwal** |
+  | `leave_result` | karyawan | layar **Izin** |
 
-- `swap_peer` sengaja **tidak** memakai parameter `openSwap`: parameter itu
-  membuka form pengajuan baru, sedangkan yang perlu dilakukan penerima adalah
-  menyetujui permintaan yang masuk.
+- `swap_peer` / `swap_result` sengaja **tidak** memakai parameter `openSwap`:
+  parameter itu membuka form pengajuan baru, sedangkan penerima justru perlu
+  melihat permintaan atau hasil yang sudah ada.
+- `kind` yang tidak dikenal tidak merusak apa pun: notifikasinya tetap masuk dan
+  terbaca, sentuhannya hanya membuka app tanpa berpindah layar. Itu yang membuat
+  penambahan pemicu baru di server aman untuk HP yang belum di-update.
 - Efeknya keluar lebih dulu bila `role` belum termuat: saat app dinyalakan oleh
   notifikasi, sesi belum siap pada render pertama. Penandaan "sudah ditangani"
   dilakukan **sesudah** pemeriksaan itu supaya notifikasinya tidak hangus.

@@ -67,6 +67,107 @@ export function notifyAdminLeaveSubmitted(input: {
 }
 
 /**
+ * Hasil keputusan atas pengajuan izin/cuti, dikirim ke pengaju.
+ *
+ * Catatan penolakan ikut disertakan bila ada — tanpa itu pengaju hanya tahu
+ * "ditolak" dan tetap harus membuka app untuk mencari sebabnya.
+ */
+export function notifyRequesterLeaveReviewed(input: {
+  requesterId: string;
+  type: string;
+  startDate: string;
+  endDate: string;
+  approved: boolean;
+  reviewNote: string | null;
+  leaveId: string;
+}): void {
+  const label = getLeaveTypeLabel(input.type);
+  const rentang = formatRentang(input.startDate, input.endDate);
+
+  dispatchPush(
+    () =>
+      sendPushToUsers([input.requesterId], {
+        title: input.approved ? `${label} disetujui` : `${label} ditolak`,
+        body: input.approved
+          ? `${rentang} — pengajuan Anda disetujui administrator.`
+          : `${rentang} — ${input.reviewNote ?? 'ditolak administrator.'}`,
+        data: { kind: 'leave_result', id: input.leaveId },
+      }),
+    `notifikasi hasil izin (${input.leaveId})`
+  );
+}
+
+/**
+ * Rekan tujuan menolak permintaan tukar — pengaju diberi tahu.
+ *
+ * Ini akhir dari alurnya: pengajuan langsung berstatus `rejected` tanpa pernah
+ * sampai ke administrator, jadi kalau pengaju tidak diberi tahu di sini, tidak
+ * ada lagi kesempatan lain.
+ */
+export function notifyRequesterSwapPeerRejected(input: {
+  requesterId: string;
+  targetName: string;
+  kind: string;
+  date: string;
+  targetDate: string | null;
+  reviewNote: string | null;
+  swapId: string;
+}): void {
+  const isLibur = input.kind === 'libur';
+  const tanggal =
+    isLibur && input.targetDate
+      ? `${formatTanggal(input.date)} ↔ ${formatTanggal(input.targetDate)}`
+      : formatTanggal(input.date);
+
+  dispatchPush(
+    () =>
+      sendPushToUsers([input.requesterId], {
+        title: isLibur ? 'Tukar libur ditolak rekan' : 'Tukar shift ditolak rekan',
+        body: `${input.targetName} menolak — ${tanggal}${input.reviewNote ? `. ${input.reviewNote}` : '.'}`,
+        data: { kind: 'swap_result', id: input.swapId },
+      }),
+    `notifikasi penolakan rekan (${input.swapId})`
+  );
+}
+
+/**
+ * Keputusan administrator atas tukar shift/libur — dikirim ke **kedua** pihak.
+ *
+ * Rekan ikut diberi tahu, bukan hanya pengaju: kalau disetujui, jadwal rekan
+ * ikut berubah. Orang yang jadwalnya berpindah wajib tahu tanpa harus memeriksa
+ * sendiri.
+ */
+export function notifyPartiesSwapReviewed(input: {
+  requesterId: string;
+  targetId: string;
+  approved: boolean;
+  kind: string;
+  date: string;
+  targetDate: string | null;
+  reviewNote: string | null;
+  swapId: string;
+}): void {
+  const isLibur = input.kind === 'libur';
+  const jenis = isLibur ? 'Tukar libur' : 'Tukar shift';
+  const tanggal =
+    isLibur && input.targetDate
+      ? `${formatTanggal(input.date)} ↔ ${formatTanggal(input.targetDate)}`
+      : formatTanggal(input.date);
+
+  dispatchPush(
+    () =>
+      sendPushToUsers([input.requesterId, input.targetId], {
+        title: input.approved ? `${jenis} disetujui` : `${jenis} ditolak`,
+        body: input.approved
+          ? `${tanggal} — jadwal sudah diperbarui.`
+          : `${tanggal} — ${input.reviewNote ?? 'ditolak administrator.'}`,
+        data: { kind: 'swap_result', id: input.swapId },
+      }),
+    `notifikasi hasil tukar (${input.swapId})`
+  );
+}
+
+/**
  * Rekan tujuan diminta menyetujui tukar shift / tukar libur.
  *
  * Ini pemberitahuan ke SATU orang, bukan ke administrator. Alur tukar berhenti

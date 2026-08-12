@@ -9,6 +9,7 @@ import {
   forbiddenResponse,
 } from '@/lib/auth/utils';
 import { ReviewLeaveSchema } from '@/types/api';
+import { notifyRequesterLeaveReviewed } from '@/lib/push/events';
 
 export const dynamic = 'force-dynamic';
 
@@ -56,11 +57,34 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         updatedAt: new Date(),
       })
       .where(eq(leaveRequests.id, params.id))
-      .returning({ id: leaveRequests.id, status: leaveRequests.status });
+      .returning({
+        id: leaveRequests.id,
+        status: leaveRequests.status,
+        userId: leaveRequests.userId,
+        type: leaveRequests.type,
+        startDate: leaveRequests.startDate,
+        endDate: leaveRequests.endDate,
+        reviewNote: leaveRequests.reviewNote,
+      });
 
     if (updated.length === 0) return notFoundResponse();
 
-    return NextResponse.json({ data: updated[0] });
+    const leave = updated[0];
+    // Administrator yang memutuskan pengajuannya sendiri tidak perlu
+    // dikabari hasil keputusannya sendiri.
+    if (leave.userId !== session.user.id) {
+      notifyRequesterLeaveReviewed({
+        requesterId: leave.userId,
+        type: leave.type,
+        startDate: leave.startDate,
+        endDate: leave.endDate,
+        approved: leave.status === 'approved',
+        reviewNote: leave.reviewNote,
+        leaveId: leave.id,
+      });
+    }
+
+    return NextResponse.json({ data: { id: leave.id, status: leave.status } });
   } catch (error) {
     console.error('PATCH /api/leaves/[id] error:', error);
     return NextResponse.json(

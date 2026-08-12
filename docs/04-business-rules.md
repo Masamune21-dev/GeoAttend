@@ -228,9 +228,12 @@ menampilkan berapa kali dipanggil.
 Prinsipnya: **yang diberi tahu adalah orang yang harus bertindak**, pada saat
 gilirannya tiba — bukan semua orang pada setiap perubahan.
 
-Ke **rekan kerja** (satu orang):
+Ke **karyawan** yang bersangkutan:
 
-- **Permintaan tukar shift / tukar libur masuk** (`pending_peer`). Alur tukar berhenti total menunggu rekan menekan setuju; tanpa notifikasi satu-satunya cara dia tahu adalah kebetulan membuka layar Jadwal
+- **Permintaan tukar shift / tukar libur masuk** (`pending_peer`) → ke rekan tujuan. Alur tukar berhenti total menunggu dia menekan setuju; tanpa notifikasi satu-satunya cara dia tahu adalah kebetulan membuka layar Jadwal
+- **Rekan menolak permintaan tukar** → ke pengaju. Penolakan rekan mengakhiri alur (`rejected` tanpa pernah sampai ke administrator), jadi ini satu-satunya kesempatan memberi tahu
+- **Administrator memutuskan tukar** → ke pengaju **dan** rekan. Rekan ikut diberi tahu karena bila disetujui, jadwalnya juga berubah — orang yang jadwalnya berpindah wajib tahu tanpa harus memeriksa sendiri
+- **Administrator memutuskan izin/cuti** → ke pengaju. Catatan penolakan ikut dikirim; tanpa itu pengaju hanya tahu "ditolak" dan tetap harus membuka app untuk mencari sebabnya
 
 Ke **administrator** (pengelola sistem — bukan role kerja `admin`):
 
@@ -238,8 +241,15 @@ Ke **administrator** (pengelola sistem — bukan role kerja `admin`):
 - **Tukar shift/libur yang naik ke `pending_admin`** — yaitu setelah rekan tujuan menyetujui, **bukan** saat pengajuan dibuat. Selama masih `pending_peer` pengajuan itu belum tentu pernah sampai ke mejanya, karena rekan bisa menolak duluan
 - Administrator yang mengajukan sesuatu untuk dirinya sendiri tidak menerima notifikasi atas aksinya sendiri
 
-**Belum ada** notifikasi hasil keputusan (izin disetujui/ditolak, tukar
-disetujui/ditolak) maupun pengingat absen terjadwal.
+Notifikasi hasil tukar yang disetujui dikirim **setelah** transaksi penulisan
+jadwal berhasil — kalau penulisannya gagal, tidak boleh ada yang terlanjur
+dikabari jadwalnya berubah.
+
+Orang yang memutuskan pengajuannya sendiri (administrator mengajukan lalu
+menyetujui sendiri) tidak menerima notifikasi atas aksinya sendiri.
+
+**Belum ada** pengingat absen terjadwal, dan pembatalan pengajuan oleh pengaju
+belum memberi tahu rekan yang sudah terlanjur diminta.
 - Notifikasi bersifat **pelengkap, bukan bagian dari transaksi**: kegagalan pengiriman dicatat di log dan diabaikan, pengajuannya tetap tersimpan
 - Isi kalimat dirakit di **server** ([`src/lib/push/events.ts`](../src/lib/push/events.ts)), bukan di aplikasi — app mobile tidak punya OTA, jadi teks yang ditentukan di sisi klien baru berubah setelah karyawan memasang APK baru
 - Notifikasi yang disentuh membuka layar **Persetujuan** di aplikasi, langsung pada tab yang sesuai (`data.kind`)

@@ -65,9 +65,11 @@ export function useNotificationRouting(role: string | null | undefined): void {
       return;
     }
 
-    // Karyawan: permintaan tukar dari rekan ditindaklanjuti di layar Jadwal.
-    // Tidak memakai `openSwap` — parameter itu membuka form PENGAJUAN baru,
-    // sedangkan yang perlu dilakukan penerima adalah menyetujui yang masuk.
-    if (kind === 'swap_peer') navigation.navigate('Jadwal');
+    // Karyawan. Urusan tukar shift — baik permintaan masuk maupun hasilnya —
+    // semuanya ditindaklanjuti di layar Jadwal. Tidak memakai `openSwap`:
+    // parameter itu membuka form PENGAJUAN baru, sedangkan penerima justru
+    // perlu melihat yang sudah ada.
+    if (kind === 'swap_peer' || kind === 'swap_result') navigation.navigate('Jadwal');
+    else if (kind === 'leave_result') navigation.navigate('Izin');
   }, [role, response, navigation]);
 }
