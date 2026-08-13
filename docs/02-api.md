@@ -313,6 +313,8 @@ Proteksi path traversal aktif di endpoint uploads (path di-resolve dan wajib ber
 | :--- | :--- | :--- | :--- |
 | POST | `/api/push/register` | Login | Body `{token, platform:'android'\|'ios', appVersion?}`. Upsert — aman dipanggil tiap app dibuka |
 | DELETE | `/api/push/register` | Login | Token dari query `?token=` **atau** body. Hanya menghapus token milik pemanggil |
+| GET | `/api/push/devices` | Administrator | Daftar perangkat terdaftar + pemiliknya, urut aktivitas terakhir |
+| POST | `/api/push/broadcast` | Administrator | Body `{title?, message, userIds?}` → `{sent, removed, targeted}` |
 
 `token` wajib berbentuk Expo push token (`ExponentPushToken[...]`); selain itu ditolak `400 VALIDATION_ERROR`.
 
@@ -321,3 +323,9 @@ Konflik di-resolve pada kolom `token`, bukan pasangan `(user, token)`. Satu HP y
 Pengiriman memakai **Expo Push Service** ([`src/lib/push`](../src/lib/push/index.ts)), bukan FCM langsung: service account key tersimpan di EAS dan Expo yang bicara ke FCM atas nama aplikasi, jadi server tidak menyimpan kredensial Google sama sekali. Token yang dijawab `DeviceNotRegistered` dihapus otomatis.
 
 Semua pemanggilan dari route lain bersifat **fire-and-forget** (`dispatchPush`) dan tidak pernah melempar — Expo yang lambat atau mati tidak boleh membatalkan pengajuan yang sedang disimpan.
+
+`/api/push/broadcast` justru **kebalikannya**: hasilnya ditunggu dan dilaporkan apa adanya. Di endpoint lain push cuma efek samping, di sini pengiriman itu sendiri adalah hasil yang diminta — administrator harus tahu berapa yang benar-benar terkirim sebelum menutup layar. Tidak ada percobaan ulang otomatis, karena kiriman ulang yang diam-diam muncul dua kali di HP karyawan. Setiap siaran dicatat ke log server berikut nama pengirimnya.
+
+Daftar penerima selalu diambil ulang dari basis data, tidak dipercayakan pada `userIds` yang dikirim layar administrator — perangkat bisa terdaftar atau tercabut di antara saat daftar dimuat dan tombol kirim ditekan. `userIds` kosong/absen berarti semua perangkat.
+
+`/api/push/devices` **tidak pernah** mengirim token utuh, hanya enam karakter terakhirnya. Token Expo adalah kapabilitas: siapa pun yang memegangnya bisa mengirim notifikasi ke HP itu tanpa melewati aplikasi ini. Enam karakter cukup untuk membedakan dua perangkat milik satu orang, dan itu satu-satunya kegunaannya di layar.

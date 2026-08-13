@@ -15,7 +15,12 @@ import { pushTokens, user } from '@/lib/db/schema';
  */
 
 export type PushPayload = {
-  title: string;
+  /**
+   * Opsional. Tanpa judul, Android memakai nama aplikasi sebagai kepala
+   * notifikasi — lebih rapi untuk pengumuman satu kalimat daripada judul
+   * karangan yang mengulang isinya.
+   */
+  title?: string;
   body: string;
   /** Dibaca app untuk membuka layar yang tepat saat notifikasi disentuh. */
   data?: Record<string, string>;

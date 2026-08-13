@@ -611,3 +611,39 @@ export const RegisterPushTokenSchema = z.object({
   appVersion: z.string().max(20).optional(),
 });
 export type RegisterPushTokenInput = z.infer<typeof RegisterPushTokenSchema>;
+
+/** Satu PERANGKAT terdaftar, untuk daftar di panel administrator. */
+export interface PushDeviceResponse {
+  /** Enam karakter terakhir token — cukup untuk membedakan dua HP milik satu orang. */
+  tokenSuffix: string;
+  userId: string;
+  userName: string;
+  userRole: string;
+  platform: string;
+  appVersion: string | null;
+  createdAt: string; // ISO 8601
+  lastSeenAt: string; // ISO 8601
+}
+
+/**
+ * Pesan siaran dari panel administrator.
+ *
+ * `title` opsional: bila kosong Android menampilkan nama aplikasi sebagai
+ * kepala notifikasi, yang justru lebih rapi untuk pengumuman satu kalimat.
+ * `userIds` kosong/absen berarti SEMUA perangkat terdaftar.
+ */
+export const BroadcastPushSchema = z.object({
+  title: z.string().trim().max(100).optional(),
+  message: z.string().trim().min(1, 'Pesan wajib diisi').max(500),
+  userIds: z.array(z.string()).optional(),
+});
+export type BroadcastPushInput = z.infer<typeof BroadcastPushSchema>;
+
+export interface BroadcastPushResponse {
+  /** Notifikasi yang diterima Expo untuk dikirim. */
+  sent: number;
+  /** Token mati yang ikut dibersihkan pada percobaan ini. */
+  removed: number;
+  /** Perangkat yang disasar sebelum pengiriman. */
+  targeted: number;
+}

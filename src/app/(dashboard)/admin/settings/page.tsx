@@ -1,17 +1,19 @@
 'use client';
 
 import { useState } from 'react';
-import { Clock, DatabaseBackup, MapPin, Settings2 } from 'lucide-react';
+import { BellRing, Clock, DatabaseBackup, MapPin, Settings2 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { GeneralSettings } from '@/components/features/admin/GeneralSettings';
 import { GeofenceSettings } from '@/components/features/admin/GeofenceSettings';
 import { ShiftSettingsForm } from '@/components/features/admin/ShiftSettingsForm';
+import { NotificationSettings } from '@/components/features/admin/NotificationSettings';
 import { DataSettings } from '@/components/features/admin/DataSettings';
 
 const TABS = [
   { id: 'general', label: 'General', icon: Settings2 },
   { id: 'area', label: 'Area Absensi', icon: MapPin },
   { id: 'sop', label: 'SOP Absensi', icon: Clock },
+  { id: 'notifikasi', label: 'Notifikasi', icon: BellRing },
   { id: 'data', label: 'Backup & Data', icon: DatabaseBackup },
 ] as const;
 
@@ -55,6 +57,7 @@ export default function AdminSettingsPage() {
       {activeTab === 'general' && <GeneralSettings />}
       {activeTab === 'area' && <GeofenceSettings />}
       {activeTab === 'sop' && <ShiftSettingsForm />}
+      {activeTab === 'notifikasi' && <NotificationSettings />}
       {activeTab === 'data' && <DataSettings />}
     </div>
   );
