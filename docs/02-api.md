@@ -257,7 +257,7 @@ Menerima **dua bentuk body**:
 
 Kompatibilitas mundur dipertahankan permanen: app mobile tidak punya OTA, jadi HP yang belum di-update tetap harus diterima.
 
-Ditolak **409 `NOT_CLOCKED_IN`** bila record absensi terakhir dalam jendela bergulir 18 jam bukan clock-in (bukan "sejak tengah malam" — shift lintas tengah malam harus tetap terlacak).
+Ditolak **409 `NOT_CLOCKED_IN`** bila record absensi terakhir dalam jendela bergulir 22 jam bukan clock-in (bukan "sejak tengah malam" — shift lintas tengah malam harus tetap terlacak).
 
 Efek: posisi live di-upsert (satu baris per user) **dan** titik yang lolos saringan anti-jitter disimpan ke `location_trails`. Respons `{success, received, stored}`.
 
@@ -282,7 +282,7 @@ Query: `?userId=<id|self>&date=yyyy-MM-dd[&clockInAt=<ISO>]`.
 
 `clockInAt` memilih sesi yang tepat bila ada dua shift pada tanggal yang sama, sekaligus membuat pemilihan sesi tidak bergantung pada zona waktu server.
 
-Rentang jejak mengikuti **sesi kerja** (clock-in → clock-out), bukan 00:00–23:59. Bila belum absen pulang, dibatasi sampai sekarang atau 18 jam sejak masuk.
+Rentang jejak mengikuti **sesi kerja** (clock-in → clock-out), bukan 00:00–23:59. Bila belum absen pulang, dibatasi sampai sekarang atau 22 jam sejak masuk.
 
 ```json
 { "data": { "userId", "userName", "date", "shiftNumber",

@@ -75,7 +75,7 @@ export async function GET(req: NextRequest) {
     }
 
     // Sesi bisa melintasi tengah malam di kedua arah, jadi ambil absensi
-    // ±18 jam di sekitar tanggal — bukan sekadar 00:00–23:59. Kelonggaran ini
+    // ±22 jam di sekitar tanggal — bukan sekadar 00:00–23:59. Kelonggaran ini
     // sekaligus menyerap selisih zona waktu antara peramban dan server.
     const windowMs = OPEN_SESSION_WINDOW_HOURS * 60 * 60 * 1000;
     const dayStart = new Date(`${date}T00:00:00`);

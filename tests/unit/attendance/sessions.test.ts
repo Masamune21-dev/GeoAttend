@@ -35,7 +35,21 @@ describe('buildWorkSessions', () => {
     expect(sessions[0].clockOut?.timestamp).toEqual(new Date('2026-07-30T02:30:00'));
   });
 
-  it('clock_out di luar jendela 18 jam tidak menutup sesi basi', () => {
+  it('masuk pagi lalu lembur sampai dini hari tetap satu sesi', () => {
+    // Regresi: masuk 06:30 → pulang 01:00 = 18,5 jam. Dengan jendela lama
+    // (18 jam) sesi sudah dianggap basi, absen pulangnya tercatat sebagai sesi
+    // masuk baru, dan hari kerjanya tertinggal tanpa jam pulang.
+    const sessions = buildWorkSessions([
+      record('clock_in', '2026-08-12T06:30:00'),
+      record('clock_out', '2026-08-13T01:00:00'),
+    ]);
+
+    expect(sessions).toHaveLength(1);
+    expect(sessions[0].date).toBe('2026-08-12');
+    expect(sessions[0].clockOut?.timestamp).toEqual(new Date('2026-08-13T01:00:00'));
+  });
+
+  it('clock_out di luar jendela sesi tidak menutup sesi basi', () => {
     const sessions = buildWorkSessions([
       record('clock_in', '2026-07-29T07:00:00'),
       record('clock_out', '2026-07-30T09:00:00'), // 26 jam kemudian

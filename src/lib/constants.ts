@@ -42,9 +42,16 @@ export const LIVE_FRESHNESS_MS = LIVE_HEARTBEAT_INTERVAL_MS + 60_000;
  * Jendela "sesi kerja terbuka" (jam). Sebuah sesi (clock-in → clock-out) bisa
  * menembus tengah malam (mis. Shift 2 masuk 15:00, pulang 02:00 keesokan hari),
  * jadi status "sedang bekerja" & validasi urutan absen memakai jendela bergulir
- * ini — bukan "sejak tengah malam". Shift 8 jam + lembur realistis < 18 jam.
+ * ini — bukan "sejak tengah malam".
+ *
+ * Patokannya hari kerja TERPANJANG yang masih wajar: masuk pagi 06:30 lalu
+ * lembur sampai dini hari. Nilai lama 18 jam memotong tepat di 00:30 — absen
+ * pulang jam 01:00 tercatat sebagai absen MASUK baru karena sesinya sudah
+ * dianggap basi, dan sesi aslinya tertinggal tanpa jam pulang. Tetap DI BAWAH
+ * 24 jam supaya absen pulang keesokan paginya (lupa absen pulang kemarin) tidak
+ * ikut menempel ke sesi kemarin.
  */
-export const OPEN_SESSION_WINDOW_HOURS = 18;
+export const OPEN_SESSION_WINDOW_HOURS = 22;
 
 // --- Jejak lokasi (riwayat perjalanan karyawan) ---
 

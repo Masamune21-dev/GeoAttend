@@ -4,9 +4,14 @@ import type { AttendanceKind, AttendanceRecordResponse } from '../api/types';
  * Jendela "sesi kerja terbuka" (jam). Sesi (masuk → pulang) bisa menembus tengah
  * malam (Shift 2 masuk 15:00, pulang 02:00 keesokan hari), jadi status
  * masuk/pulang ditentukan dari record terakhir dalam jendela ini — bukan "sejak
- * tengah malam". Selaras dengan OPEN_SESSION_WINDOW_HOURS di server.
+ * tengah malam".
+ *
+ * WAJIB sama dengan OPEN_SESSION_WINDOW_HOURS di server: kalau app memakai
+ * jendela lebih pendek, absen masuk yang sudah lewat batas tidak ikut terambil,
+ * tombol balik jadi "Presensi Masuk", dan absen pulang tercatat sebagai sesi
+ * masuk baru.
  */
-export const OPEN_SESSION_WINDOW_HOURS = 18;
+export const OPEN_SESSION_WINDOW_HOURS = 22;
 
 /** ISO batas bawah jendela sesi, untuk query `?from=`. */
 export function sessionWindowStart(now: Date = new Date()): string {

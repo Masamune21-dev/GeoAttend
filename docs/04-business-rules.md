@@ -205,7 +205,7 @@ menampilkan berapa kali dipanggil.
 
 ## Pelacakan Posisi Live
 
-- Aktif **hanya** selama status hadir (clock-in tanpa clock-out) — server menolak kiriman di luar itu (`NOT_CLOCKED_IN`). Pengecekannya memakai jendela bergulir **18 jam**, bukan "sejak tengah malam", sehingga shift lintas tengah malam tetap terlacak setelah pukul 00:00
+- Aktif **hanya** selama status hadir (clock-in tanpa clock-out) — server menolak kiriman di luar itu (`NOT_CLOCKED_IN`). Pengecekannya memakai jendela bergulir **22 jam**, bukan "sejak tengah malam", sehingga shift lintas tengah malam tetap terlacak setelah pukul 00:00
 - Web mengirim posisi tiap **20 detik**; app mobile mengirim per batch ~**5 menit** (termasuk saat karyawan diam — heartbeat); peta admin polling tiap **10 detik**
 - Posisi dianggap **LIVE** bila update terakhir < **6 menit** (marker hijau berdenyut)
 - Bila kedaluwarsa, marker **tetap di posisi terakhir yang diketahui** (abu-abu, "terakhir terlihat HH:mm") — **tidak** kembali ke titik absen. Titik absen hanya dipakai bila karyawan belum pernah mengirim posisi sama sekali (app belum terpasang / izin ditolak)
