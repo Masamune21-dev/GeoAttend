@@ -337,6 +337,7 @@ yang memang ikut dibundel ke dalam APK, bukan rahasia.
   | `swap_peer` | karyawan | layar **Jadwal** |
   | `swap_result` | karyawan | layar **Jadwal** |
   | `leave_result` | karyawan | layar **Izin** |
+  | `shift_reminder` | karyawan | tab **Absen** |
 
 - `swap_peer` / `swap_result` sengaja **tidak** memakai parameter `openSwap`:
   parameter itu membuka form pengajuan baru, sedangkan penerima justru perlu

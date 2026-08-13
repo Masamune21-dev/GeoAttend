@@ -16,7 +16,8 @@
     "db:seed": "tsx scripts/seed.ts",
     "db:seed-stock": "tsx scripts/seed-stock.ts",
     "db:cleanup-trails": "tsx scripts/cleanup-trails.ts",
-    "db:seed-trail": "tsx scripts/seed-trail.ts"
+    "db:seed-trail": "tsx scripts/seed-trail.ts",
+    "push:shift-reminders": "tsx scripts/send-shift-reminders.ts"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.59.0",

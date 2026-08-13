@@ -46,6 +46,19 @@ export function appTimeOf(date: Date): string {
   return toAppWallClock(date).toISOString().slice(11, 16);
 }
 
+/**
+ * Rentang UTC yang mencakup satu tanggal WIB penuh — `[start, end)`.
+ *
+ * Dipakai untuk menyaring kolom `timestamp` (berisi jam UTC) menurut HARI
+ * kerja WIB. Membandingkannya dengan tengah malam host akan meleset 7 jam:
+ * pada server UTC, absen pukul 06:00 WIB tercatat 23:00 UTC dan malah masuk
+ * hitungan hari sebelumnya.
+ */
+export function appDayRangeUtc(appDate: string): { start: Date; end: Date } {
+  const start = new Date(Date.parse(`${appDate}T00:00:00Z`) - APP_UTC_OFFSET_MINUTES * 60_000);
+  return { start, end: new Date(start.getTime() + 86_400_000) };
+}
+
 /** "yyyy-MM" bulan berjalan menurut WIB, bebas dari TZ host. */
 export function appMonth(now: Date = new Date()): string {
   return toAppWallClock(now).toISOString().slice(0, 7);

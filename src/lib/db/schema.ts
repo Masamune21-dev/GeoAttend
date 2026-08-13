@@ -9,6 +9,7 @@ import {
   jsonb,
   index,
   integer,
+  primaryKey,
   uniqueIndex,
 } from 'drizzle-orm/pg-core';
 
@@ -463,5 +464,35 @@ export const pushTokens = pgTable(
   },
   (table) => ({
     userIdx: index('push_tokens_user_idx').on(table.userId),
+  })
+);
+
+/**
+ * Catatan pengingat shift yang SUDAH dikirim — satu baris per (karyawan,
+ * tanggal, shift).
+ *
+ * Pengirimnya adalah timer yang berjalan tiap beberapa menit, jadi jendela
+ * "15 menit sebelum mulai" tersentuh beberapa kali berturut-turut. Tanpa
+ * catatan ini karyawan menerima notifikasi yang sama tiga-empat kali. Kunci
+ * gabungan yang jadi primary key membuat pengiriman ganda mustahil bahkan bila
+ * dua proses timer kebetulan tumpang-tindih: yang kedua kalah di `INSERT`.
+ *
+ * Tanggalnya tanggal WIB ("yyyy-MM-dd"), sama seperti jadwal & izin — bukan
+ * turunan `sent_at` yang berjam UTC.
+ */
+export const shiftReminders = pgTable(
+  'shift_reminders',
+  {
+    userId: text('user_id')
+      .references(() => user.id, { onDelete: 'cascade' })
+      .notNull(),
+    date: varchar('date', { length: 10 }).notNull(), // "yyyy-MM-dd" WIB
+    shiftNumber: integer('shift_number').notNull(),
+    sentAt: timestamp('sent_at').defaultNow().notNull(),
+  },
+  (table) => ({
+    pk: primaryKey({ columns: [table.userId, table.date, table.shiftNumber] }),
+    // Dipakai pembersih retensi (DELETE ... WHERE date < cutoff)
+    dateIdx: index('shift_reminders_date_idx').on(table.date),
   })
 );

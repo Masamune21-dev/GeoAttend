@@ -234,6 +234,7 @@ Ke **karyawan** yang bersangkutan:
 - **Rekan menolak permintaan tukar** → ke pengaju. Penolakan rekan mengakhiri alur (`rejected` tanpa pernah sampai ke administrator), jadi ini satu-satunya kesempatan memberi tahu
 - **Administrator memutuskan tukar** → ke pengaju **dan** rekan. Rekan ikut diberi tahu karena bila disetujui, jadwalnya juga berubah — orang yang jadwalnya berpindah wajib tahu tanpa harus memeriksa sendiri
 - **Administrator memutuskan izin/cuti** → ke pengaju. Catatan penolakan ikut dikirim; tanpa itu pengaju hanya tahu "ditolak" dan tetap harus membuka app untuk mencari sebabnya
+- **Pengingat shift 15 menit sebelum jam masuk** → ke karyawan yang belum absen. Satu-satunya notifikasi yang dipicu waktu, bukan aksi orang lain (lihat di bawah)
 
 Ke **administrator** (pengelola sistem — bukan role kerja `admin`):
 
@@ -248,8 +249,41 @@ dikabari jadwalnya berubah.
 Orang yang memutuskan pengajuannya sendiri (administrator mengajukan lalu
 menyetujui sendiri) tidak menerima notifikasi atas aksinya sendiri.
 
-**Belum ada** pengingat absen terjadwal, dan pembatalan pengajuan oleh pengaju
-belum memberi tahu rekan yang sudah terlanjur diminta.
+### Pengingat shift
+
+Dikirim **15 menit sebelum jam masuk** ke karyawan yang shiftnya dimulai dan
+belum absen. Pemeriksanya berjalan tiap 5 menit
+([`scripts/send-shift-reminders.ts`](../scripts/send-shift-reminders.ts)), jadi
+15 menit adalah batas paling awal — putaran yang terlewat masih mengirim
+susulan selama shift belum dimulai, karena telat sedikit lebih berguna daripada
+hilang.
+
+Yang **tidak** diingatkan:
+
+- Yang **sudah absen masuk** hari itu — tidak ada lagi yang perlu diingatkan
+- Yang dijadwalkan **libur** di grid jadwal
+- Yang punya izin disetujui hari itu: `sakit`, `izin`, `cuti`, `libur`, dan juga
+  `telat` & `siang` — dua terakhir justru berarti dia sudah diizinkan datang
+  lebih lambat, memberitahunya "15 menit lagi" malah menyalahi izin yang baru
+  disetujui. Izin `remote` **tetap** diingatkan: jam mulainya sama dan absennya
+  tetap wajib
+- **Admin & NOC yang selnya kosong** di grid jadwal. Keduanya beroper dua shift
+  (07:00 & 15:00) sehingga sel kosong tidak menentukan apa-apa — menebak S1
+  berisiko membangunkan orang yang sebetulnya masuk sore. Untuk **teknisi** sel
+  kosong justru berarti masuk, karena grid mereka memang hanya dipakai menandai
+  libur
+- Karyawan yang belum punya perangkat terdaftar (belum pasang/buka app versi
+  ber-notifikasi)
+
+Pengiriman ganda dicegah tabel `shift_reminders` — satu baris per (karyawan,
+tanggal, shift), diklaim **sebelum** dikirim. Urutan itu disengaja: bila
+pengiriman didahulukan lalu proses mati sebelum sempat mencatat, putaran
+berikutnya mengirim ulang dan begitu seterusnya sampai shift mulai. Satu
+pengingat hilang jauh lebih ringan daripada empat notifikasi kembar.
+
+**Belum ada** pengingat jam pulang / lupa absen pulang, pengingat lembur yang
+belum diverifikasi, dan pembatalan pengajuan oleh pengaju belum memberi tahu
+rekan yang sudah terlanjur diminta.
 - Notifikasi bersifat **pelengkap, bukan bagian dari transaksi**: kegagalan pengiriman dicatat di log dan diabaikan, pengajuannya tetap tersimpan
 - Isi kalimat dirakit di **server** ([`src/lib/push/events.ts`](../src/lib/push/events.ts)), bukan di aplikasi — app mobile tidak punya OTA, jadi teks yang ditentukan di sisi klien baru berubah setelah karyawan memasang APK baru
 - Notifikasi yang disentuh membuka layar **Persetujuan** di aplikasi, langsung pada tab yang sesuai (`data.kind`)

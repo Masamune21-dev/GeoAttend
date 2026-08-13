@@ -1,7 +1,12 @@
 import { inArray } from 'drizzle-orm';
 import { db } from '@/lib/db';
 import { user } from '@/lib/db/schema';
-import { dispatchPush, sendPushToAdministrators, sendPushToUsers } from '@/lib/push';
+import {
+  dispatchPush,
+  sendPushToAdministrators,
+  sendPushToUsers,
+  type PushResult,
+} from '@/lib/push';
 import { getLeaveTypeLabel } from '@/lib/leaves';
 
 /**
@@ -239,4 +244,34 @@ export function notifyAdminSwapAwaitingReview(input: {
       data: { kind: 'shift_swap', id: input.swapId },
     });
   }, `notifikasi tukar shift (${input.swapId})`);
+}
+
+/**
+ * Pengingat "shift mulai sebentar lagi", dikirim ke satu karyawan.
+ *
+ * Berbeda dari notifikasi lain di berkas ini: mengembalikan Promise dan TIDAK
+ * memakai [[dispatchPush]]. Pemanggilnya bukan API route yang harus balas
+ * cepat, melainkan proses terjadwal yang keburu mati sebelum pengiriman selesai
+ * kalau hasilnya tidak ditunggu.
+ *
+ * Sisa menit ditulis apa adanya, bukan dipatok "15 menit": pemeriksa berjalan
+ * per beberapa menit sehingga pengiriman nyata bisa jatuh di menit ke-13 atau
+ * ke-11, dan angka yang tidak cocok dengan jam di layar HP bikin karyawan
+ * ragu pada jam shiftnya sendiri.
+ */
+export function notifyShiftStartingSoon(input: {
+  userId: string;
+  shiftNumber: number;
+  startTime: string;
+  minutesUntilStart: number;
+  /** Role-nya cuma punya satu shift kerja — menyebut nomornya cuma bikin bingung. */
+  soleShift: boolean;
+}): Promise<PushResult> {
+  const label = input.soleShift ? 'Shift' : `Shift ${input.shiftNumber}`;
+
+  return sendPushToUsers([input.userId], {
+    title: `${label} mulai ${input.startTime}`,
+    body: `${input.minutesUntilStart} menit lagi. Jangan lupa absen masuk setibanya di lokasi.`,
+    data: { kind: 'shift_reminder', shift: String(input.shiftNumber) },
+  });
 }

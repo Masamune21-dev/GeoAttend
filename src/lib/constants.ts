@@ -88,6 +88,29 @@ export const STOP_MIN_DURATION_MS = 10 * 60_000;
 
 export const MAX_PHOTO_SIZE_MB = Number(process.env.MAX_UPLOAD_SIZE_MB ?? 5);
 
+// --- Pengingat shift (push notification terjadwal) ---
+
+/**
+ * Berapa menit sebelum jam masuk pengingat dikirim. Lihat
+ * scripts/send-shift-reminders.ts.
+ *
+ * Pemeriksanya berjalan tiap {@link SHIFT_REMINDER_TICK_MINUTES} menit dan
+ * mengirim begitu sisa waktu masuk jendela (0, nilai ini]. Jadi angka ini
+ * adalah batas PALING AWAL, bukan janji tepat 15 menit: bila satu putaran
+ * terlewat (server sibuk/restart), putaran berikutnya masih mengirim selama
+ * shift belum dimulai — telat sedikit jauh lebih baik daripada hilang.
+ */
+export const SHIFT_REMINDER_LEAD_MINUTES = 15;
+
+/** Jarak antar putaran pemeriksa pengingat (menit). Selaras dengan systemd timer. */
+export const SHIFT_REMINDER_TICK_MINUTES = 5;
+
+/**
+ * Retensi catatan pengingat terkirim (hari). Isinya cuma penanda anti-kirim-ganda
+ * yang tidak berguna lagi setelah harinya lewat.
+ */
+export const SHIFT_REMINDER_RETENTION_DAYS = 14;
+
 /** Role yang punya SOP jam kerja. Role 'employee' = belum ditetapkan admin. */
 export const WORK_ROLES = ['admin', 'noc', 'teknisi'] as const;
 export type WorkRole = (typeof WORK_ROLES)[number];

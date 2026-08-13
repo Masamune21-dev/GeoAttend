@@ -179,6 +179,27 @@ milik dua orang sekaligus.
 Baris dihapus saat logout, dan otomatis saat Expo menjawab `DeviceNotRegistered`
 (aplikasi di-uninstall / token dicabut).
 
+### shift_reminders
+| Kolom | Tipe | Keterangan |
+| :--- | :--- | :--- |
+| user_id | text FK→users (cascade) | **PK gabungan** |
+| date | varchar(10) | **PK gabungan** — tanggal WIB `yyyy-MM-dd` |
+| shift_number | integer | **PK gabungan** — shift yang diingatkan |
+| sent_at | timestamp | Waktu pengiriman (UTC) |
+
+Index: `shift_reminders_date_idx` (`date`) — dipakai pembersih retensi.
+
+Penanda anti-kirim-ganda untuk pengingat "shift mulai sebentar lagi". Pengirimnya
+timer yang berjalan tiap 5 menit sedangkan jendela pengingat 15 menit, jadi satu
+karyawan tersentuh 3 putaran berturut-turut. Primary key gabungan membuat
+pengiriman kedua mustahil bahkan bila dua proses timer tumpang-tindih: yang
+kedua kalah di `INSERT ... ON CONFLICT DO NOTHING` dan langsung berhenti.
+
+Tanggalnya tanggal **WIB**, bukan turunan `sent_at` yang berjam UTC — sama
+konvensinya dengan `schedule_entries` dan `leave_requests`. Baris lebih tua dari
+`SHIFT_REMINDER_RETENTION_DAYS` (14 hari) dibuang oleh skrip pengirim itu
+sendiri, jadi tidak perlu timer pembersih terpisah.
+
 ## Alur Migrasi
 
 ```bash

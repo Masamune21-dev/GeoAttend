@@ -71,5 +71,9 @@ export function useNotificationRouting(role: string | null | undefined): void {
     // perlu melihat yang sudah ada.
     if (kind === 'swap_peer' || kind === 'swap_result') navigation.navigate('Jadwal');
     else if (kind === 'leave_result') navigation.navigate('Izin');
+    // Pengingat shift hanya menuntut satu hal: absen. Antar langsung ke tab
+    // Absen, bukan Dashboard — orangnya sedang di jalan atau baru sampai, satu
+    // ketukan lebih sedikit berarti lebih kecil peluang dia lupa lagi.
+    else if (kind === 'shift_reminder') navigation.navigate('Tabs', { screen: 'Absen' });
   }, [role, response, navigation]);
 }

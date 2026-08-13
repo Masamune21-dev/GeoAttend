@@ -171,6 +171,49 @@ Set `BETTER_AUTH_URL` ke URL HTTPS final — cookie `__Secure-` menuntut HTTPS d
 
   Docker: `15 3 * * * docker compose -f /opt/geoattend/docker-compose.yml exec -T app npm run db:cleanup-trails`.
   Catatan: `tsx` ada di devDependencies — deployment harus memakai `npm ci` (bukan `--omit=dev`), atau ganti `ExecStart` menjadi `npx tsx scripts/cleanup-trails.ts`.
+- **Pengingat shift** (opsional) — push "shift mulai 15 menit lagi" ke karyawan
+  yang belum absen. Tanpa timer ini fitur pengingat mati total; notifikasi
+  lainnya (izin & tukar shift) tidak terpengaruh:
+
+  ```bash
+  cat > /etc/systemd/system/geoattend-shift-reminders.service <<'EOF'
+  [Unit]
+  Description=GeoAttend - pengingat shift 15 menit sebelum jam masuk
+  After=network.target postgresql.service
+
+  [Service]
+  Type=oneshot
+  User=geoattend
+  WorkingDirectory=/opt/geoattend
+  Environment=NODE_ENV=production
+  ExecStart=/usr/bin/npm run push:shift-reminders
+  EOF
+
+  cat > /etc/systemd/system/geoattend-shift-reminders.timer <<'EOF'
+  [Unit]
+  Description=Periksa pengingat shift tiap 5 menit
+
+  [Timer]
+  OnCalendar=*:0/5
+  # Tanpa Persistent: pengingat yang jendelanya sudah lewat tak berguna
+  # dikirim susulan setelah server menyala kembali.
+  Persistent=false
+
+  [Install]
+  WantedBy=timers.target
+  EOF
+
+  systemctl daemon-reload
+  systemctl enable --now geoattend-shift-reminders.timer
+  journalctl -u geoattend-shift-reminders -n 20   # cek hasil putaran terakhir
+  ```
+
+  **Jangan menyetel `TZ` pada unit ini.** Jam WIB dihitung di dalam kode lewat
+  `@/lib/time`; `OnCalendar` boleh berjalan menurut UTC karena skripnya sendiri
+  yang menentukan shift mana yang mulai sebentar lagi. Menyetel `TZ=Asia/Jakarta`
+  justru merusak pembacaan kolom `timestamp` (lihat peringatan di `schema.ts`).
+
+  Uji tanpa mengirim apa pun: `DRY_RUN=1 npm run push:shift-reminders`.
 - **Update aplikasi**: `git pull && npm ci && npm run db:migrate && npm run build && systemctl restart geoattend` (atau rebuild image Docker). Migrasi bersifat additive sehingga aman dijalankan sebelum restart
 
   Yang bisa dilewati agar cepat: `npm ci` **hanya** bila `package.json`/lock
@@ -197,4 +240,5 @@ Set `BETTER_AUTH_URL` ke URL HTTPS final — cookie `__Secure-` menuntut HTTPS d
 - [ ] Uji dari HP: kamera + GPS + absen + live tracking
 - [ ] Backup otomatis DB + uploads terjadwal
 - [ ] Timer pembersih jejak lokasi aktif (`systemctl list-timers | grep geoattend`)
+- [ ] Timer pengingat shift aktif bila fitur dipakai (`geoattend-shift-reminders.timer`)
 - [ ] Uptime monitor ke `/api/health`
