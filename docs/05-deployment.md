@@ -213,7 +213,11 @@ Set `BETTER_AUTH_URL` ke URL HTTPS final — cookie `__Secure-` menuntut HTTPS d
   yang menentukan shift mana yang mulai sebentar lagi. Menyetel `TZ=Asia/Jakarta`
   justru merusak pembacaan kolom `timestamp` (lihat peringatan di `schema.ts`).
 
-  Uji tanpa mengirim apa pun: `DRY_RUN=1 npm run push:shift-reminders`.
+  Uji tanpa mengirim apa pun: `DRY_RUN=1 npm run push:shift-reminders`. Jendela
+  15 menit itu sempit, jadi untuk memeriksa hasil penyaringan di luar jam
+  tersebut lebarkan lead-nya:
+  `DRY_RUN=1 SHIFT_REMINDER_LEAD_MINUTES=600 npm run push:shift-reminders`
+  akan menampilkan nama siapa saja yang bakal diingatkan sepanjang sisa hari.
 - **Update aplikasi**: `git pull && npm ci && npm run db:migrate && npm run build && systemctl restart geoattend` (atau rebuild image Docker). Migrasi bersifat additive sehingga aman dijalankan sebelum restart
 
   Yang bisa dilewati agar cepat: `npm ci` **hanya** bila `package.json`/lock

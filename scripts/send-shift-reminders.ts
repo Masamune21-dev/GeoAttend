@@ -4,6 +4,8 @@
  *
  * Jalankan: npm run push:shift-reminders
  * Uji tanpa mengirim: DRY_RUN=1 npm run push:shift-reminders
+ * Lihat penerima sepanjang sisa hari (tanpa mengirim):
+ *   DRY_RUN=1 SHIFT_REMINDER_LEAD_MINUTES=600 npm run push:shift-reminders
  *
  * Di produksi dijalankan systemd timer tiap beberapa menit sepanjang hari
  * (lihat docs/05-deployment.md). Idempotent: tabel `shift_reminders` menahan
@@ -45,6 +47,21 @@ async function main() {
   const today = appToday(now);
   const nowMinutes = appMinutesOfDay(now);
 
+  /**
+   * Lead boleh dilebarkan lewat env — gunanya memeriksa hasil penyaringan
+   * dengan data nyata di luar jendela sempit 15 menit, mis.
+   * `DRY_RUN=1 SHIFT_REMINDER_LEAD_MINUTES=600 npm run push:shift-reminders`
+   * untuk melihat siapa saja yang bakal diingatkan sepanjang sisa hari.
+   */
+  const leadMinutes = Number(
+    process.env.SHIFT_REMINDER_LEAD_MINUTES ?? SHIFT_REMINDER_LEAD_MINUTES
+  );
+  if (!Number.isFinite(leadMinutes) || leadMinutes <= 0) {
+    throw new Error(
+      `SHIFT_REMINDER_LEAD_MINUTES tidak valid: ${process.env.SHIFT_REMINDER_LEAD_MINUTES}`
+    );
+  }
+
   // --- 1. Jam kerja SOP per role -------------------------------------------
   const shiftRows = await db
     .select({
@@ -72,7 +89,7 @@ async function main() {
   // Tanpa token, membuat baris klaim di shift_reminders cuma menumpuk sampah
   // untuk notifikasi yang tak pernah bisa dikirim.
   const candidates = await db
-    .selectDistinct({ id: user.id, role: user.role })
+    .selectDistinct({ id: user.id, name: user.name, role: user.role })
     .from(user)
     .innerJoin(pushTokens, eq(pushTokens.userId, user.id))
     .where(inArray(user.role, rolesWithShift));
@@ -149,11 +166,7 @@ async function main() {
     remindedShiftNumbers: remindedOf.get(c.id) ?? [],
   }));
 
-  const due = selectDueReminders({
-    nowMinutes,
-    leadMinutes: SHIFT_REMINDER_LEAD_MINUTES,
-    subjects,
-  });
+  const due = selectDueReminders({ nowMinutes, leadMinutes, subjects });
 
   if (due.length === 0) {
     console.log(`Tidak ada pengingat jatuh tempo (${today} ${jam(nowMinutes)} WIB).`);
@@ -167,11 +180,13 @@ async function main() {
   // ulang — dan begitu seterusnya sampai shift mulai. Satu pengingat yang
   // hilang karena Expo sedang bermasalah jauh lebih ringan daripada empat
   // notifikasi kembar di HP setiap karyawan.
+  const namaOf = new Map(candidates.map((c) => [c.id, c.name]));
+
   let sent = 0;
   for (const reminder of due) {
     if (dryRun) {
       console.log(
-        `[dry-run] ${reminder.userId} — shift ${reminder.shiftNumber} mulai ${reminder.startTime} (${reminder.minutesUntilStart} menit lagi)`
+        `[dry-run] ${namaOf.get(reminder.userId) ?? reminder.userId} — shift ${reminder.shiftNumber} mulai ${reminder.startTime} (${reminder.minutesUntilStart} menit lagi)`
       );
       continue;
     }
